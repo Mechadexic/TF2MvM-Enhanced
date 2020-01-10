@@ -33,6 +33,7 @@ public:
 	virtual bool		Deploy( void );
 	virtual void		ItemPostFrame( void );
 	virtual void		PrimaryAttack( void );
+	virtual void		WeaponIdle(void);
 
 	virtual float		GetMeleeDamage( CBaseEntity *pTarget, int &iCustomDamage );
 
@@ -46,9 +47,11 @@ public:
 	virtual bool		SendWeaponAnim( int iActivity );
 
 	void				BackstabVMThink( void );
+	void				DisguiseOnKill( void );
+	void				BackstabBlocked( void );
 
 private:
-	EHANDLE				m_hBackstabVictim;
+	CHandle<CTFPlayer> m_hBackstabVictim;
 	CNetworkVar( bool, m_bReadyToBackstab );
 
 	CTFKnife( const CTFKnife & ) {}

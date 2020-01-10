@@ -1,6 +1,6 @@
 //====== Copyright Valve Corporation, All rights reserved. =======//
 //
-// Purpose: A modified game_player_equip that works with TF2C
+// Purpose: A modified game_player_equip that works with tf2v
 //
 //=============================================================================//
 
@@ -29,7 +29,7 @@ public:
 private:
 
 	void		EquipPlayer(CBaseEntity *pPlayer);
-	int			m_iWeaponNumber[TF_PLAYER_WEAPON_COUNT];
+	int			m_iWeaponNumber[TF_LOADOUT_SLOT_BUFFER];
 	bool		m_bStripWeapons;
 
 };
@@ -48,6 +48,12 @@ BEGIN_DATADESC(CTFPlayerEquip)
 	DEFINE_KEYFIELD(m_iWeaponNumber[2], FIELD_INTEGER, "weapon3"),
 	DEFINE_KEYFIELD(m_iWeaponNumber[3], FIELD_INTEGER, "weapon4"),
 	DEFINE_KEYFIELD(m_iWeaponNumber[4], FIELD_INTEGER, "weapon5"),
+	DEFINE_KEYFIELD(m_iWeaponNumber[5], FIELD_INTEGER, "weapon6"),
+	DEFINE_KEYFIELD(m_iWeaponNumber[6], FIELD_INTEGER, "weapon7"),
+	DEFINE_KEYFIELD(m_iWeaponNumber[7], FIELD_INTEGER, "weapon8"),
+	DEFINE_KEYFIELD(m_iWeaponNumber[8], FIELD_INTEGER, "weapon9"),
+	DEFINE_KEYFIELD(m_iWeaponNumber[9], FIELD_INTEGER, "weapon10"),
+	DEFINE_KEYFIELD(m_iWeaponNumber[10], FIELD_INTEGER, "weapon11"),
 
 	DEFINE_INPUTFUNC(FIELD_VOID, "EquipWeapons", InputEquipWeapons),
 
@@ -68,7 +74,7 @@ void CTFPlayerEquip::EquipPlayer(CBaseEntity *pEntity)
 	if (!pTFPlayer)
 		return;
 
-	for (int i = 0; i < TF_PLAYER_WEAPON_COUNT; i++)
+	for (int i = 0; i < TF_LOADOUT_SLOT_BUFFER; i++)
 	{
 		if (m_bStripWeapons)
 		{

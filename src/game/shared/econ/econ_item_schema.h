@@ -15,6 +15,13 @@ enum
 	ATTRIB_FORMAT_ADDITIVE,
 	ATTRIB_FORMAT_ADDITIVE_PERCENTAGE,
 	ATTRIB_FORMAT_OR,
+	ATTRIB_FORMAT_DATE,
+	ATTRIB_FORMAT_ACCOUNT_ID,
+	ATTRIB_FORMAT_PARTICLE_INDEX,
+	ATTRIB_FORMAT_KILLSTREAKEFFECT_INDEX,
+	ATTRIB_FORMAT_KILLSTREAK_IDLEEFFECT_INDEX,
+	ATTRIB_FORMAT_ITEM_DEF,
+	ATTRIB_FORMAT_FROM_LOOKUP_TABLE
 };
 	
 enum
@@ -50,25 +57,25 @@ enum
 extern const char *g_szQualityColorStrings[];
 extern const char *g_szQualityLocalizationStrings[];
 
-#define CALL_ATTRIB_HOOK_INT(value, name)			\
-		value = CAttributeManager::AttribHookValue<int>(value, #name, this)
+#define CALL_ATTRIB_HOOK_INT(value, name, ...) \
+		value = CAttributeManager::AttribHookValue<int>(value, #name, this, __VA_ARGS__)
 
-#define CALL_ATTRIB_HOOK_FLOAT(value, name)			\
-		value = CAttributeManager::AttribHookValue<float>(value, #name, this)
+#define CALL_ATTRIB_HOOK_FLOAT(value, name, ...) \
+		value = CAttributeManager::AttribHookValue<float>(value, #name, this, __VA_ARGS__)
 
-#define CALL_ATTRIB_HOOK_STRING(value, name)			\
-		value = CAttributeManager::AttribHookValue<string_t>(value, #name, this)
+#define CALL_ATTRIB_HOOK_STRING(value, name, ...) \
+		value = CAttributeManager::AttribHookValue<string_t>(value, #name, this, __VA_ARGS__)
 
-#define CALL_ATTRIB_HOOK_INT_ON_OTHER(ent, value, name)			\
-		value = CAttributeManager::AttribHookValue<int>(value, #name, ent)
+#define CALL_ATTRIB_HOOK_INT_ON_OTHER(ent, value, name, ...) \
+		value = CAttributeManager::AttribHookValue<int>(value, #name, ent, __VA_ARGS__)
 
-#define CALL_ATTRIB_HOOK_FLOAT_ON_OTHER(ent, value, name)			\
-		value = CAttributeManager::AttribHookValue<float>(value, #name, ent)
+#define CALL_ATTRIB_HOOK_FLOAT_ON_OTHER(ent, value, name, ...) \
+		value = CAttributeManager::AttribHookValue<float>(value, #name, ent, __VA_ARGS__)
 
-#define CALL_ATTRIB_HOOK_STRING_ON_OTHER(ent, value, name)			\
-		value = CAttributeManager::AttribHookValue<string_t>(value, #name, ent)
+#define CALL_ATTRIB_HOOK_STRING_ON_OTHER(ent, value, name, ...) \
+		value = CAttributeManager::AttribHookValue<string_t>(value, #name, ent, __VA_ARGS__)
 
-#define CLEAR_STR(name)		\
+#define CLEAR_STR(name) \
 		name[0] = '\0'
 
 struct EconQuality
@@ -95,6 +102,7 @@ struct EconAttributeDefinition
 {
 	EconAttributeDefinition()
 	{
+		index = 0xFFFF;
 		CLEAR_STR(name);
 		CLEAR_STR(attribute_class);
 		CLEAR_STR(description_string);
@@ -103,8 +111,10 @@ struct EconAttributeDefinition
 		hidden = false;
 		effect_type = -1;
 		stored_as_integer = false;
+		m_iAttributeClass = NULL_STRING;
 	}
 
+	unsigned short index;
 	char name[128];
 	char attribute_class[128];
 	char description_string[128];
@@ -113,15 +123,31 @@ struct EconAttributeDefinition
 	int effect_type;
 	bool hidden;
 	bool stored_as_integer;
+	string_t m_iAttributeClass;
 };
 
-// Live TF2 uses flags instead of view_model and world_model
-struct attachedmodel_t
+// Attached Models
+#define AM_WORLDMODEL	(1 << 0)
+#define AM_VIEWMODEL	(1 << 1)
+struct AttachedModel_t
 {
-	char attachment[128]; // not sure what this does
 	char model[128];
-	int  view_model;
-	int  world_model;
+	int  model_display_flags;
+};
+
+typedef union
+{
+	int iVal;
+	float flVal;
+	string_t sVal;
+} attrib_data_union_t;
+
+class IEconAttributeIterator
+{
+public:
+	virtual bool OnIterateAttributeValue( EconAttributeDefinition const *, unsigned int ) = 0;
+	virtual bool OnIterateAttributeValue( EconAttributeDefinition const *, float ) = 0;
+	virtual bool OnIterateAttributeValue( EconAttributeDefinition const *, string_t const & ) = 0;
 };
 
 // Client specific.
@@ -162,13 +188,11 @@ public:
 
 public:
 	CNetworkVar( int, m_iAttributeDefinitionIndex );
-	CNetworkVar( float, value ); // m_iRawValue32
-	CNetworkString( value_string, 128 );
-	CNetworkString( attribute_class, 128 );
-	string_t m_strAttributeClass;
+	CNetworkVar( unsigned int, m_iRawValue32 );
+	string_t m_iAttributeClass;
 };
 
-struct EconItemStyle
+typedef struct EconItemStyle
 {
 	EconItemStyle()
 	{
@@ -187,23 +211,28 @@ struct EconItemStyle
 	char model_player[128];
 	char image_inventory[128];
 	CUtlDict< const char*, unsigned short > model_player_per_class;
-};
+} ItemStyle_t;
 
-class EconItemVisuals
+typedef struct EconPerTeamVisuals
 {
-public:
-	EconItemVisuals();
+	EconPerTeamVisuals()
+	{
+		animation_replacement.SetLessFunc( [ ] ( const int &lhs, const int &rhs ) -> bool { return lhs < rhs; } );
+		V_memset( aWeaponSounds, 0, sizeof( aWeaponSounds ) );
+		CLEAR_STR( custom_particlesystem );
+		skin = -1;
+	}
 
-public:
 	CUtlDict< bool, unsigned short > player_bodygroups;
 	CUtlMap< int, int > animation_replacement;
 	CUtlDict< const char*, unsigned short > playback_activity;
 	CUtlDict< const char*, unsigned short > misc_info;
-	CUtlVector< attachedmodel_t > attached_models;
+	CUtlVector< AttachedModel_t > attached_models;
 	char aWeaponSounds[NUM_SHOOT_SOUND_TYPES][MAX_WEAPON_STRING];
 	char custom_particlesystem[128];
-	//CUtlDict< EconItemStyle*, unsigned short > styles;
-};
+	//CUtlDict< ItemStyle_t*, unsigned short > styles;
+	int skin;
+} PerTeamVisuals_t;
 
 class CEconItemDefinition
 {
@@ -216,14 +245,14 @@ public:
 		for ( int i = 0; i < TF_CLASS_COUNT_ALL; i++ )
 			item_slot_per_class[i] = -1;
 
-		show_in_armory = false;
+		show_in_armory = true;
 		CLEAR_STR(item_class);
 		CLEAR_STR(item_type_name);
 		CLEAR_STR(item_name);
 		CLEAR_STR(item_description);
 		item_slot = -1;
 		anim_slot = -1;
-		item_quality = QUALITY_NORMAL;
+		item_quality = QUALITY_VINTAGE;
 		baseitem = false;
 		propername = false;
 		CLEAR_STR(item_logname);
@@ -231,22 +260,31 @@ public:
 		min_ilevel = 0;
 		max_ilevel = 0;
 		CLEAR_STR(image_inventory);
-		image_inventory_size_w = 0;
-		image_inventory_size_h = 0;
+		image_inventory_size_w = 128;
+		image_inventory_size_h = 82;
 		CLEAR_STR(model_player);
 		CLEAR_STR(model_world);
+		CLEAR_STR(equip_region);
 		memset( model_player_per_class, 0, sizeof( model_player_per_class ) );
-		attach_to_hands = 0;
+		attach_to_hands = 1;
+		attach_to_hands_vm_only = 0;
 		CLEAR_STR(extra_wearable);
 		act_as_wearable = false;
 		hide_bodygroups_deployed_only = 0;
+		is_reskin = false;
+		specialitem = false;
+		demoknight = false;
+		itemfalloff = false;
+		year = 2005; // Generic value for hiding the year. (No items came out before 2006)
+		is_custom_content = false;
+		CLEAR_STR(holiday_restriction);
 	}
 
-	EconItemVisuals *GetVisuals( int iTeamNum = TEAM_UNASSIGNED );
+	PerTeamVisuals_t *GetVisuals( int iTeamNum = TEAM_UNASSIGNED );
 	int GetLoadoutSlot( int iClass = TF_CLASS_UNDEFINED );
 	const wchar_t *GenerateLocalizedFullItemName( void );
 	const wchar_t *GenerateLocalizedItemNameNoQuality( void );
-	CEconItemAttribute *IterateAttributes( string_t strClass );
+	void IterateAttributes( IEconAttributeIterator &iter );
 
 public:
 	char name[128];
@@ -273,13 +311,23 @@ public:
 	int	 image_inventory_size_h;
 	char model_player[128];
 	char model_world[128];
+	char equip_region[128];
 	char model_player_per_class[TF_CLASS_COUNT_ALL][128];
 	char extra_wearable[128];
 	int attach_to_hands;
+	int attach_to_hands_vm_only;
 	bool act_as_wearable;
 	int hide_bodygroups_deployed_only;
+	bool is_reskin;
+	bool specialitem;
+	bool demoknight;
+	char holiday_restriction[128];
+	bool itemfalloff;
+	int year;
+	bool is_custom_content;
+	
 	CUtlVector<CEconItemAttribute> attributes;
-	EconItemVisuals visual[TF_TEAM_COUNT];
+	PerTeamVisuals_t visual[TF_TEAM_COUNT];
 };
 
 #endif // ECON_ITEM_SCHEMA_H

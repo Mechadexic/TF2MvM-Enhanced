@@ -46,6 +46,11 @@ ConVar weapon_medigun_construction_rate( "weapon_medigun_construction_rate", "10
 ConVar weapon_medigun_charge_rate( "weapon_medigun_charge_rate", "40", FCVAR_CHEAT | FCVAR_REPLICATED | FCVAR_DEVELOPMENTONLY, "Amount of time healing it takes to fully charge the medigun." );
 ConVar weapon_medigun_chargerelease_rate( "weapon_medigun_chargerelease_rate", "8", FCVAR_CHEAT | FCVAR_REPLICATED | FCVAR_DEVELOPMENTONLY, "Amount of time it takes the a full charge of the medigun to be released." );
 
+
+ConVar tf2v_setup_uber_rate("tf2v_setup_uber_rate", "1", FCVAR_REPLICATED|FCVAR_NOTIFY, "Affects how Uber is built during Setup.", true, 0, true, 2);
+
+extern ConVar tf2v_use_medic_speed_match;
+
 #if defined (CLIENT_DLL)
 ConVar tf_medigun_autoheal( "tf_medigun_autoheal", "0", FCVAR_CLIENTDLL | FCVAR_ARCHIVE | FCVAR_USERINFO, "Setting this to 1 will cause the Medigun's primary attack to be a toggle instead of needing to be held down." );
 #endif
@@ -156,7 +161,17 @@ void CWeaponMedigun::WeaponReset( void )
 
 	m_flNextBuzzTime = 0;
 	m_flReleaseStartedAt = 0;
-	m_flChargeLevel = 0.0f;
+	
+	if ( TFGameRules()->State_Get() == GR_STATE_RND_RUNNING )
+	{
+		int iPreserveUbercharge = 0;
+		CALL_ATTRIB_HOOK_INT_ON_OTHER( GetTFPlayerOwner(), iPreserveUbercharge, preserve_ubercharge );
+		m_flChargeLevel = Min( iPreserveUbercharge / 100.0f, m_flChargeLevel.Get() );
+	}
+	else
+	{
+		m_flChargeLevel = 0.0f;
+	}
 
 	RemoveHealingTarget( true );
 
@@ -376,6 +391,11 @@ bool CWeaponMedigun::AllowedToHealTarget( CBaseEntity *pTarget )
 	if ( !pTFPlayer )
 		return false;
 
+	int nWeaponBlocksHealing = 0;
+	CALL_ATTRIB_HOOK_INT_ON_OTHER( pTFPlayer, nWeaponBlocksHealing, weapon_blocks_healing );
+	if ( nWeaponBlocksHealing == 1 )
+		return false;
+
 	bool bStealthed = pTFPlayer->m_Shared.InCond( TF_COND_STEALTHED );
 	bool bDisguised = pTFPlayer->m_Shared.InCond( TF_COND_DISGUISED );
 
@@ -500,6 +520,8 @@ void CWeaponMedigun::FindNewTargetForSlot()
 			{
 				CTFPlayer *pTarget = ToTFPlayer( tr.m_pEnt );
 				pTarget->SpeakConceptIfAllowed( MP_CONCEPT_HEALTARGET_STARTEDHEALING );
+				if ( ShouldUpdateSpeed(pTarget) )
+					pOwner->SetMaxSpeed(pTarget->MaxSpeed());
 			}
 
 			// Start the heal target thinking.
@@ -534,9 +556,22 @@ void CWeaponMedigun::HealTargetThink( void )
 	if ( flTime > 5.0f || !AllowedToHealTarget(pTarget) )
 	{
 		RemoveHealingTarget( false );
+		if (ShouldUpdateSpeed(ToTFPlayer(pTarget)))
+			pOwner->TeamFortress_SetSpeed();
 	}
 
 	SetNextThink( gpGlobals->curtime + 0.2f, s_pszMedigunHealTargetThink );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose:
+//-----------------------------------------------------------------------------
+bool CWeaponMedigun::IsAttachedToBuilding( void ) const
+{
+	if ( m_hHealingTarget )
+		return m_hHealingTarget->IsBaseObject();
+
+	return false;
 }
 #endif
 
@@ -573,7 +608,15 @@ bool CWeaponMedigun::FindAndHealTargets( void )
 		{
 			if ( pTarget != pNewTarget && pNewTarget->IsPlayer() )
 			{
-				pTFPlayer->m_Shared.Heal( pOwner, GetHealRate() );
+				float flHealRate = GetHealRate();
+				
+				// Heal 3x faster if using the megaheal.
+				int nMegaHealMult = 3;
+				if (pOwner->m_Shared.InCond(TF_COND_MEGAHEAL) && pTFPlayer->m_Shared.InCond(TF_COND_MEGAHEAL))
+					flHealRate *= nMegaHealMult;
+				
+				pTFPlayer->m_Shared.Heal( pOwner, flHealRate );
+				
 			}
 
 			pTFPlayer->m_Shared.RecalculateChargeEffects( false );
@@ -602,15 +645,18 @@ bool CWeaponMedigun::FindAndHealTargets( void )
 
 					CALL_ATTRIB_HOOK_FLOAT( flChargeAmount, mult_medigun_uberchargerate );
 
-					if ( TFGameRules() && TFGameRules()->InSetup() )
+					if ( ( TFGameRules() && TFGameRules()->InSetup() ) && ( tf2v_setup_uber_rate.GetInt() == 2 ) )
 					{
 						// Build charge at triple rate during setup
 						flChargeAmount *= 3.0f;
 					}
-					else if ( pNewTarget->GetHealth() >= iBoostMax )
+					else if  ( pNewTarget->GetHealth() >= iBoostMax )
 					{
-						// Reduced charge for healing fully healed guys
-						flChargeAmount *= 0.5f;
+						if ( TFGameRules() && ( !TFGameRules()->InSetup() || ( TFGameRules()->InSetup() && ( tf2v_setup_uber_rate.GetInt() == 0 ) ) ) )
+						{
+							// Reduced charge for healing fully healed guys
+							flChargeAmount *= 0.5f;
+						}
 					}
 
 					int iTotalHealers = pTFPlayer->m_Shared.GetNumHealers();
@@ -875,7 +921,9 @@ void CWeaponMedigun::PrimaryAttack( void )
 	// Start boosting ourself if we're not
 	if ( m_bChargeRelease && !m_bHealingSelf )
 	{
-		pOwner->m_Shared.Heal( pOwner, GetHealRate() * 2 );
+		float flHealRate = GetHealRate() * 2;
+		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pOwner, flHealRate, mult_health_fromhealers );
+		pOwner->m_Shared.Heal( pOwner, flHealRate );
 		m_bHealingSelf = true;
 	}
 	*/
@@ -993,6 +1041,27 @@ void CWeaponMedigun::WeaponIdle( void )
 
 		return BaseClass::WeaponIdle();
 	}
+}
+
+bool CWeaponMedigun::ShouldUpdateSpeed(CTFPlayer *pTarget)
+{
+	CTFPlayer *pOwner = ToTFPlayer( GetOwnerEntity() );
+	if ( !pOwner )
+		return false;
+	
+	int nCanFollowCharges = 0;
+	CALL_ATTRIB_HOOK_INT( nCanFollowCharges, set_weapon_mode);
+	// Beta Quick Fix: Always match speed.
+	if ( nCanFollowCharges == 4 ) 
+		return true;
+	// Quick-Fix: Follow shield charges, but only when we are allowed to match speed.
+	else if ( nCanFollowCharges == 2 && tf2v_use_medic_speed_match.GetBool() )
+		return true;
+	// Other mediguns can match speed, but only when allowed to and not on shield charges.
+	else if ( tf2v_use_medic_speed_match.GetBool() && !pTarget->m_Shared.InCond( TF_COND_SHIELD_CHARGE ) )
+		return true;
+	
+	return false;
 }
 
 #if defined( CLIENT_DLL )
@@ -1209,10 +1278,10 @@ void CWeaponMedigun::UpdateEffects( void )
 		CNewParticleEffect *pEffect = pEffectOwner->ParticleProp()->Create( pszEffectName, PATTACH_POINT_FOLLOW, "muzzle" );
 		pEffectOwner->ParticleProp()->AddControlPoint( pEffect, 1, m_hHealingTarget, PATTACH_ABSORIGIN_FOLLOW, NULL, Vector(0,0,50) );
 
-		CEconItemDefinition *pStatic = m_Item.GetStaticData();
+		CEconItemDefinition *pStatic = GetItem()->GetStaticData();
 		if ( pStatic )
 		{
-			EconItemVisuals *pVisuals =	pStatic->GetVisuals( GetTeamNumber() );
+			PerTeamVisuals_t *pVisuals = pStatic->GetVisuals( GetTeamNumber() );
 			if ( pVisuals )
 			{
 				const char *pszCustomEffectName = pVisuals->custom_particlesystem;
@@ -1231,4 +1300,5 @@ void CWeaponMedigun::UpdateEffects( void )
 		m_hHealingTargetEffect.pEffect = pEffect;
 	}
 }
+
 #endif

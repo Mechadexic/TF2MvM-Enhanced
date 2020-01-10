@@ -17,6 +17,9 @@
 
 ConVar tf_scout_stunball_base_duration( "tf_scout_stunball_base_duration", "6.0", FCVAR_NOTIFY | FCVAR_REPLICATED, "Modifies stun duration of stunball" );
 
+extern ConVar tf2v_minicrits_on_deflect;
+
+
 IMPLEMENT_NETWORKCLASS_ALIASED( TFStunBall, DT_TFStunBall )
 
 BEGIN_NETWORK_TABLE( CTFStunBall, DT_TFStunBall )
@@ -252,7 +255,11 @@ bool CTFStunBall::CanStun( CTFPlayer *pOther )
 	// Don't stun players we can't damage
 	if ( pOther->m_Shared.InCond( TF_COND_INVULNERABLE ) || pOther->m_Shared.InCond( TF_COND_PHASE ) )
 		return false;
-
+	
+	// Don't stun players with megaheal.
+	if ( pOther->m_Shared.InCond( TF_COND_MEGAHEAL ) )
+		return false;
+	
 	return true;
 }
 
@@ -359,7 +366,7 @@ int	CTFStunBall::GetDamageType()
 	{
 		iDmgType |= DMG_CRITICAL;
 	}
-	if ( m_iDeflected > 0 )
+	if ( ( m_iDeflected > 0 ) && ( tf2v_minicrits_on_deflect.GetBool() ) )
 	{
 		iDmgType |= DMG_MINICRITICAL;
 	}

@@ -29,11 +29,32 @@ public:
 	DECLARE_PREDICTABLE();
 
 	CTFShovel();
-	virtual int			GetWeaponID( void ) const			{ return TF_WEAPON_SHOVEL; }
+	virtual int			GetWeaponID( void ) const { return TF_WEAPON_SHOVEL; }
+	virtual int			GetCustomDamageType() const;
+	virtual float		GetSpeedMod( void ) const;
+	virtual float		GetMeleeDamage( CBaseEntity *pTarget, int &iCustomDamage );
 
 private:
 
 	CTFShovel( const CTFShovel & ) {}
 };
+
+// Shovel Fist, for use with SAXTON HALE.
+
+#if defined CLIENT_DLL
+#define CTFShovelFist C_TFShovelFist
+#endif
+
+class CTFShovelFist : public CTFShovel
+{
+public:
+
+	DECLARE_CLASS( CTFShovelFist, CTFShovel )
+	DECLARE_NETWORKCLASS();
+	DECLARE_PREDICTABLE();
+
+	virtual int GetWeaponID( void ) const { return TF_WEAPON_SHOVELFIST; }
+};
+
 
 #endif // TF_WEAPON_SHOVEL_H

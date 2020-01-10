@@ -31,22 +31,24 @@ public:
 	~CTFGrenadePipebombProjectile();
 
 	// Unique identifier.
-	virtual int			GetWeaponID( void ) const	{ return ( m_iType == TF_GL_MODE_REMOTE_DETONATE ) ? TF_WEAPON_GRENADE_PIPEBOMB : TF_WEAPON_GRENADE_DEMOMAN; }
+	virtual int			GetWeaponID( void ) const;
 
-	int GetType( void ){ return m_iType; } 
+	int					GetType( void )							{ return m_iType; } 
 	virtual int			GetDamageType();
 
-	void			SetChargeTime( float flChargeTime )				{ m_flChargeTime = flChargeTime; }
+	void				SetChargeTime( float flChargeTime )		{ m_flChargeTime = flChargeTime; }
 
-	CNetworkVar( int, m_iType ); // TF_GL_MODE_REGULAR or TF_GL_MODE_REMOTE_DETONATE
+	CNetworkVar( int, m_iType ); // TF_GL_MODE_REGULAR, TF_GL_MODE_REMOTE_DETONATE, TF_GL_MODE_FIZZLE or TF_GL_MODE_BETA_DETONATE
+	CNetworkVar( bool, m_bDefensiveBomb );
 	float		m_flCreationTime;
 	float		m_flChargeTime;
 	bool		m_bPulsed;
 	float		m_flFullDamage;
-
+	float		m_flDamageMult;
+	
 	virtual void	UpdateOnRemove( void );
 
-
+	virtual float	GetLiveTime( void ) const;
 
 #ifdef CLIENT_DLL
 
@@ -56,13 +58,17 @@ public:
 	virtual int DrawModel( int flags );
 	virtual void	Simulate( void );
 
+	CGlowObject *m_pGlowObject;
+	bool		m_bGlowing;
+
 #else
 
 	DECLARE_DATADESC();
 
 	// Creation.
-	static CTFGrenadePipebombProjectile *Create( const Vector &position, const QAngle &angles, const Vector &velocity, const AngularImpulse &angVelocity, 
-												 CBaseCombatCharacter *pOwner, const CTFWeaponInfo &weaponInfo, int iMode, float flDamageMult, CTFWeaponBase *pWeapon );
+	static CTFGrenadePipebombProjectile *Create( const Vector &position, const QAngle &angles, const Vector &velocity, const AngularImpulse &angVelocity,
+												 CBaseCombatCharacter *pOwner, const CTFWeaponInfo &weaponInfo, int iMode, float flDamageMult, 
+												 CTFWeaponBase *pWeapon );
 
 	// Overrides.
 	virtual void	Spawn();
@@ -72,7 +78,10 @@ public:
 	virtual void	Detonate();
 	virtual void	Fizzle();
 
+	virtual void	DetonateStickies( void );
+
 	void			SetPipebombMode( int iMode );
+	void			SetPipebombBetaVariant( int iVariant );
 
 	virtual void	PipebombTouch( CBaseEntity *pOther );
 	virtual void	VPhysicsCollision( int index, gamevcollisionevent_t *pEvent );
@@ -83,13 +92,10 @@ public:
 	
 	virtual void	Deflected( CBaseEntity *pDeflectedBy, Vector &vecDir );
 
-	void			PrecacheProjectileModel( const char *iszModel );
-
 private:
 
 	
 	bool		m_bFizzle;
-
 	float		m_flMinSleepTime;
 
 	CHandle<CBaseEntity>	m_hEnemy;

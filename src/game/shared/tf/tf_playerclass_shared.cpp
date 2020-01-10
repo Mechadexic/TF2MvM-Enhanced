@@ -20,6 +20,7 @@
 #define TF_CLASS_PYRO_FILE				"scripts/playerclasses/pyro"
 #define TF_CLASS_SPY_FILE				"scripts/playerclasses/spy"
 #define TF_CLASS_ENGINEER_FILE			"scripts/playerclasses/engineer"
+#define TF_CLASS_SAXTON_FILE			"scripts/playerclasses/saxton"
 
 #ifdef CLIENT_DLL
 extern bool UseHWMorphModels();
@@ -37,6 +38,7 @@ const char *s_aPlayerClassFiles[] =
 	TF_CLASS_PYRO_FILE,
 	TF_CLASS_SPY_FILE,
 	TF_CLASS_ENGINEER_FILE,
+	TF_CLASS_SAXTON_FILE
 };
 
 TFPlayerClassData_t s_aTFPlayerClassData[TF_CLASS_COUNT_ALL];
@@ -62,7 +64,7 @@ TFPlayerClassData_t::TFPlayerClassData_t()
 	m_szExplosionDeathSound[0] = '\0';
 #endif
 
-	for ( int iWeapon = 0; iWeapon < TF_PLAYER_WEAPON_COUNT; ++iWeapon )
+	for ( int iWeapon = 0; iWeapon < TF_LOADOUT_SLOT_BUFFER; ++iWeapon )
 	{
 		m_aWeapons[iWeapon] = TF_WEAPON_NONE;
 	}
@@ -154,7 +156,7 @@ void TFPlayerClassData_t::ParseData( KeyValues *pKeyValuesData )
 	// Weapons.
 	int i;
 	char buf[32];
-	for ( i=0;i<TF_PLAYER_WEAPON_COUNT;i++ )
+	for ( i=0;i<TF_LOADOUT_SLOT_BUFFER;i++ )
 	{
 		Q_snprintf( buf, sizeof(buf), "weapon%d", i+1 );		
 		m_aWeapons[i] = GetWeaponId( pKeyValuesData->GetString( buf ) );
@@ -270,7 +272,7 @@ CTFPlayerClassShared::CTFPlayerClassShared()
 //-----------------------------------------------------------------------------
 bool CTFPlayerClassShared::Init( int iClass )
 {
-	Assert ( ( iClass >= TF_FIRST_NORMAL_CLASS ) && ( iClass <= TF_CLASS_COUNT ) );
+	Assert ( ( iClass >= TF_FIRST_NORMAL_CLASS ) && ( iClass < TF_CLASS_COUNT_ALL ) );
 	m_iClass = iClass;
 	return true;
 }

@@ -1,3 +1,4 @@
+#include "..\public\tier1\utlbuffer.h"
 //========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // $Header: $
@@ -347,6 +348,14 @@ void CUtlBuffer::EnsureCapacity( int num )
 	m_Memory.EnsureCapacity( num );
 }
 
+void *CUtlBuffer::AccessForDirectRead( int nBytes )
+{
+	Assert( m_Get == 0 && m_Put == 0 && m_nMaxPut == 0 );
+	EnsureCapacity( nBytes );
+	m_nMaxPut = nBytes;
+	return Base();
+}
+
 
 //-----------------------------------------------------------------------------
 // Base get method from which all others derive
@@ -614,8 +623,6 @@ void CUtlBuffer::GetStringInternal( char *pString, size_t maxLenInChars )
 		*pString = 0;
 		return;
 	}
-
-	Assert( maxLenInChars != 0 );
 
 	if ( maxLenInChars == 0 )
 	{

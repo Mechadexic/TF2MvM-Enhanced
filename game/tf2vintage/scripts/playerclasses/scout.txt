@@ -21,15 +21,18 @@ PlayerClass
 	"grenade2"		"TF_WEAPON_GRENADE_CONCUSSION"
 
 	// Weapons.
-	"weapon1"		"TF_WEAPON_BAT"
+
+	"weapon1"		"TF_WEAPON_SCATTERGUN"
 	"weapon2"		"TF_WEAPON_PISTOL_SCOUT"
-	"weapon3"		"TF_WEAPON_SCATTERGUN"
+	"weapon3"		"TF_WEAPON_BAT"
 	"weapon4"		""
 	"weapon5"		""
 	"weapon6"		""
-	"weapon7"		"TF2V_COSMETIC_HAT"
-	"weapon8"		"TF2V_COSMETIC_MISC"
+	"weapon7"		""
+	"weapon8"		""
 	"weapon9"		""
+	"weapon10"		""
+	"weapon11"		""
 
 	//Thirdperson
 	"cameraoffset_forward"	"85"
@@ -40,7 +43,7 @@ PlayerClass
 	{
 		"tf_ammo_primary"	"32"
 		"tf_ammo_secondary"	"36"
-		"tf_ammo_metal"		"100"
+		"tf_ammo_metal"		"200"
 		"tf_ammo_grenades1"	"1"
 		"tf_ammo_grenades2"	"1"	
 	}	

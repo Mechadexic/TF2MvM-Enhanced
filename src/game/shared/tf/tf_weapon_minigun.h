@@ -52,7 +52,9 @@ public:
 	virtual void	Precache( void );
 	virtual void	Spawn(void);
 	virtual int		GetWeaponID( void ) const			{ return TF_WEAPON_MINIGUN; }
+	MinigunState_t  GetWeaponState( void ) const		{ return m_iWeaponState; }
 	virtual void	PrimaryAttack();
+	virtual void	UseRealMinigunBrassEject( void );
 	virtual void	SecondaryAttack();
 	void			SharedAttack();
 	virtual void	WeaponIdle();
@@ -70,13 +72,13 @@ public:
 #endif
 
 
-	virtual int GetCustomDamageType() const { return TF_DMG_CUSTOM_MINIGUN; }
+	virtual int		GetCustomDamageType() const { return TF_DMG_CUSTOM_MINIGUN; }
 
 	float			GetFiringTime( void ) { return (m_flStartedFiringAt >= 0) ? (gpGlobals->curtime - m_flStartedFiringAt) : 0; }
 
 
 #ifdef CLIENT_DLL
-	float GetBarrelRotation();
+	float			GetBarrelRotation();
 #endif
 
 private:
@@ -118,6 +120,8 @@ private:
 
 	float			m_flNextFiringSpeech;
 	float			m_flStartedFiringAt;
+	float			m_flStartedWindingAt;
+	float			m_flDrainTime;
 	float	m_flBarrelCurrentVelocity;
 	float	m_flBarrelTargetVelocity;
 	int		m_iBarrelBone;
@@ -143,5 +147,24 @@ private:
 	int					m_iMuzzleAttachment;
 #endif
 };
+
+
+// More realistic Minigun type.
+
+#if defined CLIENT_DLL
+#define CTFMinigun_Real C_TFMinigun_Real
+#endif
+
+class CTFMinigun_Real : public CTFMinigun
+{
+public:
+
+	DECLARE_CLASS( CTFMinigun_Real, CTFMinigun )
+	DECLARE_NETWORKCLASS();
+	DECLARE_PREDICTABLE();
+
+	virtual int GetWeaponID( void ) const { return TF_WEAPON_MINIGUN_REAL; }
+};
+
 
 #endif // TF_WEAPON_MINIGUN_H

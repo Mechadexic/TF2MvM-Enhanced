@@ -65,6 +65,7 @@ bool CHealthKit::MyTouch( CBasePlayer *pPlayer )
 		Assert( pTFPlayer );
 
 		int iHealthToAdd = ceil( pPlayer->GetMaxHealth() * PackRatios[GetPowerupSize()] );
+		CALL_ATTRIB_HOOK_INT_ON_OTHER( pTFPlayer, iHealthToAdd, mult_health_frompacks );
 		int iHealthRestored = 0;
 
 		// Don't heal the player who dropped this healthkit, recharge his lunchbox instead
@@ -79,16 +80,17 @@ bool CHealthKit::MyTouch( CBasePlayer *pPlayer )
 			// Restore disguise health.
 			if ( pTFPlayer->m_Shared.InCond( TF_COND_DISGUISED ) )
 			{
-				int iFakeHealthToAdd = ceil( pTFPlayer->m_Shared.GetDisguiseMaxHealth() * PackRatios[ GetPowerupSize() ] );
+				int iFakeHealthToAdd = ceil( pTFPlayer->m_Shared.GetDisguiseClass() * PackRatios[ GetPowerupSize() ] );
+				CTFPlayer *pDisguiseTarget = ToTFPlayer(pTFPlayer->m_Shared.GetDisguiseTarget());
+				CALL_ATTRIB_HOOK_INT_ON_OTHER( pDisguiseTarget, iFakeHealthToAdd, mult_health_frompacks );
 
 				if ( pTFPlayer->m_Shared.AddDisguiseHealth( iFakeHealthToAdd ) )
 					bSuccess = true;
 			}
 
 			// Remove any negative conditions whether player got healed or not.
-			if ( pTFPlayer->m_Shared.InCond( TF_COND_BURNING ) )
+			if ( pTFPlayer->m_Shared.InCond( TF_COND_BURNING ) || pTFPlayer->m_Shared.InCond( TF_COND_BLEEDING ) )
 			{
-				pTFPlayer->m_Shared.RemoveCond( TF_COND_BURNING );
 				bSuccess = true;
 			}
 		}
@@ -106,15 +108,7 @@ bool CHealthKit::MyTouch( CBasePlayer *pPlayer )
 
 			EmitSound( user, entindex(), pszSound );
 
-			IGameEvent *event = gameeventmanager->CreateEvent( "player_healonhit" );
-			
-			if ( event )
-			{
-				event->SetInt( "amount", iHealthRestored );
-				event->SetInt( "entindex", pPlayer->entindex() );
-				
-				gameeventmanager->FireEvent( event );
-			}
+			pTFPlayer->m_Shared.HealthKitPickupEffects( iHealthRestored );
 
 			CTFPlayer *pTFOwner = ToTFPlayer( GetOwnerEntity() );
 			if ( pTFOwner && pTFOwner->InSameTeam( pTFPlayer ) )
@@ -231,6 +225,10 @@ const char *CHealthKitMedium::GetDefaultPowerupModel( void )
 		else if ( TFGameRules()->IsHolidayActive( kHoliday_Halloween ) )
 		{
 			return "models/props_halloween/halloween_medkit_medium.mdl";
+		}
+		else if ( TFGameRules()->IsInMedievalMode() )
+		{
+			return "models/props_medieval/medieval_meat.mdl";
 		}
 	}
 

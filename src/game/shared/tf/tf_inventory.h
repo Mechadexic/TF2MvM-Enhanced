@@ -22,11 +22,18 @@
 #include "filesystem.h"
 #endif
 
-#define INVENTORY_WEAPONS		5
-#define INVENTORY_WEAPONS_COUNT	500
-#define INVENTORY_COLNUM		6
-#define INVENTORY_ROWNUM		3
+#define INVENTORY_WEAPONS		62
+#define INVENTORY_WEAPONS_COUNT	63
+#define INVENTORY_COLNUM		1
+#define INVENTORY_ROWNUM		6
 #define INVENTORY_VECTOR_NUM	INVENTORY_COLNUM * INVENTORY_ROWNUM
+
+//Item Selection Def's
+#define INVENTORY_WEAPONS_SELECTION		62
+#define INVENTORY_WEAPONS_COUNT_SELECTION	63
+#define INVENTORY_COLNUM_SELECTION		63
+#define INVENTORY_ROWNUM_SELECTION		1
+#define INVENTORY_VECTOR_NUM_SELECTION	INVENTORY_COLNUM_SELECTION * INVENTORY_ROWNUM_SELECTION
 
 class CTFInventory : public CAutoGameSystemPerFrame
 {
@@ -52,10 +59,11 @@ public:
 #endif
 
 private:
-	static const int Weapons[TF_CLASS_COUNT_ALL][TF_PLAYER_WEAPON_COUNT];
+	static const int Weapons[TF_CLASS_COUNT_ALL][TF_LOADOUT_SLOT_BUFFER];
 	CUtlVector<CEconItemView *> m_Items[TF_CLASS_COUNT_ALL][TF_LOADOUT_SLOT_COUNT];
 
 #if defined( CLIENT_DLL )
+	virtual bool CheckSpecialItemAccess( void );
 	void LoadInventory();
 	void ResetInventory();
 	void SaveInventory();

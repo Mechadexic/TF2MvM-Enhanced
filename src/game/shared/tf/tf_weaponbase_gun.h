@@ -52,10 +52,10 @@ public:
 	virtual void		GetProjectileFireSetup( CTFPlayer *pPlayer, Vector vecOffset, Vector *vecSrc, QAngle *angForward, bool bHitTeammates = true, bool bUseHitboxes = false );
 	void				GetProjectileReflectSetup( CTFPlayer *pPlayer, const Vector &vecPos, Vector *vecDeflect, bool bHitTeammates = true, bool bUseHitboxes = false );
 
-	void FireBullet( CTFPlayer *pPlayer );
+	virtual void FireBullet( CTFPlayer *pPlayer );
 	CBaseEntity *FireRocket( CTFPlayer *pPlayer );
 	CBaseEntity *FireNail( CTFPlayer *pPlayer, int iSpecificNail );
-	CBaseEntity *FirePipeBomb( CTFPlayer *pPlayer, bool bRemoteDetonate );
+	CBaseEntity *FirePipeBomb( CTFPlayer *pPlayer, int iRemoteDetonate );
 	CBaseEntity *FireFlare( CTFPlayer *pPlayer );
 	CBaseEntity *FireArrow( CTFPlayer *pPlayer, int iType );
 	CBaseEntity *FireJar( CTFPlayer *pPlayer, int iType );
@@ -75,6 +75,10 @@ public:
 	void ZoomOutIn( void );
 
 	virtual void PlayWeaponShootSound( void );
+
+	virtual int GetAmmoPerShot( void ) const;
+
+	virtual void RemoveAmmo( CTFPlayer *pPlayer );
 
 private:
 

@@ -15,10 +15,17 @@
 #include "c_tf_player.h"
 #include "soundenvelope.h"
 #include "bone_setup.h"
+#include "c_te_legacytempents.h"
 
 // Server specific.
 #else
 #include "tf_player.h"
+#endif
+
+#ifdef CLIENT_DLL
+	#include "c_te_effect_dispatch.h"
+#else
+	#include "te_effect_dispatch.h"
 #endif
 
 #define MAX_BARREL_SPIN_VELOCITY	20
@@ -57,8 +64,13 @@ BEGIN_DATADESC( CTFMinigun )
 END_DATADESC()
 #endif
 
+CREATE_SIMPLE_WEAPON_TABLE( TFMinigun_Real, tf_weapon_minigun_real )
+
+
 #ifdef CLIENT_DLL
-extern ConVar tf2c_model_muzzleflash;
+extern ConVar tf2v_model_muzzleflash;
+extern ConVar cl_ejectbrass;
+ConVar tf2v_minigun_ejectbrass( "tf2v_minigun_ejectbrass", "0", FCVAR_CLIENTDLL|FCVAR_ARCHIVE, "Use real shells instead of sprites?");
 #endif
 
 //=============================================================================
@@ -103,6 +115,7 @@ void CTFMinigun::WeaponReset( void )
 	m_iWeaponMode = TF_WEAPON_PRIMARY_MODE;
 	m_bCritShot = false;
 	m_flStartedFiringAt = -1;
+	m_flStartedWindingAt = -1;
 	m_flNextFiringSpeech = 0;
 
 	m_flBarrelAngle = 0;
@@ -177,6 +190,15 @@ void CTFMinigun::SharedAttack()
 	{
 		m_iWeaponMode = TF_WEAPON_SECONDARY_MODE;
 	}
+	
+	// Recalculate our thinking times based on fire delays.
+	float flFireDelay = m_pWeaponInfo->GetWeaponData( TF_WEAPON_PRIMARY_MODE ).m_flTimeFireDelay;
+	CALL_ATTRIB_HOOK_FLOAT( flFireDelay, mult_postfiredelay );
+	
+	// We drain ammo when spinning or firing, but only when we have the trait.
+	int iAmmoDrain = 0;
+	CALL_ATTRIB_HOOK_FLOAT(iAmmoDrain, uses_ammo_while_aiming);
+	int iDrainTimeInterval = 1; // Time to deduct ammo, in seconds.
 
 	switch ( m_iWeaponState )
 	{
@@ -185,10 +207,20 @@ void CTFMinigun::SharedAttack()
 		{
 			// Removed the need for cells to powerup the AC
 			WindUp();
-			m_flNextPrimaryAttack = gpGlobals->curtime + 1.0;
-			m_flNextSecondaryAttack = gpGlobals->curtime + 1.0;
-			m_flTimeWeaponIdle = gpGlobals->curtime + 1.0;
+
+			float flSpinupTime = 0.75f;
+			CALL_ATTRIB_HOOK_FLOAT( flSpinupTime, mult_minigun_spinup_time );
+			flSpinupTime = Max( flSpinupTime, FLT_EPSILON ); // Don't divide by 0
+
+			if (pPlayer->GetViewModel( m_nViewModelIndex ))
+				pPlayer->GetViewModel( m_nViewModelIndex )->SetPlaybackRate( 0.75 / flSpinupTime );
+
+			m_flNextPrimaryAttack = gpGlobals->curtime + flSpinupTime;
+			m_flNextSecondaryAttack = gpGlobals->curtime + flSpinupTime;
+			m_flTimeWeaponIdle = gpGlobals->curtime + flSpinupTime;
 			m_flStartedFiringAt = -1;
+			m_flStartedWindingAt = -1;
+			m_flDrainTime = -1;
 			pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRE );
 			break;
 		}
@@ -212,12 +244,29 @@ void CTFMinigun::SharedAttack()
 #endif
 				}
 
-				m_flNextSecondaryAttack = m_flNextPrimaryAttack = m_flTimeWeaponIdle = gpGlobals->curtime + 0.1;
+				m_flNextSecondaryAttack = m_flNextPrimaryAttack = m_flTimeWeaponIdle = gpGlobals->curtime + flFireDelay;
 			}
 			break;
 		}
 	case AC_STATE_FIRING:
 		{
+			// Drain ammo when winding, if we have the trait.
+			if ( iAmmoDrain != 0 )
+			{
+				if ( m_flStartedWindingAt < 0 )
+				{
+					// Set our drain time, if undefined. (We just started firing)
+					m_flStartedWindingAt = gpGlobals->curtime;
+					m_flDrainTime = m_flStartedWindingAt + iDrainTimeInterval;
+
+				}
+				if ( m_flDrainTime < gpGlobals->curtime ) 
+				{
+					// If we're above the drain time, take bullets away.
+					m_iClip1 -= iAmmoDrain;
+					m_flDrainTime = gpGlobals->curtime + iDrainTimeInterval;
+				}
+			}
 			if ( m_iWeaponMode == TF_WEAPON_SECONDARY_MODE )
 			{
 #ifdef GAME_DLL
@@ -225,8 +274,12 @@ void CTFMinigun::SharedAttack()
 				pPlayer->SpeakWeaponFire( MP_CONCEPT_WINDMINIGUN );
 #endif
 				m_iWeaponState = AC_STATE_SPINNING;
+				
+				if ( m_flNextPrimaryAttack > gpGlobals->curtime )
+				return;
+				
 
-				m_flNextSecondaryAttack = m_flNextPrimaryAttack = m_flTimeWeaponIdle = gpGlobals->curtime + 0.1;
+				m_flNextSecondaryAttack = m_flNextPrimaryAttack = m_flTimeWeaponIdle = gpGlobals->curtime + flFireDelay;
 			}
 			else if ( pPlayer->GetAmmoCount(m_iPrimaryAmmoType) <= 0 )
 			{
@@ -247,13 +300,13 @@ void CTFMinigun::SharedAttack()
 				}
 #endif
 
-
 				// Only fire if we're actually shooting
+				UseRealMinigunBrassEject();
 				BaseClass::PrimaryAttack();		// fire and do timers
 				CalcIsAttackCritical();
 				m_bCritShot = IsCurrentAttackACrit();
 				pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
-				m_flTimeWeaponIdle = gpGlobals->curtime + 0.2;
+				m_flTimeWeaponIdle = gpGlobals->curtime + (flFireDelay * 2);
 			}
 			break;
 		}
@@ -273,6 +326,23 @@ void CTFMinigun::SharedAttack()
 		}
 	case AC_STATE_SPINNING:
 		{
+			// Drain ammo when winding, if we have the trait.
+			if ( iAmmoDrain != 0 )
+			{
+				if ( m_flStartedWindingAt < 0 )
+				{
+					// Set our drain time, if undefined. (We just started firing)
+					m_flStartedWindingAt = gpGlobals->curtime;
+					m_flDrainTime = m_flStartedWindingAt + iDrainTimeInterval;
+
+				}
+				if ( m_flDrainTime < gpGlobals->curtime ) 
+				{
+					// If we're above the drain time, take bullets away.
+					m_iClip1 -= iAmmoDrain;
+					m_flDrainTime = gpGlobals->curtime + iDrainTimeInterval;
+				}
+			}
 			m_flStartedFiringAt = -1;
 			if ( m_iWeaponMode == TF_WEAPON_PRIMARY_MODE )
 			{
@@ -499,6 +569,40 @@ void CTFMinigun::HandleFireOnEmpty( void )
 	}
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CTFMinigun::UseRealMinigunBrassEject( void )
+{
+#ifdef GAME_DLL
+	return;
+#endif
+#ifdef CLIENT_DLL
+	// If minigun shells or shells in general aren't enabled, bail.
+	if (tf2v_minigun_ejectbrass.GetBool() && cl_ejectbrass.GetBool() )
+	{
+		// If it's time to fire, then run the calculation.
+		if ( m_flNextPrimaryAttack > gpGlobals->curtime )
+			return;
+		
+		
+		C_BaseEntity *pEffectOwner = GetWeaponForEffect();
+		if ( !pEffectOwner )
+		return;
+		
+		int iEjectBrassAttachmentReal = pEffectOwner->LookupAttachment("eject_brass");
+		
+		CEffectData brassejectdata;
+		if (iEjectBrassAttachmentReal != -1)
+		{
+			pEffectOwner->GetAttachment(iEjectBrassAttachmentReal, brassejectdata.m_vOrigin, brassejectdata.m_vAngles);
+			brassejectdata.m_nHitBox = TF_WEAPON_MINIGUN;
+			DispatchEffect("TF_EjectBrass", brassejectdata);
+		}
+	}
+#endif
+}
+
 #ifdef CLIENT_DLL
 
 //-----------------------------------------------------------------------------
@@ -578,8 +682,12 @@ void CTFMinigun::UpdateBarrelMovement()
 {
 	if ( m_flBarrelCurrentVelocity != m_flBarrelTargetVelocity )
 	{
+		float flSpinupTime = 1.0f;
+		CALL_ATTRIB_HOOK_FLOAT( flSpinupTime, mult_minigun_spinup_time );
+		flSpinupTime = Max( flSpinupTime, FLT_EPSILON ); // Don't divide by 0
+
 		// update barrel velocity to bring it up to speed or to rest
-		m_flBarrelCurrentVelocity = Approach( m_flBarrelTargetVelocity, m_flBarrelCurrentVelocity, 0.1 );
+		m_flBarrelCurrentVelocity = Approach( m_flBarrelTargetVelocity, m_flBarrelCurrentVelocity, 0.1 / flSpinupTime );
 
 		if ( 0 == m_flBarrelCurrentVelocity )
 		{	
@@ -601,7 +709,7 @@ void CTFMinigun::OnDataChanged( DataUpdateType_t updateType )
 	HandleBrassEffect();
 	
 //	if (!ShouldMuzzleFlash())
-	if (!tf2c_model_muzzleflash.GetBool())
+	if (!tf2v_model_muzzleflash.GetBool())
 	{
 		HandleMuzzleEffect();
 	}
@@ -690,7 +798,8 @@ void CTFMinigun::StartBrassEffect()
 	// Start the brass ejection, if a system hasn't already been started.
 	if ( m_iEjectBrassAttachment != -1 && m_pEjectBrassEffect == NULL )
 	{
-		m_pEjectBrassEffect = pEffectOwner->ParticleProp()->Create( "eject_minigunbrass", PATTACH_POINT_FOLLOW, m_iEjectBrassAttachment );
+		if (!cl_ejectbrass.GetBool() || !tf2v_minigun_ejectbrass.GetBool() )
+			m_pEjectBrassEffect = pEffectOwner->ParticleProp()->Create( "eject_minigunbrass", PATTACH_POINT_FOLLOW, m_iEjectBrassAttachment );
 		m_hBrassEffectHost = pEffectOwner;
 	}
 }
@@ -829,12 +938,10 @@ void CTFMinigun::WeaponSoundUpdate()
 		if ( m_flBarrelCurrentVelocity > 0 )
 		{
 			iSound = SPECIAL2;	// wind down sound
-#ifdef CLIENT_DLL
 			if ( m_flBarrelTargetVelocity > 0 )
 			{
 				m_flBarrelTargetVelocity = 0;
 			}
-#endif
 		}
 		else
 			iSound = -1;
@@ -855,7 +962,10 @@ void CTFMinigun::WeaponSoundUpdate()
 		}
 		break;
 	case AC_STATE_SPINNING:
-		iSound = SPECIAL3;	// spinning sound
+		if ( (CAttributeManager::AttribHookValue<int>( 0, "minigun_no_spin_sounds", this ) ) && (CAttributeManager::AttribHookValue<int>( 0, "minigun_no_spin_sounds", this ) != 0) )
+			break;		// silent spinning.
+		else
+			iSound = SPECIAL3;	// spinning sound
 		break;
 	case AC_STATE_DRYFIRE:
 		iSound = EMPTY;		// out of ammo, still trying to fire
@@ -889,6 +999,4 @@ void CTFMinigun::WeaponSoundUpdate()
 	controller.Play( m_pSoundCur, 1.0, 100 );
 	controller.SoundChangeVolume( m_pSoundCur, 1.0, 0.1 );
 }
-
-
 #endif

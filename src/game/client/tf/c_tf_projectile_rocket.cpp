@@ -15,6 +15,7 @@ BEGIN_NETWORK_TABLE( C_TFProjectile_Rocket, DT_TFProjectile_Rocket )
 	RecvPropBool( RECVINFO( m_bCritical ) ),
 END_NETWORK_TABLE()
 
+
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
@@ -63,13 +64,34 @@ void C_TFProjectile_Rocket::CreateRocketTrails( void )
 		ParticleProp()->Create( "rockettrail_underwater", PATTACH_POINT_FOLLOW, "trail" );
 	}
 	else
-	{
+	{	
 		ParticleProp()->Create( GetTrailParticleName(), PATTACH_POINT_FOLLOW, "trail" );
 	}
 
 	if ( m_bCritical )
 	{
-		const char *pszEffectName = ConstructTeamParticle( "critical_rocket_%s", GetTeamNumber(), true );
+		const char *pszEffectName = "";
+		switch ( GetTeamNumber() )
+		{
+			case TF_TEAM_RED:
+				pszEffectName = "critical_rocket_red";
+				break;
+			case TF_TEAM_BLUE:
+				pszEffectName = "critical_rocket_blue";
+				break;
+			default:
+				pszEffectName = "eyeboss_projectile";
+				break;
+		}
+		
 		ParticleProp()->Create( pszEffectName, PATTACH_ABSORIGIN_FOLLOW );
 	}
+}
+
+const char *C_TFProjectile_Rocket::GetTrailParticleName( void )
+{
+	if ( TFGameRules()->IsHolidayActive( kHoliday_Halloween ) )
+		return "halloween_rockettrail";
+	else
+		return "rockettrail";
 }

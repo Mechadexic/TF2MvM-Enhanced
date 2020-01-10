@@ -5,6 +5,7 @@
 // $NoKeywords: $
 //===========================================================================//
 #include "cbase.h"
+#include "fmtstr.h"
 #include <crtmemdebug.h>
 #include "vgui_int.h"
 #include "clientmode.h"
@@ -112,6 +113,14 @@
 #include "matsys_controls/matsyscontrols.h"
 #include "gamestats.h"
 #include "particle_parse.h"
+#ifdef _WIN32
+#include <direct.h> // getcwd
+#elif POSIX
+#include <dlfcn.h>
+#include <unistd.h>
+#define _getcwd getcwd
+#endif
+#include "vscript/ivscript.h"
 #if defined( TF_CLIENT_DLL )
 #include "rtime.h"
 #include "tf_hud_disconnect_prompt.h"
@@ -131,21 +140,12 @@
 #include "haptics/haptic_utils.h"
 #include "haptics/haptic_msgs.h"
 
-#if defined( TF_CLIENT_DLL )
-#include "abuse_report.h"
-#endif
+// Discord RPC
+#include "discord_register.h"
+ConVar cl_discord_appid( "cl_discord_appid", "451227888230858752", FCVAR_DEVELOPMENTONLY | FCVAR_PROTECTED );
 
-#ifdef USES_ECON_ITEMS
-#include "econ_item_system.h"
-#endif // USES_ECON_ITEMS
-
-#if defined( TF_CLIENT_DLL )
-#include "econ/tool_items/custom_texture_cache.h"
-
-#endif
-
-#ifdef WORKSHOP_IMPORT_ENABLED
-#include "fbxsystem/fbxsystem.h"
+#ifdef TF_VINTAGE_CLIENT
+#include "tf_presence.h"
 #endif
 
 extern vgui::IInputInternal *g_InputInternal;
@@ -205,6 +205,7 @@ IXboxSystem *xboxsystem = NULL;	// Xbox 360 only
 IMatchmaking *matchmaking = NULL;
 IUploadGameStats *gamestatsuploader = NULL;
 IClientReplayContext *g_pClientReplayContext = NULL;
+IScriptManager *scriptmanager = NULL;
 #if defined( REPLAY_ENABLED )
 IReplayManager *g_pReplayManager = NULL;
 IReplayMovieManager *g_pReplayMovieManager = NULL;
@@ -442,6 +443,7 @@ public:
 	{
 		AddAppSystem( "soundemittersystem" DLL_EXT_STRING, SOUNDEMITTERSYSTEM_INTERFACE_VERSION );
 		AddAppSystem( "scenefilecache" DLL_EXT_STRING, SCENE_FILE_CACHE_INTERFACE_VERSION );
+		//AddAppSystem( "vscript" DLL_EXT_STRING, VSCRIPT_INTERFACE_VERSION );
 	}
 
 	virtual int	Count()
@@ -591,6 +593,53 @@ void DisplayBoneSetupEnts()
 	g_BoneSetupEnts.RemoveAll();
 #endif
 }
+
+#ifdef TF_VINTAGE_CLIENT
+// We don't have access to engine includes so the best that
+// can be done is a manual definition to make it work
+class CSfxTable;
+struct StartSoundParams_t
+{
+	StartSoundParams_t() :
+		staticsound( false ),
+		userdata( 0 ),
+		soundsource( 0 ),
+		entchannel( CHAN_AUTO ),
+		pSfx( 0 ),
+		bUpdatePositions( true ),
+		fvol( 1.0f ),
+		soundlevel( SNDLVL_NORM ),
+		flags( SND_NOFLAGS ),
+		pitch( PITCH_NORM ),
+		fromserver( false ),
+		delay( 0.0f ),
+		speakerentity( -1 ),
+		suppressrecording( false ),
+		initialStreamPosition( 0 )
+	{
+		origin.Init();
+		direction.Init();
+	}
+
+	bool			staticsound;
+	int				userdata;
+	int				soundsource;
+	int				entchannel;
+	CSfxTable      *pSfx;
+	Vector			origin;
+	Vector			direction;
+	bool			bUpdatePositions;
+	float			fvol;
+	soundlevel_t	soundlevel;
+	int				flags;
+	int				pitch;
+	bool			fromserver;
+	float			delay;
+	int				speakerentity;
+	bool			suppressrecording;
+	int				initialStreamPosition;
+};
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: engine to client .dll interface
@@ -853,6 +902,38 @@ extern IGameSystem *ViewportClientSystem();
 //-----------------------------------------------------------------------------
 ISourceVirtualReality *g_pSourceVR = NULL;
 
+static void MountAdditionalContent()
+{
+	KeyValues *pMainFile = new KeyValues( "gameinfo.txt" );
+#ifndef _WINDOWS
+	// case sensitivity
+	pMainFile->LoadFromFile( filesystem, "GameInfo.txt", "MOD" );
+	if ( !pMainFile )
+	#endif
+		pMainFile->LoadFromFile( filesystem, "gameinfo.txt", "MOD" );
+
+	if ( pMainFile )
+	{
+		KeyValues* pFileSystemInfo = pMainFile->FindKey( "FileSystem" );
+		if ( pFileSystemInfo )
+		{
+			for ( KeyValues *pKey = pFileSystemInfo->GetFirstSubKey(); pKey; pKey = pKey->GetNextKey() )
+			{
+				if ( Q_stricmp( pKey->GetName(), "AdditionalContentId" ) == 0 )
+				{
+					int appid = abs( pKey->GetInt() );
+					if ( appid )
+					{
+						if ( filesystem->MountSteamContent( -appid ) != FILESYSTEM_MOUNT_OK )
+							Warning( "Unable to mount extra content with appId: %i\n", appid );
+					}
+				}
+			}
+		}
+	}
+	pMainFile->deleteThis();
+}
+
 // Purpose: Called when the DLL is first loaded.
 // Input  : engineFactory - 
 // Output : int
@@ -914,7 +995,7 @@ int CHLClient::Init( CreateInterfaceFn appSystemFactory, CreateInterfaceFn physi
 		return false;
 	if ( (random = (IUniformRandomStream *)appSystemFactory(VENGINE_CLIENT_RANDOM_INTERFACE_VERSION, NULL)) == NULL )
 		return false;
-	if ( (gameuifuncs = (IGameUIFuncs * )appSystemFactory( VENGINE_GAMEUIFUNCS_VERSION, NULL )) == NULL )
+	if ( (gameuifuncs = (IGameUIFuncs *)appSystemFactory( VENGINE_GAMEUIFUNCS_VERSION, NULL )) == NULL )
 		return false;
 	if ( (gameeventmanager = (IGameEventManager2 *)appSystemFactory(INTERFACEVERSION_GAMEEVENTSMANAGER2,NULL)) == NULL )
 		return false;
@@ -951,6 +1032,24 @@ int CHLClient::Init( CreateInterfaceFn appSystemFactory, CreateInterfaceFn physi
 	InitFbx();
 #endif
 
+	if ( CommandLine()->CheckParm( "-vscript" ) )
+	{
+	#if defined( TF_VINTAGE_CLIENT )
+		char szCwd[1024];
+		_getcwd( szCwd, sizeof( szCwd ) );
+
+		static CDllDemandLoader s_VScript( CFmtStr( "%s/tf2vintage/bin/vscript.dll", szCwd ) );
+	#else
+		static CDllDemandLoader s_VScript( "vscript.dll" );
+	#endif
+
+		CreateInterfaceFn pAppFactory = s_VScript.GetFactory();
+		if( pAppFactory )
+			scriptmanager = (IScriptManager *)pAppFactory( VSCRIPT_INTERFACE_VERSION, NULL );
+
+		AssertMsg( scriptmanager, "Scripting was not properly initialized" );
+	}
+
 	// it's ok if this is NULL. That just means the sourcevr.dll wasn't found
 	g_pSourceVR = (ISourceVirtualReality *)appSystemFactory(SOURCE_VIRTUAL_REALITY_INTERFACE_VERSION, NULL);
 
@@ -964,6 +1063,8 @@ int CHLClient::Init( CreateInterfaceFn appSystemFactory, CreateInterfaceFn physi
 	{
 		return false;
 	}
+
+	MountAdditionalContent();
 
 	if ( CommandLine()->FindParm( "-textmode" ) )
 		g_bTextMode = true;
@@ -1088,6 +1189,14 @@ int CHLClient::Init( CreateInterfaceFn appSystemFactory, CreateInterfaceFn physi
 #ifndef _X360
 	HookHapticMessages(); // Always hook the messages
 #endif
+	
+	// Discord RPC
+	if (!g_bTextMode)
+	{
+		char command[256];
+		Q_snprintf( command, sizeof( command ), "%s -game \"%s\" -novid -high -steam\n", CommandLine()->GetParm( 0 ), CommandLine()->ParmValue( "-game" ) );
+		Discord_Register( cl_discord_appid.GetString(), command );
+	}
 
 	return true;
 }
@@ -1594,6 +1703,11 @@ void CHLClient::LevelInitPreEntity( char const* pMapName )
 	view->LevelInit();
 	tempents->LevelInit();
 	ResetToneMapping(1.0);
+	
+	if ( rpc )
+	{
+		rpc->SetLevelName( pMapName );
+	}
 
 	IGameSystem::LevelInitPreEntityAllSystems(pMapName);
 
@@ -1625,7 +1739,7 @@ void CHLClient::LevelInitPreEntity( char const* pMapName )
 		}
 	}
 #endif
-
+	
 	// Check low violence settings for this map
 	g_RagdollLVManager.SetLowViolence( pMapName );
 
@@ -2551,7 +2665,7 @@ void CHLClient::FileReceived( const char * fileName, unsigned int transferID )
 
 void CHLClient::ClientAdjustStartSoundParams( StartSoundParams_t& params )
 {
-#ifdef TF_CLIENT_DLL
+#if defined(TF_CLIENT_DLL) || defined(TF_VINTAGE_CLIENT)
 	CBaseEntity *pEntity = ClientEntityList().GetEnt( params.soundsource );
 
 	// A player speaking

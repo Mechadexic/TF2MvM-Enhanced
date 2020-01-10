@@ -1,4 +1,4 @@
-//====== Copyright © 1996-2005, Valve Corporation, All rights reserved. =======
+//====== Copyright Â© 1996-2005, Valve Corporation, All rights reserved. =======
 //
 //
 //=============================================================================
@@ -21,10 +21,12 @@
 
 	#define CTFFlameThrower C_TFFlameThrower
 	#define CTFFlameRocket C_TFFlameRocket
+	#define CTFFlameEntity C_TFFlameEntity
 #else
 	#include "tf_projectile_rocket.h"
 	#include "baseentity.h"
 #endif
+
 
 enum FlameThrowerState_t
 {
@@ -67,6 +69,8 @@ public:
 	Vector			GetVisualMuzzlePos();
 	Vector			GetFlameOriginPos();
 
+	int				GetBuffType( void ) const;
+
 	// Client specific.
 #if defined( CLIENT_DLL )
 	virtual bool	Deploy( void );
@@ -74,6 +78,8 @@ public:
 	virtual void	OnDataChanged(DataUpdateType_t updateType);
 	virtual void	UpdateOnRemove( void );
 	virtual void	SetDormant( bool bDormant );
+
+	virtual char const *GetFlameEffectInternal( void ) const;
 
 	//	Start/stop flame sound and particle effects
 	void			StartFlame();
@@ -85,6 +91,7 @@ public:
 	void 			StartPilotLight();
 	void 			StopPilotLight();
 
+	void			UpdateParticleEffect( void );
 	// Server specific.
 #else
 	virtual void	DeflectEntity( CBaseEntity *pEntity, CTFPlayer *pAttacker, Vector &vecDir );
@@ -94,7 +101,12 @@ public:
 	void			HitTargetThink( void );
 #endif
 
-private:
+	bool			CanAirBlast( void );
+	bool			CanAirBlastDeflectProjectile( void );
+	bool			CanAirBlastPushPlayers( void );
+	bool			CanAirBlastPutOutTeammate( void );
+
+protected:
 	Vector GetMuzzlePosHelper( bool bVisualPos );
 	CNetworkVar( int, m_iWeaponState );
 	CNetworkVar( bool, m_bCritFire );
@@ -123,7 +135,7 @@ private:
 	float m_flStopHitSoundTime;
 #endif
 
-	CTFFlameThrower( const CTFFlameThrower & );
+	CTFFlameThrower( CTFFlameThrower const& );
 };
 
 //=============================================================================
@@ -150,22 +162,38 @@ public:
 #endif
 };
 
-#ifdef GAME_DLL
+#if defined( GAME_DLL )
 DECLARE_AUTO_LIST( ITFFlameEntityAutoList );
+#endif
 
-class CTFFlameEntity : public CBaseEntity, public ITFFlameEntityAutoList
+class CTFFlameEntity : public CBaseEntity
+#ifdef GAME_DLL
+	, public ITFFlameEntityAutoList
+#endif
 {
 	DECLARE_CLASS( CTFFlameEntity, CBaseEntity );
 public:
+	DECLARE_NETWORKCLASS();
+	DECLARE_DATADESC();
 
 	virtual void Spawn( void );
 
+#if defined( CLIENT_DLL )
+	virtual void OnDataChanged( DataUpdateType_t updateType );
+
+	virtual void ClientThink( void );
+	CNewParticleEffect *m_pFlameEffect;
+#endif
+	
 public:
-	static CTFFlameEntity *Create( const Vector &vecOrigin, const QAngle &vecAngles, CBaseEntity *pOwner, int iDmgType, float m_flDmgAmount );
+#if defined( GAME_DLL )
+	static CTFFlameEntity *Create( const Vector &vecOrigin, const QAngle &vecAngles, CBaseEntity *pOwner, int iDmgType, float flDmgAmount, bool bCritFromBehind );
 
 	void FlameThink( void );
 	void CheckCollision( CBaseEntity *pOther, bool *pbHitWorld );
 	CBaseEntity *GetAttacker( void ) { return m_hAttacker.Get(); }
+	bool IsBehindTarget( CBaseEntity *pVictim );
+
 private:
 	void OnCollide( CBaseEntity *pOther );
 	void SetHitTarget( void );
@@ -178,11 +206,14 @@ private:
 	int							m_iDmgType;				// damage type
 	float						m_flDmgAmount;			// amount of base damage
 	CUtlVector<EHANDLE>			m_hEntitiesBurnt;		// list of entities this flame has burnt
-	EHANDLE						m_hAttacker;			// attacking player
 	int							m_iAttackerTeam;		// team of attacking player
 	CHandle<CTFFlameThrower>	m_hLauncher;			// weapon that fired this flame
+	bool						m_bCritFromBehind;
+#endif
+
+	CNetworkHandle(CBaseEntity, m_hAttacker);			// attacking player
 };
 
-#endif // GAME_DLL
+
 
 #endif // TF_WEAPON_FLAMETHROWER_H

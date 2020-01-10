@@ -25,6 +25,10 @@ public:
 #ifdef GAME_DLL
 	virtual void	Equip( CBasePlayer *pPlayer );
 	void			UpdateModelToClass( void );
+	void			Break( void );
+#else
+	virtual int		InternalDrawModel( int flags );
+	void			UpdateModelToClass(void);
 #endif
 };
 

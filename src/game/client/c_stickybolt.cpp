@@ -28,6 +28,18 @@
 #include "engine/ivdebugoverlay.h"
 #include "c_te_effect_dispatch.h"
 #include "c_tf_player.h"
+#include "tf_shareddefs.h"
+
+
+const char *g_pszArrowModelClient[] =
+{
+	"models/weapons/w_models/w_arrow.mdl",
+	"models/weapons/w_models/w_syringe_proj.mdl",
+	"models/weapons/w_models/w_repair_claw.mdl",
+	"models/weapons/w_models/w_arrow_xmas.mdl",
+	"models/weapons/c_models/c_crusaders_crossbow/c_crusaders_crossbow_xmas_proj.mdl",
+	"models/weapons/c_models/c_grapple_proj.mdl",
+};
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -128,22 +140,22 @@ private:
 	Vector  m_vWorld;
 };
 
-void CreateCrossbowBolt( const Vector &vecOrigin, const Vector &vecDirection )
+void CreateCrossbowBolt( const Vector &vecOrigin, const Vector &vecDirection, int iType, int iSkin  )
 {
-	//model_t *pModel = (model_t *)engine->LoadModel( "models/crossbow_bolt.mdl" );
-
+	Assert( iType >= 0 && iType < ARRAYSIZE( g_pszArrowModelClient ) );
 	//repurpose old crossbow collision code for huntsman collisions
-	model_t *pModel = (model_t *)engine->LoadModel( "models/weapons/w_models/w_arrow.mdl" );
+	const model_t *pModel = engine->LoadModel( g_pszArrowModelClient[ iType ] );
 
 	QAngle vAngles;
-
 	VectorAngles( vecDirection, vAngles );
+	float flLifeTime = ( TEMP_OBJECT_LIFETIME * 3); // A little longer than normal temporary entities.
 
-	tempents->SpawnTempModel( pModel, vecOrigin - vecDirection * 8, vAngles, Vector( 0, 0, 0 ), 30.0f, FTENT_NONE );
+	C_LocalTempEntity *pTemp = tempents->SpawnTempModel( pModel, vecOrigin - vecDirection * 8, vAngles, Vector( 0, 0, 0 ), flLifeTime, FTENT_NONE );
+	pTemp->m_nSkin = iSkin;
 
 }
 
-void StickRagdollNow( const Vector &vecOrigin, const Vector &vecDirection )
+void StickRagdollNow( const Vector &vecOrigin, const Vector &vecDirection, int iType, int iSkin )
 {
 	Ray_t	shotRay;
 	trace_t tr;
@@ -157,10 +169,10 @@ void StickRagdollNow( const Vector &vecOrigin, const Vector &vecDirection )
 
 	shotRay.Init( vecOrigin, vecEnd );
 
-	CRagdollBoltEnumerator	ragdollEnum( shotRay, vecOrigin );
+	CRagdollBoltEnumerator ragdollEnum( shotRay, vecOrigin );
 	partition->EnumerateElementsAlongRay( PARTITION_CLIENT_RESPONSIVE_EDICTS, shotRay, false, &ragdollEnum );
 	
-	CreateCrossbowBolt( vecOrigin, vecDirection );
+	CreateCrossbowBolt( vecOrigin, vecDirection, iType, iSkin  );
 }
 
 //-----------------------------------------------------------------------------
@@ -169,7 +181,14 @@ void StickRagdollNow( const Vector &vecOrigin, const Vector &vecDirection )
 //-----------------------------------------------------------------------------
 void StickyBoltCallback( const CEffectData &data )
 {
-	 StickRagdollNow( data.m_vOrigin, data.m_vNormal );
+	if (!data.m_iType )
+	{
+		Assert(data.m_iType);
+		return;
+	}
+	 StickRagdollNow( data.m_vOrigin, data.m_vNormal, data.m_iType, data.m_nSkin );
 }
+
+
 
 DECLARE_CLIENT_EFFECT( "BoltImpact", StickyBoltCallback );

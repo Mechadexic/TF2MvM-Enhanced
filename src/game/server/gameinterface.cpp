@@ -7,6 +7,7 @@
 //===========================================================================//
 
 #include "cbase.h"
+#include "fmtstr.h"
 #include "gamestringpool.h"
 #include "mapentities_shared.h"
 #include "game.h"
@@ -89,8 +90,16 @@
 #include "tier3/tier3.h"
 #include "serverbenchmark_base.h"
 #include "querycache.h"
-
-
+#include "vscript/ivscript.h"
+#include "vscript_server.h"
+#include "ScriptGameEventListener.h"
+#ifdef _WIN32
+#include <direct.h> // getcwd
+#elif POSIX
+#include <dlfcn.h>
+#include <unistd.h>
+#define _getcwd getcwd
+#endif
 #ifdef TF_DLL
 #include "gc_clientsystem.h"
 #include "econ_item_inventory.h"
@@ -183,6 +192,7 @@ IServerEngineTools *serverenginetools = NULL;
 ISceneFileCache *scenefilecache = NULL;
 IXboxSystem *xboxsystem = NULL;	// Xbox 360 only
 IMatchmaking *matchmaking = NULL;	// Xbox 360 only
+IScriptManager *scriptmanager = NULL;
 #if defined( REPLAY_ENABLED )
 IReplaySystem *g_pReplay = NULL;
 IServerReplayContext *g_pReplayServerContext = NULL;
@@ -566,6 +576,38 @@ EXPOSE_SINGLE_INTERFACE_GLOBALVAR(CServerGameDLL, IServerGameDLL, INTERFACEVERSI
 // When bumping the version to this interface, check that our assumption is still valid and expose the older version in the same way
 COMPILE_TIME_ASSERT( INTERFACEVERSION_SERVERGAMEDLL_INT == 10 );
 
+static void MountAdditionalContent()
+{
+	KeyValues *pMainFile = new KeyValues( "gameinfo.txt" );
+#ifndef _WINDOWS
+	// case sensitivity
+	pMainFile->LoadFromFile( filesystem, "GameInfo.txt", "MOD" );
+	if ( !pMainFile )
+#endif
+		pMainFile->LoadFromFile( filesystem, "gameinfo.txt", "MOD" );
+
+	if ( pMainFile )
+	{
+		KeyValues* pFileSystemInfo = pMainFile->FindKey( "FileSystem" );
+		if ( pFileSystemInfo )
+		{
+			for ( KeyValues *pKey = pFileSystemInfo->GetFirstSubKey(); pKey; pKey = pKey->GetNextKey() )
+			{
+				if ( Q_stricmp( pKey->GetName(), "AdditionalContentId" ) == 0 )
+				{
+					int appid = abs( pKey->GetInt() );
+					if ( appid )
+					{
+						if ( filesystem->MountSteamContent( -appid ) != FILESYSTEM_MOUNT_OK )
+							Warning( "Unable to mount extra content with appId: %i\n", appid );
+					}
+				}
+			}
+		}
+	}
+	pMainFile->deleteThis();
+}
+
 bool CServerGameDLL::DLLInit( CreateInterfaceFn appSystemFactory, 
 		CreateInterfaceFn physicsFactory, CreateInterfaceFn fileSystemFactory, 
 		CGlobalVars *pGlobals)
@@ -625,18 +667,38 @@ bool CServerGameDLL::DLLInit( CreateInterfaceFn appSystemFactory,
 	if ( IsX360() && (matchmaking = (IMatchmaking *)appSystemFactory( VENGINE_MATCHMAKING_VERSION, NULL )) == NULL )
 		return false;
 
+	if ( CommandLine()->CheckParm( "-vscript" ) )
+	{
+	#if defined( TF_VINTAGE )
+		char szCwd[1024];
+		_getcwd( szCwd, sizeof( szCwd ) );
+
+		static CDllDemandLoader s_VScript( CFmtStr( "%s/tf2vintage/bin/vscript.dll", szCwd ) );
+	#else
+		static CDllDemandLoader s_VScript( "vscript.dll" );
+	#endif
+
+		CreateInterfaceFn pAppFactory = s_VScript.GetFactory();
+		if( pAppFactory )
+			scriptmanager = (IScriptManager *)pAppFactory( VSCRIPT_INTERFACE_VERSION, NULL );
+
+		AssertMsg( scriptmanager, "Scripting was not properly initialized" );
+	}
+
 	// If not running dedicated, grab the engine vgui interface
 	if ( !engine->IsDedicatedServer() )
 	{
 #ifdef _WIN32
 		// This interface is optional, and is only valid when running with -tools
-		serverenginetools = ( IServerEngineTools * )appSystemFactory( VSERVERENGINETOOLS_INTERFACE_VERSION, NULL );
+		serverenginetools = (IServerEngineTools *)appSystemFactory( VSERVERENGINETOOLS_INTERFACE_VERSION, NULL );
 #endif
 	}
 
 	// Yes, both the client and game .dlls will try to Connect, the soundemittersystem.dll will handle this gracefully
 	if ( !soundemitterbase->Connect( appSystemFactory ) )
 		return false;
+
+	MountAdditionalContent();
 
 	// cache the globals
 	gpGlobals = pGlobals;
@@ -682,6 +744,7 @@ bool CServerGameDLL::DLLInit( CreateInterfaceFn appSystemFactory,
 	g_pGameSaveRestoreBlockSet->AddBlockHandler( GetCommentarySaveRestoreBlockHandler() );
 	g_pGameSaveRestoreBlockSet->AddBlockHandler( GetEventQueueSaveRestoreBlockHandler() );
 	g_pGameSaveRestoreBlockSet->AddBlockHandler( GetAchievementSaveRestoreBlockHandler() );
+	g_pGameSaveRestoreBlockSet->AddBlockHandler( GetVScriptSaveRestoreBlockHandler() );
 
 	// The string system must init first + shutdown last
 	IGameSystem::Add( GameStringSystem() );
@@ -700,6 +763,9 @@ bool CServerGameDLL::DLLInit( CreateInterfaceFn appSystemFactory,
 #endif
 	// Add sound emitter
 	IGameSystem::Add( SoundEmitterSystem() );
+
+	// Add VScript game event listener system
+	IGameSystem::Add( g_pScriptGameEventListener );
 
 	// load Mod specific game events ( MUST be before InitAllSystems() so it can pickup the mod specific events)
 	gameeventmanager->LoadEventsFromFile("resource/ModEvents.res");
@@ -757,6 +823,7 @@ void CServerGameDLL::DLLShutdown( void )
 	// Due to dependencies, these are not autogamesystems
 	ModelSoundsCacheShutdown();
 
+	g_pGameSaveRestoreBlockSet->RemoveBlockHandler( GetVScriptSaveRestoreBlockHandler() );
 	g_pGameSaveRestoreBlockSet->RemoveBlockHandler( GetAchievementSaveRestoreBlockHandler() );
 	g_pGameSaveRestoreBlockSet->RemoveBlockHandler( GetCommentarySaveRestoreBlockHandler() );
 	g_pGameSaveRestoreBlockSet->RemoveBlockHandler( GetEventQueueSaveRestoreBlockHandler() );
@@ -833,7 +900,7 @@ float CServerGameDLL::GetTickInterval( void ) const
 // [Forrest] For Counter-Strike, set default tick rate of 66 and removed -tickrate command line parameter.
 //=============================================================================
 // Ignoring this for now, server ops are abusing it
-#if !defined( TF_DLL ) && !defined( CSTRIKE_DLL ) && !defined( DOD_DLL )
+#if !defined( TF_DLL ) && !defined( TF_VINTAGE ) && !defined( CSTRIKE_DLL ) && !defined( DOD_DLL )
 //=============================================================================
 // HPE_END
 //=============================================================================
@@ -3445,6 +3512,7 @@ public:
 	{
 		AddAppSystem( "soundemittersystem" DLL_EXT_STRING, SOUNDEMITTERSYSTEM_INTERFACE_VERSION );
 		AddAppSystem( "scenefilecache" DLL_EXT_STRING, SCENE_FILE_CACHE_INTERFACE_VERSION );
+		//AddAppSystem( "vscript" DLL_EXT_STRING, VSCRIPT_INTERFACE_VERSION );
 	}
 
 	virtual int	Count()

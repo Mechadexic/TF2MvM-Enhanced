@@ -48,6 +48,8 @@ public:
 	virtual float	GetViewModelFOV( void );
 	virtual bool	ShouldDrawViewModel();
 
+	virtual bool	ShouldDrawCrosshair( void );
+
 	int				GetDeathMessageStartHeight( void );
 
 	virtual void	FireGameEvent( IGameEvent *event );
@@ -62,6 +64,8 @@ private:
 	
 	void			MessageHooks( void );
 	//void			UpdateSpectatorMode( void );
+
+	void			PrintTextToChat( const char *msg );
 
 private:
 
@@ -80,8 +84,6 @@ private:
 extern IClientMode *GetClientModeNormal();
 extern ClientModeTFNormal* GetClientModeTFNormal();
 
-void __MsgFunc_BreakModel( bf_read &msg );
-void __MsgFunc_CheapBreakModel( bf_read &msg );
 void HandleBreakModel( bf_read &msg, bool bNoAngles );
 
 #endif // TF_CLIENTMODE_H

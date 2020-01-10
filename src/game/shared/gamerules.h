@@ -176,6 +176,10 @@ public:
 	//Allow thirdperson camera.
 	virtual bool AllowThirdPersonCamera( void ) { return false; }
 
+	//Allow glow outlines.
+	virtual bool AllowGlowOutlinesFlags( void ) { return false; }
+	virtual bool AllowGlowOutlinesCarts( void ) { return false; }
+
 	virtual void ClientCommandKeyValues( edict_t *pEntity, KeyValues *pKeyValues ) {} 
 
 	// IsConnectedUserInfoChangeAllowed allows the clients to change
@@ -185,6 +189,8 @@ public:
 		Assert( !IsMultiplayer() );
 		return true; 
 	}
+
+	virtual void RegisterScriptFunctions( void ) {}
 
 #ifdef CLIENT_DLL
 

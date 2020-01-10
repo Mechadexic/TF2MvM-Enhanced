@@ -44,6 +44,8 @@ extern void SendProxy_Angles( const SendProp *pProp, const void *pStruct, const 
 
 #endif
 
+ConVar tf2v_use_new_grenade_radius( "tf2v_use_new_grenade_radius", "0", FCVAR_NOTIFY | FCVAR_REPLICATED, "Uses modern grenade explosion sizes (146Hu)instead of older ones (159Hu) for Demoman." );
+
 IMPLEMENT_NETWORKCLASS_ALIASED( TFWeaponBaseGrenadeProj, DT_TFWeaponBaseGrenadeProj )
 
 LINK_ENTITY_TO_CLASS( tf_weaponbase_grenade_proj, CTFWeaponBaseGrenadeProj );
@@ -129,7 +131,19 @@ int	CTFWeaponBaseGrenadeProj::GetDamageType()
 float CTFWeaponBaseGrenadeProj::GetDamageRadius( void )
 {
 	float flRadius = BaseClass::GetDamageRadius();
+	if ( tf2v_use_new_grenade_radius.GetBool() )
+		flRadius *= (159 / 146 );
 	CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( m_hLauncher.Get(), flRadius, mult_explosion_radius );
+	// If we're blast jumping with an attack bonus, decrease radius by 20%.
+	CTFPlayer *pPlayer = ToTFPlayer( GetOwnerEntity() );
+	if ( pPlayer && pPlayer->m_Shared.InCond( TF_COND_BLASTJUMPING ) )
+	{
+		float flRocketJumpBonus = 1.0f;
+			CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( m_hLauncher.Get(), flRocketJumpBonus, rocketjump_attackrate_bonus );
+		if (flRocketJumpBonus != 1.0f)
+			flRadius *= 0.8;
+	}
+	
 	return flRadius;
 }
 
@@ -233,9 +247,10 @@ void CTFWeaponBaseGrenadeProj::InitGrenade( const Vector &velocity, const Angula
 
 	SetupInitialTransmittedGrenadeVelocity( velocity );
 
-	SetGravity( 0.4f/*BaseClass::GetGrenadeGravity()*/ );
-	SetFriction( 0.2f/*BaseClass::GetGrenadeFriction()*/ );
-	SetElasticity( 0.45f/*BaseClass::GetGrenadeElasticity()*/ );
+
+	SetGravity( 0.4f/*BaseClass::GetGrenadeGravity()*/ ); 
+	SetFriction( 0.2f ); /*BaseClass::GetGrenadeFriction()*/
+	SetElasticity( 0.45f );  /*BaseClass::GetGrenadeElasticity()*/
 
 	SetDamage( weaponInfo.GetWeaponData( TF_WEAPON_PRIMARY_MODE ).m_nDamage );
 	SetDamageRadius( weaponInfo.m_flDamageRadius );
@@ -356,8 +371,9 @@ void CTFWeaponBaseGrenadeProj::Explode( trace_t *pTrace, int bitsDamageType )
 		DrawRadius( flRadius );
 	}
 
+	CTakeDamageInfo newInfo( this, GetThrower(), m_hLauncher, GetBlastForce(), GetAbsOrigin(), m_flDamage, bitsDamageType, TF_DMG_CUSTOM_NONE, &vecReported );
 	CTFRadiusDamageInfo radiusInfo;
-	radiusInfo.info.Set( this, GetThrower(), m_hLauncher, GetBlastForce(), GetAbsOrigin(), m_flDamage, bitsDamageType, TF_DMG_CUSTOM_NONE, &vecReported );
+	radiusInfo.info = &newInfo;
 	radiusInfo.m_vecSrc = vecOrigin;
 	radiusInfo.m_flRadius = flRadius;
 	radiusInfo.m_flSelfDamageRadius = 146.0f;

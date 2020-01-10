@@ -7,13 +7,33 @@
 
 #include "econ_item_schema.h"
 
-class CEconItemHandle
-{
-public:
-	// CEconItem *m_pItem; TODO: not implemented yet, get a GC going
+class CAttributeManager;
 
-	uint64 m_SteamID; // The owner of the item?
-	int m_ItemID;
+class CAttributeList
+{
+	DECLARE_CLASS_NOBASE( CAttributeList );
+	DECLARE_EMBEDDED_NETWORKVAR();
+public:
+	CAttributeList();
+
+	void Init( void );
+
+	CEconItemAttribute const *GetAttribByID( int iNum );
+	CEconItemAttribute const *GetAttribByName( char const *szName );
+	void IterateAttributes( IEconAttributeIterator &iter );
+
+	bool SetRuntimeAttributeValue( const EconAttributeDefinition *pAttrib, float flValue );
+	bool RemoveAttribute( const EconAttributeDefinition *pAttrib );
+	bool RemoveAttribByIndex( int iIndex );
+
+	void SetManager( CAttributeManager *pManager );
+	void NotifyManagerOfAttributeValueChanges( void );
+
+	CAttributeList &operator=( CAttributeList const &rhs );
+	
+private:
+	CUtlVector<CEconItemAttribute> m_Attributes;
+	CAttributeManager *m_pManager;
 };
 
 
@@ -34,18 +54,25 @@ public:
 	const char* GetEntityName( void );
 	bool IsCosmetic( void );
 	int GetAnimationSlot( void );
+	int GetItemSlot( void );
 	Activity GetActivityOverride( int iTeamNumber, Activity actOriginalActivity );
 	const char* GetActivityOverride( int iTeamNumber, const char *name );
 	const char* GetSoundOverride( int iIndex, int iTeamNum = TEAM_UNASSIGNED ) const;
+	int GetSkin( int iTeamNum, bool bViewmodel ) const;
 	bool HasCapability( const char* name );
 	bool HasTag( const char* name );
 
 	bool AddAttribute( CEconItemAttribute *pAttribute );
 	void SkipBaseAttributes( bool bSkip );
-	CEconItemAttribute *IterateAttributes( string_t strClass );
+	void IterateAttributes( IEconAttributeIterator &iter );
+	CAttributeList *GetAttributeList( void ) { return &m_AttributeList; }
 
 	void SetItemDefIndex( int iItemID );
 	int GetItemDefIndex( void ) const;
+
+	const char*	GetExtraWearableModel(void) const;
+
+	CEconItemView &operator=( CEconItemView const &rhs );
 
 private:
 	CNetworkVar( short, m_iItemDefinitionIndex );
@@ -53,19 +80,11 @@ private:
 	CNetworkVar( int, m_iEntityQuality ); // maybe an enum?
 	CNetworkVar( int, m_iEntityLevel );
 
-	CNetworkVar( int, m_iItemID );
-	CNetworkVar( uint64, m_iAccountID );
-	CNetworkVar( int, m_iInventoryPosition );
-
-	CEconItemHandle m_ItemHandle; // The handle to the CEconItem on the GC
-
 	CNetworkVar( int, m_iTeamNumber );
-	//bool m_bInitialized; // ?
-
-	//CUtlDict< EconItemAttribute, unsigned short > m_AttributeList;
+	
 	CNetworkVar( bool, m_bOnlyIterateItemViewAttributes );
 
-	CUtlVector<CEconItemAttribute> m_AttributeList;
+	CNetworkVarEmbedded( CAttributeList, m_AttributeList );
 
 #ifdef GAME_DLL
 public:

@@ -14,6 +14,7 @@
 #include "player_resource.h"
 #include "team.h"
 #include "hl2orange.spa.h"
+#include "NextBotManager.h"
 
 // Must run with -gamestats to be able to turn on/off stats with ConVar below.
 static ConVar tf_stats_track( "tf_stats_track", "1", FCVAR_NONE, "Turn on//off tf stats tracking." );
@@ -389,7 +390,7 @@ void CTFGameStats::Event_PlayerSpawned( CTFPlayer *pPlayer )
 		}
 	}
 
-	if ( iClass >= TF_FIRST_NORMAL_CLASS && iClass <= TF_CLASS_COUNT )
+	if ( iClass >= TF_FIRST_NORMAL_CLASS && iClass < TF_CLASS_COUNT_ALL )
 	{
 		SendStatsToPlayer( pPlayer, STATMSG_PLAYERSPAWN );
 	}
@@ -564,6 +565,8 @@ void CTFGameStats::Event_PlayerFiredWeapon( CTFPlayer *pPlayer, bool bCritical )
 					pWeaponStats->iCritShotsFired++;
 				}
 			}
+
+			TheNextBots().OnWeaponFired( pPlayer, pTFWeapon );
 		}
 	}
 

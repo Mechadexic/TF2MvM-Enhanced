@@ -1286,6 +1286,13 @@ bool CBaseCombatWeapon::HasSecondaryAmmo( void )
 //-----------------------------------------------------------------------------
 bool CBaseCombatWeapon::UsesPrimaryAmmo( void )
 {
+	int iNotRegularAmmo = 0;
+	CALL_ATTRIB_HOOK_INT(iNotRegularAmmo, energy_weapon_no_ammo);
+	CALL_ATTRIB_HOOK_INT(iNotRegularAmmo, mod_use_metal_ammo_type);
+
+	if (iNotRegularAmmo > 0)
+		return false;
+
 	if ( m_iPrimaryAmmoType < 0 )
 		return false;
 	return true;
@@ -1296,6 +1303,13 @@ bool CBaseCombatWeapon::UsesPrimaryAmmo( void )
 //-----------------------------------------------------------------------------
 bool CBaseCombatWeapon::UsesSecondaryAmmo( void )
 {
+	int iNotRegularAmmo = 0;
+	CALL_ATTRIB_HOOK_INT(iNotRegularAmmo, energy_weapon_no_ammo);
+	CALL_ATTRIB_HOOK_INT(iNotRegularAmmo, mod_use_metal_ammo_type);
+
+	if (iNotRegularAmmo > 0)
+		return false;
+
 	if ( m_iSecondaryAmmoType < 0 )
 		return false;
 	return true;
@@ -2570,6 +2584,73 @@ void CDmgAccumulator::Process( void )
 }
 #endif // GAME_DLL
 
+int CBaseCombatWeapon::ScriptGetMaxAmmo1()
+{
+	int iAmmo = GetMaxClip1();
+
+	if ( UsesClipsForAmmo1() )
+	{
+		iAmmo += GetAmmoDef()->MaxCarry( GetPrimaryAmmoType() );
+	}
+
+	return iAmmo;
+}
+
+int CBaseCombatWeapon::ScriptGetMaxAmmo2()
+{
+	int iAmmo = GetMaxClip2();
+
+	if ( UsesClipsForAmmo2() )
+	{
+		iAmmo += GetAmmoDef()->MaxCarry( GetSecondaryAmmoType() );
+	}
+
+	return iAmmo;
+}
+
+int CBaseCombatWeapon::ScriptGetClips()
+{
+	if ( !GetOwner() )
+		return -1;
+
+	int nClipSize = GetMaxClip1();
+
+	if ( nClipSize < 1 || FStrEq("asw_weapon_chainsaw", GetClassname()) )
+		return 1;
+
+	int nClips = GetOwner()->GetAmmoCount( m_iPrimaryAmmoType ) / nClipSize;
+
+	return nClips;
+}
+
+int CBaseCombatWeapon::ScriptGetMaxClips()
+{
+	if ( !GetOwner() )
+		return -1;
+
+	int nClipSize = GetMaxClip1();
+
+	if ( nClipSize < 1 || FStrEq("asw_weapon_chainsaw", GetClassname()) )
+		return 1;
+
+	return GetAmmoDef()->MaxCarry( m_iPrimaryAmmoType ) / nClipSize;
+}
+
+#ifdef GAME_DLL
+void CBaseCombatWeapon::ScriptSetClips( int nClips )
+{
+	if ( !GetOwner() )
+		return;
+
+	int nClipSize = GetMaxClip1();
+
+	if ( nClipSize < 0 || FStrEq("asw_weapon_chainsaw", GetClassname()) )
+		return;
+
+	GetOwner()->VScriptGiveAmmo( (nClipSize * nClips), m_iPrimaryAmmoType );
+}
+#endif
+
 #if defined( CLIENT_DLL )
 
 BEGIN_PREDICTION_DATA( CBaseCombatWeapon )
@@ -2807,7 +2888,7 @@ BEGIN_NETWORK_TABLE_NOBASE( CBaseCombatWeapon, DT_LocalActiveWeaponData )
 	SendPropTime( SENDINFO( m_flTimeWeaponIdle ) ),
 
 #if defined( TF_DLL ) || defined ( TF_VINTAGE )
-	SendPropExclude( "DT_AnimTimeMustBeFirst" , "m_flAnimTime" ),
+	SendPropExclude( "DT_AnimTimeMustBeFirst", "m_flAnimTime" ),
 #endif
 
 #else
@@ -2823,24 +2904,24 @@ END_NETWORK_TABLE()
 //-----------------------------------------------------------------------------
 BEGIN_NETWORK_TABLE_NOBASE( CBaseCombatWeapon, DT_LocalWeaponData )
 #if !defined( CLIENT_DLL )
-	SendPropIntWithMinusOneFlag( SENDINFO(m_iClip1 ), 8 ),
-	SendPropIntWithMinusOneFlag( SENDINFO(m_iClip2 ), 8 ),
-	SendPropInt( SENDINFO(m_iPrimaryAmmoType ), 8 ),
-	SendPropInt( SENDINFO(m_iSecondaryAmmoType ), 8 ),
+	SendPropIntWithMinusOneFlag( SENDINFO( m_iClip1 ), 8 ),
+	SendPropIntWithMinusOneFlag( SENDINFO( m_iClip2 ), 8 ),
+	SendPropInt( SENDINFO( m_iPrimaryAmmoType ), 8 ),
+	SendPropInt( SENDINFO( m_iSecondaryAmmoType ), 8 ),
 
 	SendPropInt( SENDINFO( m_nViewModelIndex ), VIEWMODEL_INDEX_BITS, SPROP_UNSIGNED ),
 
 	SendPropInt( SENDINFO( m_bFlipViewModel ) ),
 
 #if defined( TF_DLL ) || defined ( TF_VINTAGE )
-	SendPropExclude( "DT_AnimTimeMustBeFirst" , "m_flAnimTime" ),
+	SendPropExclude( "DT_AnimTimeMustBeFirst", "m_flAnimTime" ),
 #endif
 
 #else
-	RecvPropIntWithMinusOneFlag( RECVINFO(m_iClip1 )),
-	RecvPropIntWithMinusOneFlag( RECVINFO(m_iClip2 )),
-	RecvPropInt( RECVINFO(m_iPrimaryAmmoType )),
-	RecvPropInt( RECVINFO(m_iSecondaryAmmoType )),
+	RecvPropIntWithMinusOneFlag( RECVINFO( m_iClip1 ) ),
+	RecvPropIntWithMinusOneFlag( RECVINFO( m_iClip2 ) ),
+	RecvPropInt( RECVINFO( m_iPrimaryAmmoType ) ),
+	RecvPropInt( RECVINFO( m_iSecondaryAmmoType ) ),
 
 	RecvPropInt( RECVINFO( m_nViewModelIndex ) ),
 
@@ -2849,20 +2930,47 @@ BEGIN_NETWORK_TABLE_NOBASE( CBaseCombatWeapon, DT_LocalWeaponData )
 #endif
 END_NETWORK_TABLE()
 
-BEGIN_NETWORK_TABLE(CBaseCombatWeapon, DT_BaseCombatWeapon)
+BEGIN_NETWORK_TABLE( CBaseCombatWeapon, DT_BaseCombatWeapon )
 #if !defined( CLIENT_DLL )
-	SendPropDataTable("LocalWeaponData", 0, &REFERENCE_SEND_TABLE(DT_LocalWeaponData), SendProxy_SendLocalWeaponDataTable ),
-	SendPropDataTable("LocalActiveWeaponData", 0, &REFERENCE_SEND_TABLE(DT_LocalActiveWeaponData), SendProxy_SendActiveLocalWeaponDataTable ),
-	SendPropModelIndex( SENDINFO(m_iViewModelIndex) ),
-	SendPropModelIndex( SENDINFO(m_iWorldModelIndex) ),
-	SendPropInt( SENDINFO(m_iState ), 8, SPROP_UNSIGNED ),
-	SendPropEHandle( SENDINFO(m_hOwner) ),
+	SendPropDataTable( "LocalWeaponData", 0, &REFERENCE_SEND_TABLE( DT_LocalWeaponData ), SendProxy_SendLocalWeaponDataTable ),
+	SendPropDataTable( "LocalActiveWeaponData", 0, &REFERENCE_SEND_TABLE( DT_LocalActiveWeaponData ), SendProxy_SendActiveLocalWeaponDataTable ),
+	SendPropModelIndex( SENDINFO( m_iViewModelIndex ) ),
+	SendPropModelIndex( SENDINFO( m_iWorldModelIndex ) ),
+	SendPropInt( SENDINFO( m_iState ), 8, SPROP_UNSIGNED ),
+	SendPropEHandle( SENDINFO( m_hOwner ) ),
 #else
-	RecvPropDataTable("LocalWeaponData", 0, 0, &REFERENCE_RECV_TABLE(DT_LocalWeaponData)),
-	RecvPropDataTable("LocalActiveWeaponData", 0, 0, &REFERENCE_RECV_TABLE(DT_LocalActiveWeaponData)),
-	RecvPropInt( RECVINFO(m_iViewModelIndex)),
-	RecvPropInt( RECVINFO(m_iWorldModelIndex)),
-	RecvPropInt( RECVINFO(m_iState), 0, &CBaseCombatWeapon::RecvProxy_WeaponState ),
-	RecvPropEHandle( RECVINFO(m_hOwner ) ),
+	RecvPropDataTable( "LocalWeaponData", 0, 0, &REFERENCE_RECV_TABLE( DT_LocalWeaponData ) ),
+	RecvPropDataTable( "LocalActiveWeaponData", 0, 0, &REFERENCE_RECV_TABLE( DT_LocalActiveWeaponData ) ),
+	RecvPropInt( RECVINFO( m_iViewModelIndex ) ),
+	RecvPropInt( RECVINFO( m_iWorldModelIndex ) ),
+	RecvPropInt( RECVINFO( m_iState ), 0, &CBaseCombatWeapon::RecvProxy_WeaponState ),
+	RecvPropEHandle( RECVINFO( m_hOwner ) ),
 #endif
 END_NETWORK_TABLE()
+
+BEGIN_ENT_SCRIPTDESC( CBaseCombatWeapon, CBaseAnimating, "Base that all weapons derive from" )
+	DEFINE_SCRIPTFUNC( GetMaxClip1, "" )
+	DEFINE_SCRIPTFUNC( GetMaxClip2, "" )
+	DEFINE_SCRIPTFUNC( GetDefaultClip1, "" )
+	DEFINE_SCRIPTFUNC( GetDefaultClip2, "" )
+	DEFINE_SCRIPTFUNC( Clip1, "" )
+	DEFINE_SCRIPTFUNC( Clip2, "" )
+#ifdef GAME_DLL
+	DEFINE_SCRIPTFUNC_NAMED( ScriptSetClip1, "SetClip1", "" )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptSetClip2, "SetClip2", "" )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptSetClips, "SetClips", "" )
+#endif
+	DEFINE_SCRIPTFUNC_NAMED( ScriptGetMaxAmmo1, "GetMaxAmmo1", "" )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptGetMaxAmmo2, "GetMaxAmmo2", "" )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptGetClips, "GetClips", "" )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptGetMaxClips, "GetMaxClips", "" )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptGetOwner, "GetOwner", "" )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptSetOwner, "SetOwner", "" )
+	DEFINE_SCRIPTFUNC( SendWeaponAnim, "" )
+	DEFINE_SCRIPTFUNC( SendViewModelAnim, "" )
+	DEFINE_SCRIPTFUNC( SetViewModelIndex, "" )
+	DEFINE_SCRIPTFUNC( SetSubType, "" )
+	DEFINE_SCRIPTFUNC( GetSubType, "" )
+	DEFINE_SCRIPTFUNC( HasAmmo, "" )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptGiveTo, "GiveTo", "" )
+END_SCRIPTDESC()
