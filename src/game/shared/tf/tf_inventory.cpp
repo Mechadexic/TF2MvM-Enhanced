@@ -11,11 +11,6 @@
 #include "tf_inventory.h"
 #include "econ_item_system.h"
 
-#ifdef CLIENT_DLL
-ConVar tf2v_show_reskins_in_armory("tf2v_show_reskins_in_armory", "0", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, "Display reskin items in the armory.");
-ConVar tf2v_show_cosmetics_in_armory("tf2v_show_cosmetics_in_armory", "0", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, "Display reskin items in the armory.");
-#endif
-
 static CTFInventory g_TFInventory;
 
 CTFInventory *GetTFInventory()
@@ -48,15 +43,6 @@ CTFInventory::~CTFInventory()
 
 bool CTFInventory::Init( void )
 {
-#ifdef CLIENT_DLL
-	bool bReskinsEnabled = tf2v_show_reskins_in_armory.GetBool();
-	bool bCosmeticsEnabled = tf2v_show_cosmetics_in_armory.GetBool();
-#endif
-#ifdef GAME_DLL
-	bool bReskinsEnabled = true;
-	bool bCosmeticsEnabled = true;
-#endif
-
 	GetItemSchema()->Init();
 
 	// Generate item list.
@@ -67,7 +53,7 @@ bool CTFInventory::Init( void )
 
 		if ( pItemDef->item_slot == -1 )
 			continue;
-		
+
 		// Add it to each class that uses it.
 		for ( int iClass = 0; iClass < TF_CLASS_COUNT_ALL; iClass++ )
 		{
@@ -76,78 +62,30 @@ bool CTFInventory::Init( void )
 				// Show it if it's either base item or has show_in_armory flag.
 				int iSlot = pItemDef->GetLoadoutSlot( iClass );
 
-				if ( ( ( iSlot < TF_LOADOUT_SLOT_HAT ) || bCosmeticsEnabled ) || ( pItemDef->baseitem ) || ( ( iSlot == TF_LOADOUT_SLOT_MEDAL ) || ( iSlot == TF_LOADOUT_SLOT_ZOMBIE ) ) )
+				if ( pItemDef->baseitem )
 				{
-					if ( ( iSlot != TF_LOADOUT_SLOT_MISC1 ) && ( iSlot != TF_LOADOUT_SLOT_MISC2 ) )	// Skip MISC2 since we do it below.
+					CEconItemView *pBaseItem = m_Items[iClass][iSlot][0];
+					if ( pBaseItem != NULL )
 					{
-						if ( pItemDef->baseitem )
-						{
-							CEconItemView *pBaseItem = m_Items[iClass][iSlot][0];
-							if ( pBaseItem != NULL )
-							{
-								Warning( "Duplicate base item %d for class %s in slot %s!\n", iItemID, g_aPlayerClassNames_NonLocalized[iClass], g_LoadoutSlots[iSlot] );
-								delete pBaseItem;
-							}
-
-							CEconItemView *pNewItem = new CEconItemView( iItemID );
-						
-#if defined ( GAME_DLL )
-							pNewItem->SetItemClassNumber( iClass );
-#endif
-							m_Items[iClass][iSlot][0] = pNewItem;
-						}
-						else if ( ( pItemDef->show_in_armory ) && ( ( ( pItemDef->is_reskin == 0 ) || ( ( pItemDef->is_reskin == 1 ) && bReskinsEnabled ) ) ) )
-						{
-							CEconItemView *pNewItem = new CEconItemView( iItemID );
-
-#if defined ( GAME_DLL )
-							pNewItem->SetItemClassNumber( iClass );
-#endif
-							m_Items[iClass][iSlot].AddToTail( pNewItem );
-						}
+						Warning( "Duplicate base item %d for class %s in slot %s!\n", iItemID, g_aPlayerClassNames_NonLocalized[iClass], g_LoadoutSlots[iSlot] );
+						delete pBaseItem;
 					}
-					else if ( iSlot != TF_LOADOUT_SLOT_MISC2 ) // We need to duplicate across all misc slots.
-					{
-						for (int iMiscSlot = 1; iMiscSlot <= TF_PLAYER_MISC_COUNT; ++iMiscSlot)
-						{
-							switch (iMiscSlot)
-							{
-								case 1:
-									iSlot = TF_LOADOUT_SLOT_MISC1;
-									break;
-									
-								case 2:
-									iSlot = TF_LOADOUT_SLOT_MISC2;
-									break;
-							}
-		
-							if ( pItemDef->baseitem )
-							{
-								CEconItemView *pBaseItem = m_Items[iClass][iSlot][0];
-								if ( pBaseItem != NULL )
-								{
-									Warning("Duplicate base item %d for class %s in slot %s!\n", iItemID, g_aPlayerClassNames_NonLocalized[iClass], g_LoadoutSlots[iSlot]);
-									delete pBaseItem;
-								}
 
-								CEconItemView *pNewItem = new CEconItemView( iItemID );
-							
-#if defined ( GAME_DLL )
-								pNewItem->SetItemClassNumber( iClass );
-#endif
-								m_Items[iClass][iSlot][0] = pNewItem;
-							}
-							else if ( ( pItemDef->show_in_armory ) && ( ( ( pItemDef->is_reskin == 0 ) || ( ( pItemDef->is_reskin == 1 ) && bReskinsEnabled ) ) ) )
-							{
-								CEconItemView *pNewItem = new CEconItemView( iItemID );
+					CEconItemView *pNewItem = new CEconItemView( iItemID );
 
 #if defined ( GAME_DLL )
-								pNewItem->SetItemClassNumber( iClass );
+					pNewItem->SetItemClassNumber( iClass );
 #endif
-								m_Items[iClass][iSlot].AddToTail(pNewItem);
-							}
-						}
-					}
+					m_Items[iClass][iSlot][0] = pNewItem;
+				}
+				else if ( pItemDef->show_in_armory )
+				{
+					CEconItemView *pNewItem = new CEconItemView( iItemID );
+
+#if defined ( GAME_DLL )
+					pNewItem->SetItemClassNumber( iClass );
+#endif
+					m_Items[iClass][iSlot].AddToTail( pNewItem );
 				}
 			}
 		}
@@ -186,7 +124,7 @@ CEconItemView *CTFInventory::GetItem( int iClass, int iSlot, int iNum )
 
 bool CTFInventory::CheckValidSlot(int iClass, int iSlot, bool bHudCheck /*= false*/)
 {
-	if (iClass < TF_CLASS_UNDEFINED || iClass > TF_CLASS_COUNT_ALL)
+	if (iClass < TF_CLASS_UNDEFINED || iClass > TF_CLASS_COUNT)
 		return false;
 
 	int iCount = (bHudCheck ? INVENTORY_ROWNUM : TF_LOADOUT_SLOT_COUNT);
@@ -204,7 +142,7 @@ bool CTFInventory::CheckValidSlot(int iClass, int iSlot, bool bHudCheck /*= fals
 
 bool CTFInventory::CheckValidWeapon(int iClass, int iSlot, int iWeapon, bool bHudCheck /*= false*/)
 {
-	if (iClass < TF_CLASS_UNDEFINED || iClass > TF_CLASS_COUNT_ALL)
+	if (iClass < TF_CLASS_UNDEFINED || iClass > TF_CLASS_COUNT)
 		return false;
 
 	int iCount = ( bHudCheck ? INVENTORY_COLNUM : m_Items[iClass][iSlot].Count() );
@@ -221,13 +159,6 @@ bool CTFInventory::CheckValidWeapon(int iClass, int iSlot, int iWeapon, bool bHu
 };
 
 #if defined( CLIENT_DLL )
-bool CTFInventory::CheckSpecialItemAccess()
-{
-	// Placeholder until we can implement SteamID checking here.
-	return false;
-	
-}
-
 void CTFInventory::LoadInventory()
 {
 	bool bExist = filesystem->FileExists("scripts/tf_inventory.txt", "MOD");
@@ -259,14 +190,11 @@ void CTFInventory::ResetInventory()
 
 	m_pInventory = new KeyValues("Inventory");
 
-	for (int i = TF_FIRST_NORMAL_CLASS; i <= TF_LAST_NORMAL_CLASS; i++)
+	for (int i = TF_CLASS_UNDEFINED; i < TF_CLASS_COUNT_ALL; i++)
 	{
 		KeyValues *pClassInv = new KeyValues(g_aPlayerClassNames_NonLocalized[i]);
-		for (int j = 0; j < TF_LOADOUT_SLOT_ZOMBIE; j++)
+		for (int j = 0; j < TF_LOADOUT_SLOT_COUNT; j++)
 		{
-			if (j == TF_LOADOUT_SLOT_UTILITY || j == TF_LOADOUT_SLOT_ACTION )
-				continue;
-			
 			pClassInv->SetInt( g_LoadoutSlots[j], 0 );
 		}
 		m_pInventory->AddSubKey(pClassInv);
@@ -280,15 +208,13 @@ int CTFInventory::GetWeaponPreset(int iClass, int iSlot)
 	KeyValues *pClass = m_pInventory->FindKey(g_aPlayerClassNames_NonLocalized[iClass]);
 	if (!pClass)	//cannot find class node
 	{	
-		if (iClass != TF_CLASS_UNDEFINED && iClass <= TF_LAST_NORMAL_CLASS)
-			ResetInventory();
+		ResetInventory();
 		return 0;
 	}
 	int iPreset = pClass->GetInt(g_LoadoutSlots[iSlot], -1);
-	if (iPreset == -1 ) //cannot find slot node	
+	if (iPreset == -1)	//cannot find slot node
 	{
-		if ( ( iSlot != TF_LOADOUT_SLOT_UTILITY && iSlot != TF_LOADOUT_SLOT_ACTION ) && iSlot < TF_LOADOUT_SLOT_ZOMBIE )
-			ResetInventory();
+		ResetInventory();
 		return 0;
 	}
 
@@ -303,8 +229,7 @@ void CTFInventory::SetWeaponPreset(int iClass, int iSlot, int iPreset)
 	KeyValues* pClass = m_pInventory->FindKey(g_aPlayerClassNames_NonLocalized[iClass]);
 	if (!pClass)	//cannot find class node
 	{
-		if (iClass != TF_CLASS_UNDEFINED && iClass <= TF_LAST_NORMAL_CLASS)
-			ResetInventory();
+		ResetInventory();
 		pClass = m_pInventory->FindKey(g_aPlayerClassNames_NonLocalized[iClass]);
 	}
 	pClass->SetInt(GetSlotName(iSlot), iPreset);
@@ -319,7 +244,7 @@ const char* CTFInventory::GetSlotName(int iSlot)
 #endif
 
 // Legacy array, used when we're forced to use old method of giving out weapons.
-const int CTFInventory::Weapons[TF_CLASS_COUNT_ALL][TF_LOADOUT_SLOT_BUFFER] =
+const int CTFInventory::Weapons[TF_CLASS_COUNT_ALL][TF_PLAYER_WEAPON_COUNT] =
 {
 	{
 
@@ -372,8 +297,5 @@ const int CTFInventory::Weapons[TF_CLASS_COUNT_ALL][TF_LOADOUT_SLOT_BUFFER] =
 		TF_WEAPON_WRENCH,
 		TF_WEAPON_PDA_ENGINEER_BUILD,
 		TF_WEAPON_PDA_ENGINEER_DESTROY
-	},
-	{
-		TF_WEAPON_SHOVELFIST
 	},
 };

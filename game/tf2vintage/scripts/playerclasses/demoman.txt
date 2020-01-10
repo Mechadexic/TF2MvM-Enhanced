@@ -18,17 +18,15 @@ PlayerClass
 	"grenade2"		"TF_WEAPON_GRENADE_MIRV_DEMOMAN"
 
 	// Weapons.
-	"weapon1"		"TF_WEAPON_GRENADELAUNCHER"
-	"weapon2"		"TF_WEAPON_PIPEBOMBLAUNCHER"
-	"weapon3"		"TF_WEAPON_BOTTLE"
+	"weapon1"		"TF_WEAPON_BOTTLE"
+	"weapon2"		"TF_WEAPON_GRENADELAUNCHER"
+	"weapon3"		"TF_WEAPON_PIPEBOMBLAUNCHER"
 	"weapon4"		""
 	"weapon5"		""
 	"weapon6"		""
-	"weapon7"		""
-	"weapon8"		""
+	"weapon7"		"TF2V_COSMETIC_HAT"
+	"weapon8"		"TF2V_COSMETIC_MISC"
 	"weapon9"		""
-	"weapon10"		""
-	"weapon11"		""
 
 
 	//Thirdperson
@@ -41,7 +39,7 @@ PlayerClass
 	{
 		"tf_ammo_primary"	"16"
 		"tf_ammo_secondary"	"24"
-		"tf_ammo_metal"		"200"
+		"tf_ammo_metal"		"100"
 		"tf_ammo_grenades1"	"1"
 		"tf_ammo_grenades2"	"1"
 	}

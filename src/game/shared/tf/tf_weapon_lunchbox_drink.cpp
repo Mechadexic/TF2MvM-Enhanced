@@ -15,6 +15,18 @@
 CREATE_SIMPLE_WEAPON_TABLE( TFLunchBox_Drink, tf_weapon_lunchbox_drink )
 
 //-----------------------------------------------------------------------------
+// Purpose: Show the drink splash when we deploy
+//-----------------------------------------------------------------------------
+bool CTFLunchBox_Drink::Deploy( void )
+{
+#ifdef CLIENT_DLL
+	ParticleProp()->Create( "energydrink_splash", PATTACH_ABSORIGIN_FOLLOW );
+#endif
+
+	return BaseClass::Deploy();
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
 void CTFLunchBox_Drink::PrimaryAttack( void )
@@ -50,22 +62,13 @@ void CTFLunchBox_Drink::DepleteAmmo( void )
 	StartEffectBarRegen();
 }
 
-#ifndef GAME_DLL
+#ifdef GAME_DLL
 //-----------------------------------------------------------------------------
-// Purpose: Kill splash particles 
+// Purpose: 
 //-----------------------------------------------------------------------------
-bool C_TFLunchBox_Drink::Holster( CBaseCombatWeapon *pSwitchingTo )
+void CTFLunchBox_Drink::Precache( void )
 {
-	C_TFPlayer *pPlayer = GetTFPlayerOwner();
-	if ( pPlayer && pPlayer->IsLocalPlayer() )
-	{
-		C_BaseViewModel *vm = pPlayer->GetViewModel();
-		if ( vm )
-		{
-			pPlayer->StopViewModelParticles( vm );
-		}
-	}
-
-	return BaseClass::Holster( pSwitchingTo );
+	PrecacheParticleSystem( "energydrink_splash" );
+	BaseClass::Precache();
 }
 #endif

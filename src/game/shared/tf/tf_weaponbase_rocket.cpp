@@ -62,8 +62,8 @@ END_DATADESC()
 ConVar tf_rocket_show_radius( "tf_rocket_show_radius", "0", FCVAR_REPLICATED | FCVAR_CHEAT /*| FCVAR_DEVELOPMENTONLY*/, "Render rocket radius." );
 
 #ifdef GAME_DLL
-ConVar tf2v_homing_rockets("tf2v_homing_rockets", "0", FCVAR_CHEAT, "What is \"Rocket + x = Death\"?");
-ConVar tf2v_homing_deflected_rockets("tf2v_homing_deflected_rockets", "0", FCVAR_CHEAT, "Homing Crit Rockets 2: Back with Vengeance");
+ConVar tf2c_homing_rockets("tf2c_homing_rockets", "0", FCVAR_CHEAT, "What is \"Rocket + x = Death\"?");
+ConVar tf2c_homing_deflected_rockets("tf2c_homing_deflected_rockets", "0", FCVAR_CHEAT, "Homing Crit Rockets 2: Back with Vengeance");
 #endif
 
 //=============================================================================
@@ -143,9 +143,8 @@ void CTFBaseRocket::Spawn( void )
 
 	// Setup attributes.
 	m_takedamage = DAMAGE_NO;
-	
-	SetGravity( 0.0f ); // Rockets have no gravity.
-	
+	SetGravity( 0.0f );
+
 	// Setup the touch and think functions.
 	SetTouch( &CTFBaseRocket::RocketTouch );
 	SetThink( &CTFBaseRocket::FlyThink );
@@ -367,9 +366,8 @@ void CTFBaseRocket::Explode( trace_t *pTrace, CBaseEntity *pOther )
 
 	float flRadius = GetRadius();
 
-	CTakeDamageInfo newInfo( this, pAttacker, m_hLauncher, vec3_origin, vecOrigin, GetDamage(), GetDamageType() );
 	CTFRadiusDamageInfo radiusInfo;
-	radiusInfo.info = &newInfo;
+	radiusInfo.info.Set( this, pAttacker, m_hLauncher, vec3_origin, vecOrigin, GetDamage(), GetDamageType() );
 	radiusInfo.m_vecSrc = vecOrigin;
 	radiusInfo.m_flRadius = flRadius;
 	radiusInfo.m_flSelfDamageRadius = 121.0f; // Original rocket radius?
@@ -399,17 +397,6 @@ float CTFBaseRocket::GetRadius( void )
 {
 	float flRadius = TF_ROCKET_RADIUS;
 	CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( m_hLauncher.Get(), flRadius, mult_explosion_radius );
-	// If we're blast jumping with an attack bonus, decrease radius by 20%.
-	/*
-	CTFPlayer *pPlayer = ToTFPlayer( GetOwnerEntity() );
-	if ( pPlayer && pPlayer->m_Shared.InCond( TF_COND_BLASTJUMPING ) )
-	{
-		float flRocketJumpBonus = 1.0f;
-			CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( m_hLauncher.Get(), flRocketJumpBonus, rocketjump_attackrate_bonus );
-		if (flRocketJumpBonus != 1.0f)
-			flRadius *= 0.8;
-	}
-	*/
 	return flRadius;
 }
 
@@ -473,6 +460,14 @@ void CTFBaseRocket::IncremenentDeflected( void )
 	m_iDeflected++;
 }
 
+//-----------------------------------------------------------------------------
+// Purpose:
+//-----------------------------------------------------------------------------
+void CTFBaseRocket::SetLauncher( CBaseEntity *pLauncher )
+{ 
+	m_hLauncher = pLauncher;
+}
+
 void CTFBaseRocket::FlyThink( void )
 {
 	if ( gpGlobals->curtime > m_flCollideWithTeammatesTime && m_bCollideWithTeammates == false )
@@ -480,7 +475,7 @@ void CTFBaseRocket::FlyThink( void )
 		m_bCollideWithTeammates = true;
 	}
 
-	if ( tf2v_homing_rockets.GetBool() )
+	if ( tf2c_homing_rockets.GetBool() )
 	{
 		// Find the closest visible enemy player.
 		CUtlVector<CTFPlayer *> vecPlayers;

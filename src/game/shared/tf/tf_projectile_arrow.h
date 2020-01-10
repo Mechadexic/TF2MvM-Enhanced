@@ -43,8 +43,6 @@ public:
 
 	virtual int 		GetWeaponID( void ) const 			{ return TF_WEAPON_COMPOUND_BOW; }
 
-
-
 #ifdef GAME_DLL
 	static CTFProjectile_Arrow *Create( CBaseEntity *pWeapon, const Vector &vecOrigin, const QAngle &vecAngles, float flSpeed, float flGravity, bool bFlame, CBaseEntity *pOwner, CBaseEntity *pScorer, int iType );
 
@@ -59,7 +57,7 @@ public:
 	void				SetScorer( CBaseEntity *pScorer );
 
 	void				SetCritical( bool bCritical ) 	{ m_bCritical = bCritical; }
-	int					GetDamageType();
+	virtual int			GetDamageType();
 
 	virtual bool		IsDeflectable() 				{ return true; }
 	virtual void		Deflected( CBaseEntity *pDeflectedBy, Vector &vecDir );
@@ -86,8 +84,6 @@ public:
 	virtual void		Light( void );
 
 	virtual void   		NotifyBoneAttached( C_BaseAnimating* attachTarget );
-
-
 
 	// Tell the object when to die
 	void				SetDieTime( float flDieTime ) 	{ m_flDieTime = flDieTime; }

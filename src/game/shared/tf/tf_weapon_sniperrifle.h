@@ -12,16 +12,10 @@
 #include "tf_weaponbase_gun.h"
 #include "Sprite.h"
 
-
 #if defined( CLIENT_DLL )
 #define CTFSniperRifle C_TFSniperRifle
 #define CSniperDot C_SniperDot
 #endif
-
-#ifdef GAME_DLL
-#include "GameEventListener.h"
-#endif
-
 
 //=============================================================================
 //
@@ -73,8 +67,6 @@ protected:
 	CNetworkVar( float, m_flChargeStartTime );
 };
 
-#define TF_WEAPON_SNIPERRIFLE_CHARGE_PER_SEC	50.0f
-
 //=============================================================================
 //
 // Sniper Rifle class.
@@ -91,7 +83,7 @@ public:
 	~CTFSniperRifle();
 
 	virtual int	GetWeaponID( void ) const			{ return TF_WEAPON_SNIPERRIFLE; }
-	virtual bool	ShouldDrawCrosshair( void )						{ return false; }
+
 	virtual void Spawn();
 	virtual void Precache();
 	void		 ResetTimers( void );
@@ -101,12 +93,10 @@ public:
 	virtual bool Holster( CBaseCombatWeapon *pSwitchingTo );
 
 	void		 HandleZooms( void );
-	virtual void DoFireEffects( void );
 	virtual void ItemPostFrame( void );
 	virtual bool Lower( void );
 	virtual float GetProjectileDamage( void );
 	virtual int	GetDamageType() const;
-	virtual float GetChargingRate( void )		{ return TF_WEAPON_SNIPERRIFLE_CHARGE_PER_SEC; }
 
 	virtual void WeaponReset( void );
 
@@ -148,56 +138,6 @@ private:
 	bool m_bRezoomAfterShot;
 
 	CTFSniperRifle( const CTFSniperRifle & );
-};
-
-// A sniper rifle with defined clipsize.
-
-#if defined CLIENT_DLL
-#define CTFSniperRifle_Real C_TFSniperRifle_Real
-#endif
-
-class CTFSniperRifle_Real : public CTFSniperRifle
-{
-public:
-
-	DECLARE_CLASS( CTFSniperRifle_Real, CTFSniperRifle )
-	DECLARE_NETWORKCLASS();
-	DECLARE_PREDICTABLE();
-
-	virtual int GetWeaponID( void ) const { return TF_WEAPON_SNIPERRIFLE_REAL; }
-};
-
-
-// Sniper logic used for the Bazaar Bargin.
-
-#if defined CLIENT_DLL
-#define CTFSniperRifle_Decap C_TFSniperRifle_Decap
-#endif
-
-class CTFSniperRifle_Decap : public CTFSniperRifle
-#ifdef GAME_DLL
-	, public CGameEventListener
-#endif
-{
-public:
-
-	DECLARE_CLASS( CTFSniperRifle_Decap, CTFSniperRifle )
-	DECLARE_NETWORKCLASS();
-	DECLARE_PREDICTABLE();
-
-	virtual int GetWeaponID( void ) const { return TF_WEAPON_SNIPERRIFLE_DECAP; }
-	virtual bool	HasChargeBar( void )			{ return true; }
-	virtual const char* GetEffectLabelText( void ) { return "#TF_Berzerk"; }
-	virtual bool	Deploy( void );
-	virtual bool 	Holster( CBaseCombatWeapon *pSwitchingTo );
-#ifdef GAME_DLL
-
-	virtual void	SetupGameEventListeners( void );
-	virtual void	FireGameEvent( IGameEvent *event );
-#endif
-	virtual void	OnHeadshot( void );
-	virtual float 	GetChargingRate(void);
-
 };
 
 #endif // TF_WEAPON_SNIPERRIFLE_H

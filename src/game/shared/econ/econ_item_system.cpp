@@ -288,7 +288,7 @@ public:
 		for ( KeyValues *pSubData = pKeyValuesData->GetFirstSubKey(); pSubData != NULL; pSubData = pSubData->GetNextKey() )
 		{
 			EconAttributeDefinition *pAttribute = new EconAttributeDefinition;
-			pAttribute->index = V_atoi( pSubData->GetName() );
+			int index = V_atoi( pSubData->GetName() );
 
 			GET_STRING_DEFAULT( pAttribute, pSubData, name, ( unnamed ) );
 			GET_STRING( pAttribute, pSubData, attribute_class );
@@ -304,13 +304,13 @@ public:
 			GET_BOOL( pAttribute, pSubData, hidden );
 			GET_BOOL( pAttribute, pSubData, stored_as_integer );
 
-			GetItemSchema()->m_Attributes.Insert( pAttribute->index, pAttribute );
+			GetItemSchema()->m_Attributes.Insert( index, pAttribute );
 		}
 	};
 
 	bool ParseVisuals( KeyValues *pData, CEconItemDefinition* pItem, int iIndex )
 	{
-		PerTeamVisuals_t *pVisuals = &pItem->visual[iIndex];
+		EconItemVisuals *pVisuals = &pItem->visual[iIndex];
 
 		for ( KeyValues *pVisualData = pData->GetFirstSubKey(); pVisualData != NULL; pVisualData = pVisualData->GetNextKey() )
 		{
@@ -318,16 +318,15 @@ public:
 			{
 				GET_VALUES_FAST_BOOL( pVisuals->player_bodygroups, pVisualData );
 			}
-			else if ( !V_stricmp( pVisualData->GetName(), "attached_models" ) )
+			else if ( !V_stricmp( pVisualData->GetName(), "attached_model" ) )
 			{
-				for (KeyValues *pAttachment = pVisualData->GetFirstSubKey(); pAttachment != NULL; pAttachment = pAttachment->GetNextKey())
-				{
-					AttachedModel_t attached_model;
-					attached_model.model_display_flags = pAttachment->GetInt( "model_display_flags", AM_VIEWMODEL|AM_WORLDMODEL );
-					V_strncpy( attached_model.model, pAttachment->GetString( "model" ), sizeof( attached_model.model ) );
+				attachedmodel_t attached_model;
+				attached_model.view_model = pVisualData->GetInt( "view_model" );
+				attached_model.world_model = pVisualData->GetInt( "world_model" );
+				V_strncpy( attached_model.model, pVisualData->GetString( "model" ), sizeof( attached_model.model ) );
+				V_strncpy( attached_model.attachment, pVisualData->GetString( "attachment" ), sizeof( attached_model.attachment ) );
 
-					pVisuals->attached_models.AddToTail( attached_model );
-				}
+				pVisuals->attached_models.AddToTail( attached_model );
 			}
 			else if ( !V_strcmp( pVisualData->GetName(), "custom_particlesystem" ) )
 			{
@@ -368,37 +367,33 @@ public:
 				/*
 				for (KeyValues *pStyleData = pVisualData->GetFirstSubKey(); pStyleData != NULL; pStyleData = pStyleData->GetNextKey())
 				{
-					EconItemStyle *style;
-					IF_ELEMENT_FOUND(visual->styles, pStyleData->GetName())
-					{
-						style = visual->styles.Element(index);
-					}
-					else
-					{
-						style = new EconItemStyle();
-						visual->styles.Insert(pStyleData->GetName(), style);
-					}
+				EconItemStyle *style;
+				IF_ELEMENT_FOUND(visual->styles, pStyleData->GetName())
+				{
+				style = visual->styles.Element(index);
+				}
+				else
+				{
+				style = new EconItemStyle();
+				visual->styles.Insert(pStyleData->GetName(), style);
+				}
 
-					GET_STRING(style, pStyleData, name);
-					GET_STRING(style, pStyleData, model_player);
-					GET_STRING(style, pStyleData, image_inventory);
-					GET_BOOL(style, pStyleData, selectable);
-					GET_INT(style, pStyleData, skin_red);
-					GET_INT(style, pStyleData, skin_blu);
+				GET_STRING(style, pStyleData, name);
+				GET_STRING(style, pStyleData, model_player);
+				GET_STRING(style, pStyleData, image_inventory);
+				GET_BOOL(style, pStyleData, selectable);
+				GET_INT(style, pStyleData, skin_red);
+				GET_INT(style, pStyleData, skin_blu);
 
-					for (KeyValues *pStyleModelData = pStyleData->GetFirstSubKey(); pStyleModelData != NULL; pStyleModelData = pStyleModelData->GetNextKey())
-					{
-						if (!V_stricmp(pStyleModelData->GetName(), "model_player_per_class"))
-						{
-							GET_VALUES_FAST_STRING(style->model_player_per_class, pStyleModelData);
-						}
-					}
+				for (KeyValues *pStyleModelData = pStyleData->GetFirstSubKey(); pStyleModelData != NULL; pStyleModelData = pStyleModelData->GetNextKey())
+				{
+				if (!V_stricmp(pStyleModelData->GetName(), "model_player_per_class"))
+				{
+				GET_VALUES_FAST_STRING(style->model_player_per_class, pStyleModelData);
+				}
+				}
 				}
 				*/
-			}
-			else if ( !V_stricmp( pVisualData->GetName(), "skin" ) )
-			{
-				pVisuals->skin = pVisualData->GetInt();
 			}
 			else
 			{
@@ -438,7 +433,7 @@ public:
 		GET_STRING( pItem, pData, item_description );
 		GET_STRING( pItem, pData, item_type_name );
 		
-		const char *pszQuality = pData->GetString( "item_quality" );
+		/*const char *pszQuality = pData->GetString( "item_quality" );
 		if ( pszQuality[0] )
 		{
 			int iQuality = UTIL_StringFieldToInt( pszQuality, g_szQualityStrings, ARRAYSIZE( g_szQualityStrings ) );
@@ -446,10 +441,10 @@ public:
 			{
 				pItem->item_quality = iQuality;
 			}
-		}
+		}*/
 		
 		// All items are vintage quality
-		//pItem->item_quality = QUALITY_VINTAGE;
+		pItem->item_quality = QUALITY_VINTAGE;
 
 		GET_STRING( pItem, pData, item_logname );
 		GET_STRING( pItem, pData, item_iconname );
@@ -487,17 +482,9 @@ public:
 		GET_STRING( pItem, pData, extra_wearable );
 
 		GET_INT( pItem, pData, attach_to_hands );
-		GET_INT( pItem, pData, attach_to_hands_vm_only );
 		GET_BOOL( pItem, pData, act_as_wearable );
 		GET_INT( pItem, pData, hide_bodygroups_deployed_only );
-		
-		GET_BOOL(pItem, pData, is_reskin);
-		GET_BOOL(pItem, pData, specialitem);
-		GET_BOOL(pItem, pData, demoknight);
-		GET_STRING(pItem, pData, holiday_restriction);
-		GET_BOOL(pItem, pData, itemfalloff);
-		GET_INT(pItem, pData, year);
-		GET_BOOL(pItem, pData, is_custom_content);
+
 
 		for ( KeyValues *pSubData = pData->GetFirstSubKey(); pSubData != NULL; pSubData = pSubData->GetNextKey() )
 		{
@@ -689,16 +676,13 @@ void CEconItemSchema::Precache( void )
 				CBaseEntity::PrecacheModel( pszModel );
 		}
 
-		if ( pItem->extra_wearable[0] != '\0' )
-			CBaseEntity::PrecacheModel( pItem->extra_wearable );
-		
 		// Precache visuals.
 		for ( int i = 0; i < TF_TEAM_COUNT; i++ )
 		{
 			if ( i == TEAM_SPECTATOR )
 				continue;
 
-			PerTeamVisuals_t *pVisuals = &pItem->visual[i];
+			EconItemVisuals *pVisuals = &pItem->visual[i];
 
 			// Precache sounds.
 			for ( int i = 0; i < NUM_SHOOT_SOUND_TYPES; i++ )
@@ -727,13 +711,12 @@ void CEconItemSchema::Precache( void )
 		for ( int i = 0; i < pItem->attributes.Count(); i++ )
 		{
 			CEconItemAttribute *pAttribute = &pItem->attributes[i];
+			pAttribute->m_strAttributeClass = AllocPooledString( pAttribute->attribute_class );
 
-			attrib_data_union_t value;
-			value.iVal = pAttribute->m_iRawValue32;
 			// Special case for custom_projectile_model attribute.
-			if ( pAttribute->m_iAttributeClass == strPrecacheAttribute )
+			if ( pAttribute->m_strAttributeClass == strPrecacheAttribute )
 			{
-				CBaseEntity::PrecacheModel( STRING( value.sVal ) );
+				CBaseEntity::PrecacheModel( pAttribute->value_string.Get() );
 			}
 		}
 	}

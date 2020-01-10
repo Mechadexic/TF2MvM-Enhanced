@@ -41,7 +41,6 @@
 #define TF_CTF_CAPTURED_TEAM_FRAGS	1
 
 #define TF_CTF_RESET_TIME			60.0f
-#define TF_ACTF_RESET_TIME			0.1f
 
 //=============================================================================
 //
@@ -125,12 +124,7 @@ public:
 //
 // CTF Flag class.
 //
-#ifdef GAME_DLL
-DECLARE_AUTO_LIST( ICaptureFlagAutoList )
-class CCaptureFlag : public CTFItem, public ICaptureFlagAutoList
-#else
 class CCaptureFlag : public CTFItem
-#endif
 {
 public:
 

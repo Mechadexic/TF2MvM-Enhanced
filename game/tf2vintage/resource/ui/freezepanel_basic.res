@@ -91,6 +91,8 @@
 			"scaleImage"		"1"	
 			"teambg_2"		"../hud/freezecam_blue_bg"	// Reversed, due to showing killer's name
 			"teambg_3"		"../hud/freezecam_red_bg"	// Reversed, due to showing killer's name
+			"teambg_4"		"../hud/freezecam_green_bg"	// Reversed, due to showing killer's name
+			"teambg_5"		"../hud/freezecam_yellow_bg"	// Reversed, due to showing killer's name
 		}
 
 		"FreezeLabel"
@@ -184,6 +186,8 @@
 			"scaleImage"		"1"	
 			"teambg_2"		"../hud/freezecam_blue_bg"	// Reversed, due to showing killer's name
 			"teambg_3"		"../hud/freezecam_red_bg"	// Reversed, due to showing killer's name
+			"teambg_4"		"../hud/freezecam_green_bg"	// Reversed, due to showing killer's name
+			"teambg_5"		"../hud/freezecam_yellow_bg"	// Reversed, due to showing killer's name
 		}
 		
 		"FreezeLabel"

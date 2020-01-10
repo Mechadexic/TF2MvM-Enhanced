@@ -18,18 +18,18 @@
 
 BEGIN_DATADESC( CCaptureZone )
 
-	// Keyfields.
-	DEFINE_KEYFIELD( m_nCapturePoint, FIELD_INTEGER, "CapturePoint" ),
+// Keyfields.
+DEFINE_KEYFIELD( m_nCapturePoint, FIELD_INTEGER, "CapturePoint" ),
 
-	// Functions.
-	DEFINE_FUNCTION( CCaptureZoneShim::Touch ),
+// Functions.
+DEFINE_FUNCTION( Touch ),
 
-	// Inputs.
-	DEFINE_INPUTFUNC( FIELD_VOID, "Enable", InputEnable ),
-	DEFINE_INPUTFUNC( FIELD_VOID, "Disable", InputDisable ),
+// Inputs.
+DEFINE_INPUTFUNC( FIELD_VOID, "Enable", InputEnable ),
+DEFINE_INPUTFUNC( FIELD_VOID, "Disable", InputDisable ),
 
-	// Outputs.
-	DEFINE_OUTPUT( m_outputOnCapture, "OnCapture" ),
+// Outputs.
+DEFINE_OUTPUT( m_outputOnCapture, "OnCapture" ),
 
 END_DATADESC()
 
@@ -38,12 +38,6 @@ LINK_ENTITY_TO_CLASS( func_capturezone, CCaptureZone );
 
 IMPLEMENT_SERVERCLASS_ST( CCaptureZone, DT_CaptureZone )
 END_SEND_TABLE()
-
-
-IMPLEMENT_AUTO_LIST( ICaptureZoneAutoList );
-
-
-extern ConVar tf2v_assault_ctf_rules;
 
 //=============================================================================
 //
@@ -56,7 +50,7 @@ extern ConVar tf2v_assault_ctf_rules;
 void CCaptureZone::Spawn()
 {
 	InitTrigger();
-	SetTouch( &CCaptureZoneShim::Touch );
+	SetTouch( &CCaptureZone::Touch );
 
 	if ( m_bDisabled )
 	{
@@ -69,7 +63,7 @@ void CCaptureZone::Spawn()
 //-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
-void CCaptureZone::CaptureTouch( CBaseEntity *pOther )
+void CCaptureZone::Touch( CBaseEntity *pOther )
 {
 	// Is the zone enabled?
 	if ( IsDisabled() )
@@ -88,15 +82,8 @@ void CCaptureZone::CaptureTouch( CBaseEntity *pOther )
 				// does this capture point have a team number asssigned?
 				if ( GetTeamNumber() != TEAM_UNASSIGNED )
 				{
-					// TF2V exclusive: We use different capture zones for regular CTF, same capture zones for Assault CTF.
-					bool bIsTeamCapturePoint;
-					if ( pFlag->GetGameType() == TF_FLAGTYPE_CTF && tf2v_assault_ctf_rules.GetBool() )
-						bIsTeamCapturePoint = pPlayer->GetTeamNumber() != GetTeamNumber();
-					else
-						bIsTeamCapturePoint = pPlayer->GetTeamNumber() == GetTeamNumber();
-					
 					// Check to see if the capture zone team matches the player's team.
-					if ( pPlayer->GetTeamNumber() != TEAM_UNASSIGNED && bIsTeamCapturePoint )
+					if ( pPlayer->GetTeamNumber() != TEAM_UNASSIGNED && pPlayer->GetTeamNumber() != GetTeamNumber() )
 					{
 						if ( pFlag->GetGameType() == TF_FLAGTYPE_CTF )
 						{

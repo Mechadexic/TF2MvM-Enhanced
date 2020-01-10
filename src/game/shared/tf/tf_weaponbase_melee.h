@@ -55,10 +55,9 @@ public:
 
 	bool			DoSwingTrace( trace_t &tr );
 	virtual void	Smack( void );
-	virtual void	DoMeleeDamage( CBaseEntity *pTarget, CGameTrace &trace );
 
 	virtual float	GetMeleeDamage( CBaseEntity *pTarget, int &iCustomDamage );
-	virtual int		GetCustomDamageType() const						{ return TF_DMG_CUSTOM_NONE; }
+	virtual int		GetCustomDamageType() const { return TF_DMG_CUSTOM_NONE; }
 
 #ifndef CLIENT_DLL
 	virtual float	GetForceScale( void );
@@ -69,10 +68,8 @@ public:
 
 	virtual void	SendPlayerAnimEvent( CTFPlayer *pPlayer );
 
-	bool			IsCurrentAttackACritical( void )				{ return m_bCurrentAttackIsCrit; }
-	bool			ConnectedHit( void )							{ return m_bConnected; }
-
-	virtual int		GetSwingRange( void ) const;
+	bool			IsCurrentAttackACritical( void ) { return m_bCurrentAttackIsCrit; }
+	bool			ConnectedHit( void ) { return m_bConnected; }
 
 public:	
 

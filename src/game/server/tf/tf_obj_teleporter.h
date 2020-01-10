@@ -72,8 +72,6 @@ public:
 
 	int GetState( void ) { return m_iState; }	// state of the object ( building, charging, ready etc )
 
-	bool IsReady( void );
-
 	void SetTeleportingPlayer( CTFPlayer *pPlayer )
 	{
 		m_hTeleportingPlayer = pPlayer;

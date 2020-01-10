@@ -32,11 +32,11 @@
 
 // Client specific.
 #if defined( CLIENT_DLL )
-	#define CTFWeaponBase C_TFWeaponBase
-	#define CTFWeaponBaseGrenadeProj C_TFWeaponBaseGrenadeProj
-	#define CTFViewModel C_TFViewModel
-	#include "tf_fx_muzzleflash.h"
-	#include "c_tf_viewmodeladdon.h"
+#define CTFWeaponBase C_TFWeaponBase
+#define CTFWeaponBaseGrenadeProj C_TFWeaponBaseGrenadeProj
+#define CTFViewModel C_TFViewModel
+#include "tf_fx_muzzleflash.h"
+#include "c_tf_viewmodeladdon.h"
 #endif
 
 #define MAX_TRACER_NAME		128
@@ -150,8 +150,6 @@ class CTFWeaponBase : public CBaseCombatWeapon
 
 	string_t GetViewModelOffset( void );
 
-	virtual const char*	ModifyEventParticles( const char* token ) { return token; }
-
 	// Stunball
 	virtual const char *GetStunballViewmodel( void ) { return NULL_STRING; }
 #endif
@@ -221,8 +219,6 @@ class CTFWeaponBase : public CBaseCombatWeapon
 	static acttable_t s_acttableMeleeAllClass[];
 	static acttable_t s_acttableSecondary2[];
 	static acttable_t s_acttablePrimary2[];
-	static acttable_t s_acttableLoserState[];
-	static acttable_t s_acttableBuildingDeployed[];
 	static viewmodel_acttable_t s_viewmodelacttable[];
 
 #ifdef GAME_DLL
@@ -235,10 +231,8 @@ class CTFWeaponBase : public CBaseCombatWeapon
 	CTFPlayer *GetTFPlayerOwner() const;
 
 #ifdef CLIENT_DLL
-	bool UsingViewModel( void );
-	C_BaseEntity *GetWeaponForEffect();
-
-	bool IsFirstPersonView( void ) const;
+	bool			UsingViewModel( void );
+	C_BaseEntity	*GetWeaponForEffect();
 #endif
 
 	bool CanAttack( void );
@@ -274,7 +268,6 @@ class CTFWeaponBase : public CBaseCombatWeapon
 	void				EffectBarRegenFinished( void );
 	void				CheckEffectBarRegen( void );
 	virtual float		GetEffectBarProgress( void );
-	virtual void		SetEffectBarProgress( float flEffectBarRegenTime ) { m_flEffectBarRegenTime = flEffectBarRegenTime; }
 	virtual const char *GetEffectLabelText( void ) { return ""; }
 	void				ReduceEffectBarRegenTime( float flTime ) { m_flEffectBarRegenTime -= flTime; }
 	virtual bool		EffectMeterShouldFlash( void ) { return false; }
@@ -285,10 +278,6 @@ class CTFWeaponBase : public CBaseCombatWeapon
 	virtual bool		PickedUpBall( CTFPlayer *pPlayer ) { return false; }
 
 	const char*			GetExtraWearableModel( void ) const;
-
-	virtual float		GetSpeedMod( void ) const { return 1.0f; }
-
-	bool				IsHonorBound( void ) const;
 
 // Server specific.
 #if !defined( CLIENT_DLL )
@@ -307,12 +296,7 @@ class CTFWeaponBase : public CBaseCombatWeapon
 	virtual const Vector& GetBulletSpread();
 
 	// On hit effects.
-	virtual void ApplyOnHitAttributes( CBaseEntity *pVictim, CTFPlayer *pAttacker, const CTakeDamageInfo &info );
-	virtual void ApplyPostOnHitAttributes( CTakeDamageInfo const &info, CTFPlayer *pVictim );
-
-	bool IsSilentKiller( void ) const;
-
-	virtual bool OwnerCanTaunt( void ) const { return true; }
+	void ApplyOnHitAttributes( CTFPlayer *pVictim, const CTakeDamageInfo &info );
 
 // Client specific.
 #else
@@ -326,7 +310,6 @@ class CTFWeaponBase : public CBaseCombatWeapon
 	virtual void	OnPreDataChanged( DataUpdateType_t updateType );
 	virtual int		GetWorldModelIndex( void );
 	virtual bool	ShouldDrawCrosshair( void );
-	virtual void	GetWeaponCrosshairScale( float &flScale );
 	virtual void	Redraw( void );
 
 	virtual void	AddViewmodelBob( CBaseViewModel *viewmodel, Vector &origin, QAngle &angles );
@@ -384,8 +367,6 @@ protected:
 
 	CNetworkVar(	bool, m_bResetParity );
 
-	int				m_iRefundedAmmo;
-
 #ifdef CLIENT_DLL
 	bool m_bOldResetParity;
 
@@ -403,8 +384,8 @@ private:
 
 #define WEAPON_RANDOM_RANGE 10000
 
-#define CREATE_SIMPLE_WEAPON_TABLE( WpnName, entityname )	\
-															\
+#define CREATE_SIMPLE_WEAPON_TABLE( WpnName, entityname )			\
+																	\
 	IMPLEMENT_NETWORKCLASS_ALIASED( WpnName, DT_##WpnName )	\
 															\
 	BEGIN_NETWORK_TABLE( C##WpnName, DT_##WpnName )			\

@@ -17,9 +17,8 @@ IMPLEMENT_SERVERCLASS_ST( CTFPlayerResource, DT_TFPlayerResource )
 	SendPropArray3( SENDINFO_ARRAY3( m_iTotalScore ), SendPropInt( SENDINFO_ARRAY( m_iTotalScore ), 13 ) ),
 	SendPropArray3(SENDINFO_ARRAY3( m_iDomination ), SendPropInt( SENDINFO_ARRAY( m_iDomination ) ) ),
 	SendPropArray3( SENDINFO_ARRAY3( m_iMaxHealth ), SendPropInt( SENDINFO_ARRAY( m_iMaxHealth ), 10, SPROP_UNSIGNED ) ),
-	SendPropArray3( SENDINFO_ARRAY3( m_iMaxBuffedHealth ), SendPropInt( SENDINFO_ARRAY( m_iMaxBuffedHealth ), 32, SPROP_UNSIGNED ) ),
 	SendPropArray3( SENDINFO_ARRAY3( m_iPlayerClass ), SendPropInt( SENDINFO_ARRAY( m_iPlayerClass ), 5, SPROP_UNSIGNED ) ),
-	SendPropArray3( SENDINFO_ARRAY3( m_iColors ), SendPropVector( SENDINFO_ARRAY3( m_iColors ), 12, SPROP_COORD ) ),
+	SendPropArray3(SENDINFO_ARRAY3(m_iColors), SendPropVector( SENDINFO_ARRAY3( m_iColors ), 12, SPROP_COORD) ),
 	SendPropArray3( SENDINFO_ARRAY3( m_iKillstreak ), SendPropInt( SENDINFO_ARRAY( m_iKillstreak ), 10, SPROP_UNSIGNED ) ),
 	SendPropArray3( SENDINFO_ARRAY3( m_bArenaSpectator ), SendPropBool( SENDINFO_ARRAY( m_bArenaSpectator ) ) ),
 END_SEND_TABLE()
@@ -36,9 +35,11 @@ CTFPlayerResource::CTFPlayerResource( void )
 //-----------------------------------------------------------------------------
 void CTFPlayerResource::UpdatePlayerData( void )
 {
+	int i;
+
 	BaseClass::UpdatePlayerData();
 
-	for ( int i = 1 ; i <= gpGlobals->maxClients; i++ )
+	for ( i = 1 ; i <= gpGlobals->maxClients; i++ )
 	{
 		CTFPlayer *pPlayer = (CTFPlayer*)UTIL_PlayerByIndex( i );
 		
@@ -47,17 +48,14 @@ void CTFPlayerResource::UpdatePlayerData( void )
 			PlayerStats_t *pPlayerStats = CTF_GameStats.FindPlayerStats( pPlayer );
 			if ( pPlayerStats ) 
 			{
-				m_iMaxHealth.Set( i, pPlayer->GetMaxHealth() );
-				m_iMaxBuffedHealth.Set( i, pPlayer->GetMaxHealthForBuffing() );
-
+				m_iMaxHealth.Set( i, pPlayer->GetPlayerClass()->GetMaxHealth() );
 				m_iPlayerClass.Set( i, pPlayer->GetPlayerClass()->GetClassIndex() );
-
 				int iTotalScore = CTFGameRules::CalcPlayerScore( &pPlayerStats->statsAccumulated );
 				m_iTotalScore.Set( i, iTotalScore );
 
 				m_iColors.Set( i, pPlayer->m_vecPlayerColor );
 
-				m_iKillstreak.Set( i, pPlayer->m_Shared.GetKillstreak( 0 ) + pPlayer->m_Shared.GetKillstreak( 1 ) + pPlayer->m_Shared.GetKillstreak( 2 ) );
+				m_iKillstreak.Set( i, pPlayer->m_Shared.GetKillstreak() );
 			}	
 
 			m_iDomination.Set( i, pPlayer->m_Shared.GetDominationCount() );
@@ -69,12 +67,13 @@ void CTFPlayerResource::UpdatePlayerData( void )
 
 void CTFPlayerResource::Spawn( void )
 {
-	for ( int i = 0; i < MAX_PLAYERS + 1; i++ )
+	int i;
+
+	for ( i = 0; i < MAX_PLAYERS + 1; i++ )
 	{
 		m_iDomination.Set( i, 0 );
 		m_iTotalScore.Set( i, 0 );
 		m_iMaxHealth.Set( i, TF_HEALTH_UNDEFINED );
-		m_iMaxBuffedHealth.Set( i, TF_HEALTH_UNDEFINED );
 		m_iPlayerClass.Set( i, TF_CLASS_UNDEFINED );
 		m_iColors.Set(i, Vector(0.0, 0.0, 0.0));
 		m_iKillstreak.Set(i, 0);

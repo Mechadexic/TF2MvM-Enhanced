@@ -14,7 +14,7 @@
 #include "particles_new.h"
 #endif
 
-#define MAX_WEARABLES_SENT_FROM_SERVER	7
+#define MAX_WEARABLES_SENT_FROM_SERVER	5
 #define PARTICLE_MODIFY_STRING_SIZE		128
 
 #if defined( CLIENT_DLL )
@@ -38,9 +38,6 @@ public:
 	virtual void			SetParticle(const char* name);
 	virtual void			UpdateWearableBodyGroups( CBasePlayer *pPlayer );
 	virtual void			GiveTo( CBaseEntity *pEntity );
-	virtual void			RemoveFrom( CBaseEntity *pEntity );
-	
-	virtual bool			ItemFallsOffPlayer( void )	{return m_bItemFallsOff = true;}
 
 #ifdef GAME_DLL
 	virtual void			Equip( CBasePlayer *pPlayer );
@@ -53,8 +50,13 @@ public:
 	virtual bool			ShouldDraw( void );
 #endif
 
-	CNetworkVar(bool, m_bItemFallsOff);
+protected:
+
+#ifdef GAME_DLL
 	CNetworkVar( bool, m_bExtraWearable );
+#else
+	bool m_bExtraWearable;
+#endif
 
 private:
 

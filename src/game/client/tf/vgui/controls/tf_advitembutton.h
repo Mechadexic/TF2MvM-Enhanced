@@ -8,7 +8,6 @@
 #include "tf_imagepanel.h"
 #include "tf_advbutton.h"
 
-
 using namespace vgui;
 
 class CTFButton;
@@ -27,8 +26,6 @@ public:
 	~CTFAdvItemButton();
 	void Init();
 	void PerformLayout();
-	virtual void Paint();
-	void ApplySchemeSettings(vgui::IScheme *pScheme);
 	void SendAnimation(MouseState flag);
 	void SetItemDefinition(CEconItemDefinition *pItemData);
 	void SetLoadoutSlot( int iSlot, int iPreset );

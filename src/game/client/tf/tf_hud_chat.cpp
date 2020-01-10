@@ -60,12 +60,7 @@ void CHudChatInputLine::ApplySchemeSettings(vgui::IScheme *pScheme)
 	BaseClass::ApplySchemeSettings(pScheme);
 }
 
-static CHudChat *g_pTFChatHud = NULL;
-CHudChat *GetTFChatHud( void )
-{
-	Assert( g_pTFChatHud != 0 );
-	return g_pTFChatHud;
-}
+
 
 //=====================
 //CHudChat
@@ -76,7 +71,6 @@ CHudChat::CHudChat( const char *pElementName ) : BaseClass( pElementName )
 #if defined ( _X360 )
 	RegisterForRenderGroup( "mid" );
 #endif
-	g_pTFChatHud = this;
 }
 
 void CHudChat::CreateChatInputLine( void )
@@ -102,8 +96,6 @@ void CHudChat::Init( void )
 	HOOK_HUD_MESSAGE( CHudChat, SayText2 );
 	HOOK_HUD_MESSAGE( CHudChat, TextMsg );
 	HOOK_HUD_MESSAGE( CHudChat, VoiceSubtitle );
-
-	Assert( g_pTFChatHud == this );
 }
 
 //-----------------------------------------------------------------------------
@@ -264,10 +256,6 @@ Color CHudChat::GetTextColorForClient( TextColor colorNum, int clientIndex )
 				c = pScheme->GetColor( "TFColors.ChatTextYellow", GetBgColor() );
 			}
 		}
-		break;
-
-	case COLOR_CUSTOM:
-		c = m_ColorCustom;
 		break;
 
 	default:

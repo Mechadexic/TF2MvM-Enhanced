@@ -43,7 +43,6 @@ ConVar cl_flag_return_height( "cl_flag_return_height", "82", FCVAR_CHEAT );
 
 #endif
 
-ConVar tf2v_assault_ctf_rules( "tf2v_assault_ctf_rules", "0", FCVAR_NOTIFY | FCVAR_REPLICATED, "Uses reversed CTF locations and instant respawning flags. Applied on map switch." );
 
 #ifdef CLIENT_DLL
 
@@ -138,13 +137,9 @@ BEGIN_DATADESC( CCaptureFlag )
 
 #endif
 
-END_DATADESC()
+END_DATADESC();
 
 LINK_ENTITY_TO_CLASS( item_teamflag, CCaptureFlag );
-
-#ifdef GAME_DLL
-IMPLEMENT_AUTO_LIST( ICaptureFlagAutoList );
-#endif
 
 //=============================================================================
 //
@@ -349,18 +344,14 @@ void CCaptureFlag::Spawn( void )
 // Manage glow effect
 void CCaptureFlag::UpdateGlowEffect( void )
 {
-	if ( !GameRules() || GameRules()->AllowGlowOutlinesFlags() )
+	if ( !g_GlowObjectManager.HasGlowEffect( this ) )
 	{
-		if ( !g_GlowObjectManager.HasGlowEffect( this ) )
-		{
-			m_iGlowEffectHandle = g_GlowObjectManager.RegisterGlowObject( this, Vector( 0.76f, 0.76f, 0.76f ) , 1.0f, true, true, 0 );
-		}
-
-		Vector vecColor;
-		TFGameRules()->GetTeamGlowColor( GetTeamNumber(), vecColor.x, vecColor.y, vecColor.z );
-		g_GlowObjectManager.SetColor( m_iGlowEffectHandle, vecColor );
-		
+		m_iGlowEffectHandle = g_GlowObjectManager.RegisterGlowObject( this, Vector( 0.76f, 0.76f, 0.76f ) , 1.0f, true, true, 0 );
 	}
+
+	Vector vecColor;
+	TFGameRules()->GetTeamGlowColor( GetTeamNumber(), vecColor.x, vecColor.y, vecColor.z );
+	g_GlowObjectManager.SetColor( m_iGlowEffectHandle, vecColor );
 
 }
 
@@ -374,21 +365,7 @@ void CCaptureFlag::Activate( void )
 {
 	BaseClass::Activate();
 
-	if ( tf2v_assault_ctf_rules.GetBool() && m_nGameType == TF_FLAGTYPE_CTF )
-	{
-		// If we're playing Assault CTF, swap the flags.
-		switch (GetTeamNumber())
-		{
-		case TF_TEAM_RED:
-			m_iOriginalTeam = TF_TEAM_BLUE;
-			break;
-		case TF_TEAM_BLUE:
-			m_iOriginalTeam = TF_TEAM_RED;
-			break;
-		}
-	}
-	else
-		m_iOriginalTeam = GetTeamNumber();
+	m_iOriginalTeam = GetTeamNumber();
 
 	m_nSkin = GetIntelSkin(GetTeamNumber());
 }
@@ -1031,10 +1008,7 @@ void CCaptureFlag::Drop( CTFPlayer *pPlayer, bool bVisible,  bool bThrown /*= fa
 			}
 		}
 
-		if (tf2v_assault_ctf_rules.GetBool())
-			SetFlagReturnIn( TF_ACTF_RESET_TIME );
-		else
-			SetFlagReturnIn( TF_CTF_RESET_TIME );
+		SetFlagReturnIn( TF_CTF_RESET_TIME );
 	}
 	else if ( m_nGameType == TF_FLAGTYPE_INVADE )
 	{

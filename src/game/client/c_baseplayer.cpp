@@ -87,7 +87,7 @@ extern ConVar sensitivity;
 
 static C_BasePlayer *s_pLocalPlayer = NULL;
 
-static ConVar	cl_customsounds ( "cl_customsounds", "1", 0, "Enable customized player sound playback" );
+static ConVar	cl_customsounds ( "cl_customsounds", "0", 0, "Enable customized player sound playback" );
 static ConVar	spec_track		( "spec_track", "0", 0, "Tracks an entity in spec mode" );
 static ConVar	cl_smooth		( "cl_smooth", "1", 0, "Smooth view/eye origin after prediction errors" );
 static ConVar	cl_smoothtime	( 
@@ -255,7 +255,7 @@ END_RECV_TABLE()
 // DT_BasePlayer datatable.
 // -------------------------------------------------------------------------------- //
 
-#if defined USES_ECON_ITEMS || defined TF_VINTAGE_CLIENT
+#if defined USES_ECON_ITEMS
 	EXTERN_RECV_TABLE(DT_AttributeList);
 #endif
 
@@ -264,7 +264,7 @@ END_RECV_TABLE()
 		// only send one.
 		RecvPropDataTable( "localdata", 0, 0, &REFERENCE_RECV_TABLE(DT_LocalPlayerExclusive) ),
 
-#if defined USES_ECON_ITEMS || defined TF_VINTAGE_CLIENT
+#if defined USES_ECON_ITEMS
 		RecvPropDataTable(RECVINFO_DT(m_AttributeList),0, &REFERENCE_RECV_TABLE(DT_AttributeList) ),
 #endif
 

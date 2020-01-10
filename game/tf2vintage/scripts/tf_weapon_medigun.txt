@@ -17,10 +17,8 @@ WeaponData
 	"TimeReload"			"0.5"
 	"primary_ammo"			"None"
 	"ProjectileType"		"projectile_bullet"
-	"HasTeamSkins"			"1"
+	"HasTeamSkins_Viewmodel"			"1"
 	"HasTeamSkins_Worldmodel"	"1"
-	"HasTeamSkins_Viewmodel"	"1"
-
 
 	// Buckets.
 	"bucket"			"1"

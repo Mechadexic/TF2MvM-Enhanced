@@ -65,7 +65,3 @@ src/lib/public/vgui_controls.lib
 # misc files
 fgdlib.lib
 src/utils/sapi51/Samples/VB/TTSAppVB/ttsapp.RES
-vc120.pdb
-*.VC.*
-src/Output-Build.txt
-src/utils/vvis_launcher/vvis_launcher.vpc.sentinel

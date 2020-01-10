@@ -91,7 +91,7 @@ void CTFWeaponInfo::Parse( KeyValues *pKeyValuesData, const char *szWeaponName )
 			m_WeaponData[TF_WEAPON_PRIMARY_MODE].m_iProjectile = i;
 			break;
 		}
-	}
+	}	 
 
 	m_WeaponData[TF_WEAPON_PRIMARY_MODE].m_flProjectileSpeed	= pKeyValuesData->GetFloat( "ProjectileSpeed", 0.0f );
 
@@ -133,25 +133,9 @@ void CTFWeaponInfo::Parse( KeyValues *pKeyValuesData, const char *szWeaponName )
 		}
 	}	
 
-	CUtlString szWeaponType = pKeyValuesData->GetString( "WeaponType" );
+	const char *pszWeaponType = pKeyValuesData->GetString( "WeaponType" );
 
-	int iType = -1;
-	if ( szWeaponType == "primary" )
-		iType = TF_WPN_TYPE_PRIMARY;
-	else if ( szWeaponType == "secondary" )
-		iType = TF_WPN_TYPE_SECONDARY;
-	else if ( szWeaponType == "melee" )
-		iType = TF_WPN_TYPE_MELEE;
-	else if ( szWeaponType == "grenade" )
-		iType = TF_WPN_TYPE_GRENADE;
-	else if ( szWeaponType == "building" )
-		iType = TF_WPN_TYPE_BUILDING;
-	else if ( szWeaponType == "pda" )
-		iType = TF_WPN_TYPE_PDA;
-	else if ( szWeaponType == "item1" )
-		iType = TF_WPN_TYPE_ITEM1;
-	else if ( szWeaponType == "item2" )
-		iType = TF_WPN_TYPE_ITEM2;
+	int iType = UTIL_StringFieldToInt( pszWeaponType, g_AnimSlots, TF_WPN_TYPE_COUNT );
 
 	if ( iType >= 0 )
 	{

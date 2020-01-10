@@ -11,7 +11,6 @@
 #include <vgui_controls/AnimationController.h>
 #include "panels/tf_tooltippanel.h"
 #include "basemodelpanel.h"
-#include <vgui/ILocalize.h>
 
 
 using namespace vgui;
@@ -222,19 +221,8 @@ void CTFAdvButtonBase::SendAnimation(MouseState flag)
 			SetBorder(GETSCHEME()->GetBorder(pSelectedBG));
 		break;
 	case MOUSE_ENTERED:
-		if (pToolTip[0] != '\0') {
-			wchar_t *pText = g_pVGuiLocalize->Find(pToolTip);
-			if (pText != NULL)
-			{
-				char pszToolTipLocal[256];
-				wcstombs(pszToolTipLocal, pText, sizeof(pszToolTipLocal));
-				MAINMENU_ROOT->ShowToolTip(pszToolTipLocal);
-			}
-			else
-			{
-				MAINMENU_ROOT->ShowToolTip(pToolTip);
-			}
-		}
+		if (pToolTip[0] != '\0')
+			MAINMENU_ROOT->ShowToolTip(pToolTip);
 		if (m_bBorderVisible)
 			SetBorder(GETSCHEME()->GetBorder(pArmedBG));
 		break;

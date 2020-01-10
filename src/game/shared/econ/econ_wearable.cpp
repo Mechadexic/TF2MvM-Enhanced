@@ -7,12 +7,6 @@
 #include "cbase.h"
 #include "econ_wearable.h"
 
-#ifdef GAME_DLL
-#include "tf_player.h"
-#else
-#include "c_tf_player.h"
-#endif
-
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -31,24 +25,19 @@ END_NETWORK_TABLE()
 
 void CEconWearable::Spawn( void )
 {
-	InitializeAttributes();
+	GetAttributeContainer()->InitializeAttributes( this );
 
 	Precache();
 
-	if ( m_bExtraWearable && GetItem()->GetStaticData() )
+	if ( m_bExtraWearable && m_Item.GetStaticData() )
 	{
-		SetModel( GetItem()->GetStaticData()->extra_wearable );
+		SetModel( m_Item.GetStaticData()->extra_wearable );
 	}
 	else
 	{
-		SetModel( GetItem()->GetPlayerDisplayModel() );
+		SetModel( m_Item.GetPlayerDisplayModel() );
 	}
 
-#if defined ( GAME_DLL )
-	if (GetItem()->GetStaticData() )
-		m_bItemFallsOff = GetItem()->GetStaticData()->itemfalloff;
-#endif
-	
 	BaseClass::Spawn();
 
 	AddEffects( EF_BONEMERGE );
@@ -59,34 +48,25 @@ void CEconWearable::Spawn( void )
 
 int CEconWearable::GetSkin( void )
 {
-	if ( GetItem() && GetItem()->GetSkin( GetTeamNumber(), false ) > -1 )
-		return GetItem()->GetSkin( GetTeamNumber(), false );
-
-	CTFPlayer *pOwner = ToTFPlayer( GetOwnerEntity() );
-	if ( pOwner == nullptr )
-		return 0;
-
-	int iVisibleTeam = GetTeamNumber();
-	// if this player is disguised and on the other team, use disguise team
-	if ( pOwner->m_Shared.InCond( TF_COND_DISGUISED ) )
-	{
-		iVisibleTeam = pOwner->m_Shared.GetDisguiseTeam();
-	}
-
-	switch ( iVisibleTeam )
+	switch ( GetTeamNumber() )
 	{
 		case TF_TEAM_BLUE:
 			return 1;
+			break;
+
 		case TF_TEAM_RED:
 			return 0;
-	}
+			break;
 
-	return m_nSkin;
+		default:
+			return 0;
+			break;
+	}
 }
 
 void CEconWearable::UpdateWearableBodyGroups( CBasePlayer *pPlayer )
 {
-	PerTeamVisuals_t *visual = GetItem()->GetStaticData()->GetVisuals( GetTeamNumber() );
+	EconItemVisuals *visual = GetItem()->GetStaticData()->GetVisuals( GetTeamNumber() );
  	for ( unsigned int i = 0; i < visual->player_bodygroups.Count(); i++ )
 	{
 		const char *szBodyGroupName = visual->player_bodygroups.GetElementName(i);
@@ -118,18 +98,6 @@ void CEconWearable::GiveTo( CBaseEntity *pEntity )
 	if ( pPlayer )
 	{
 		pPlayer->EquipWearable( this );
-	}
-#endif
-}
-
-void CEconWearable::RemoveFrom( CBaseEntity *pEntity )
-{
-#ifdef GAME_DLL
-	CBasePlayer *pPlayer = ToBasePlayer( pEntity );
-
-	if ( pPlayer )
-	{
-		pPlayer->RemoveWearable( this );
 	}
 #endif
 }

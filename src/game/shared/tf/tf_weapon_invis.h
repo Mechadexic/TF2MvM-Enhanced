@@ -59,12 +59,6 @@ public:
 	virtual void	GetControlPanelInfo( int nPanelIndex, const char *&pPanelName );
 #endif
 
-	bool			ActivateInvisibility( void );
-	void			CleanUpInvisibility( void );
-
-	bool			HasFeignDeath( void ) const;
-	bool			HasMotionCloak( void ) const;
-
 private:
 
 	CTFWeaponInvis( const CTFWeaponInvis & ) {}

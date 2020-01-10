@@ -9,9 +9,6 @@
 #include "c_te_legacytempents.h"
 #include "tf_shareddefs.h"
 
-
-extern ConVar cl_brass_fade_time;
-
 //-----------------------------------------------------------------------------
 // Purpose: TF Eject Brass
 //-----------------------------------------------------------------------------
@@ -36,7 +33,7 @@ void TF_ThrowCigaretteCallback( const CEffectData &data )
 
 	vecVelocity.z += 100;
 
-	float flLifeTime = cl_brass_fade_time.GetFloat();
+	float flLifeTime = 10.0f;
 
 	const char *pszCigaretteModel = "models/weapons/shells/shell_cigarrette.mdl";	// sic
 

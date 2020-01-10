@@ -34,7 +34,6 @@
 #include "ai_behavior_lead.h"
 #include "gameinterface.h"
 #include "ilagcompensationmanager.h"
-#include "tf_gamerules.h"
 
 #ifdef HL2_DLL
 #include "hl2_player.h"
@@ -125,13 +124,6 @@ END_DATADESC()
 
 
 LINK_ENTITY_TO_CLASS( trigger, CBaseTrigger );
-
-
-BEGIN_ENT_SCRIPTDESC( CBaseTrigger, CBaseEntity, "Server-side trigger" )
-	DEFINE_SCRIPTFUNC( Disable, "Disable the trigger" )
-	DEFINE_SCRIPTFUNC( Enable, "Enable the trigger" )
-	DEFINE_SCRIPTFUNC_NAMED( ScriptIsTouching, "IsTouching", "Checks whether the passed entity is touching the trigger." )
-END_SCRIPTDESC()
 
 
 CBaseTrigger::CBaseTrigger()
@@ -557,15 +549,6 @@ bool CBaseTrigger::IsTouching( CBaseEntity *pOther )
 	return ( m_hTouchingEntities.Find( hOther ) != m_hTouchingEntities.InvalidIndex() );
 }
 
-bool CBaseTrigger::ScriptIsTouching( HSCRIPT entity )
-{
-	CBaseEntity *pOther = ToEnt(entity);
-	if ( !pOther )
-		return false;
-
-	return IsTouching( pOther );
-}
-
 //-----------------------------------------------------------------------------
 // Purpose: Return a pointer to the first entity of the specified type being touched by this trigger
 //-----------------------------------------------------------------------------
@@ -754,20 +737,6 @@ bool CTriggerHurt::HurtEntity( CBaseEntity *pOther, float damage )
 	bool bPlayerDisconnected = pOther->IsPlayer() && ( ((CBasePlayer *)pOther)->IsConnected() == false );
 	if ( bPlayerDisconnected )
 		return false;
-	
-	// If the entity is a boss, we need to respawn them.
-	if (TFGameRules()->IsBossClass(pOther))
-	{
-		if (pOther->IsAlive())
-		{
-			CTFPlayer *pTFOther = ToTFPlayer(pOther);
-			int iHealthDifference = ( ( pTFOther->GetMaxHealth() ) - ( pTFOther->GetHealth() ) );
-			pTFOther->ForceRespawn();
-			// Instead of calculating trigger damage, we just subtract the lost health from their spawn health.
-			pOther->TakeHealth(iHealthDifference, m_bitsDamageInflict );
-		}
-		return false;
-	}
 
 	if ( damage < 0 )
 	{

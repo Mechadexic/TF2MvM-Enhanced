@@ -420,13 +420,6 @@ BEGIN_RECV_TABLE_NOBASE( C_BaseEntity, DT_AnimTimeMustBeFirst )
 	RecvPropInt( RECVINFO(m_flAnimTime), 0, RecvProxy_AnimTime ),
 END_RECV_TABLE()
 
-BEGIN_ENT_SCRIPTDESC_ROOT( C_BaseEntity, "Root class of all client-side entities" )
-	DEFINE_SCRIPTFUNC_NAMED( GetAbsOrigin, "GetOrigin", ""  )
-	DEFINE_SCRIPTFUNC_NAMED( ScriptGetForward, "GetForwardVector", "Get the forward vector of the entity"  )
-	DEFINE_SCRIPTFUNC_NAMED( ScriptGetLeft, "GetLeftVector", "Get the left vector of the entity"  )
-	DEFINE_SCRIPTFUNC_NAMED( ScriptGetUp, "GetUpVector", "Get the up vector of the entity"  )
-	DEFINE_SCRIPTFUNC( GetTeamNumber, "Gets this entity's team" )
-END_SCRIPTDESC();
 
 #ifndef NO_ENTITY_PREDICTION
 BEGIN_RECV_TABLE_NOBASE( C_BaseEntity, DT_PredictableId )
@@ -466,8 +459,6 @@ BEGIN_RECV_TABLE_NOBASE(C_BaseEntity, DT_BaseEntity)
 	RecvPropEHandle( RECVINFO(m_hEffectEntity) ),
 	RecvPropInt( RECVINFO_NAME(m_hNetworkMoveParent, moveparent), 0, RecvProxy_IntToMoveParent ),
 	RecvPropInt( RECVINFO( m_iParentAttachment ) ),
-
-	RecvPropString( RECVINFO( m_iName ) ),
 
 	RecvPropInt( "movetype", 0, SIZEOF_IGNORE, 0, RecvProxy_MoveType ),
 	RecvPropInt( "movecollide", 0, SIZEOF_IGNORE, 0, RecvProxy_MoveCollide ),
@@ -1216,12 +1207,6 @@ void C_BaseEntity::Term()
 	RemoveFromLeafSystem();
 
 	RemoveFromAimEntsList();
-
-	if ( m_hScriptInstance )
-	{
-		g_pScriptVM->RemoveInstance( m_hScriptInstance );
-		m_hScriptInstance = NULL;
-	}
 }
 
 
@@ -2480,7 +2465,7 @@ void C_BaseEntity::UnlinkFromHierarchy()
 //-----------------------------------------------------------------------------
 void C_BaseEntity::ValidateModelIndex( void )
 {
-#if defined(TF_CLIENT_DLL) || defined(TF_VINTAGE_CLIENT)
+#ifdef TF_CLIENT_DLL
 	if ( IsLocalPlayerUsingVisionFilterFlags( TF_VISION_FILTER_HALLOWEEN ) )
 	{
 		if ( m_nModelIndexOverrides[VISION_MODE_HALLOWEEN] > 0 )
@@ -6460,27 +6445,6 @@ void C_BaseEntity::DontRecordInTools()
 int C_BaseEntity::GetCreationTick() const
 {
 	return m_nCreationTick;
-}
-
-//-----------------------------------------------------------------------------
-//
-//-----------------------------------------------------------------------------
-HSCRIPT C_BaseEntity::GetScriptInstance()
-{
-	if ( !m_hScriptInstance )
-	{
-		if ( m_iszScriptId == NULL_STRING )
-		{
-			char *szName = (char *)stackalloc( 1024 );
-			g_pScriptVM->GenerateUniqueKey( ( m_iName != NULL_STRING ) ? STRING( GetEntityName() ) : GetClassname(), szName, 1024 );
-			m_iszScriptId = AllocPooledString( szName );
-		}
-
-		m_hScriptInstance = g_pScriptVM->RegisterInstance( GetScriptDesc(), this );
-		g_pScriptVM->SetInstanceUniqeId( m_hScriptInstance, STRING( m_iszScriptId ) );
-	}
-
-	return m_hScriptInstance;
 }
 
 //------------------------------------------------------------------------------

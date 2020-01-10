@@ -23,7 +23,6 @@
 #include "iinput.h"
 #include "tf_weapon_medigun.h"
 #include "ihasattributes.h"
-#include "c_tf_spymask.h"
 
 class C_MuzzleFlashModel;
 class C_BaseObject;
@@ -48,20 +47,19 @@ public:
 	C_TFPlayer();
 	~C_TFPlayer();
 
-	static C_TFPlayer *GetLocalTFPlayer();
+	static C_TFPlayer* GetLocalTFPlayer();
 
 	virtual void UpdateOnRemove( void );
 
 	virtual void FireGameEvent( IGameEvent *event );
 
-	virtual const QAngle &GetRenderAngles();
+	virtual const QAngle& GetRenderAngles();
 	virtual void UpdateClientSideAnimation();
 	virtual void SetDormant( bool bDormant );
 	virtual void OnPreDataChanged( DataUpdateType_t updateType );
 	virtual void OnDataChanged( DataUpdateType_t updateType );
 	virtual void ProcessMuzzleFlashEvent();
 	virtual void ValidateModelIndex( void );
-	virtual int	 ModCalculateObjectCost(int iObjectType, bool bMini = false /*, int iNumberOfObjects, int iTeam, bool bLast = false*/);
 
 	virtual Vector GetObserverCamOrigin( void );
 	virtual int DrawModel( int flags );
@@ -75,15 +73,15 @@ public:
 	// Deal with recording
 	virtual void GetToolRecordingState( KeyValues *msg );
 
-	C_TFWeaponBase *GetActiveTFWeapon( void ) const;
+	CTFWeaponBase *GetActiveTFWeapon( void ) const;
 	bool		 IsActiveTFWeapon( int iWeaponID );
 
 	virtual void Simulate( void );
-	virtual void FireEvent( const Vector &origin, const QAngle &angles, int event, const char *options );
+	virtual void FireEvent( const Vector& origin, const QAngle& angles, int event, const char *options );
 	virtual void PlayStepSound( Vector &vecOrigin, surfacedata_t *psurface, float fvol, bool force );
 
-	void LoadInventory( void );
-	void EditInventory( int iSlot, int iWeapon );
+	void LoadInventory(void);
+	void EditInventory(int iSlot, int iWeapon);
 
 	void FireBullet( const FireBulletsInfo_t &info, bool bDoEffects, int nDamageType, int nCustomDamageType = TF_DMG_CUSTOM_NONE );
 
@@ -91,10 +89,9 @@ public:
 
 	bool CanAttack( void );
 
-	C_TFPlayerClass *GetPlayerClass( void ) { return &m_PlayerClass; }
+	C_TFPlayerClass *GetPlayerClass( void )		{ return &m_PlayerClass; }
 	bool IsPlayerClass( int iClass );
 	virtual int GetMaxHealth( void ) const;
-	virtual int	GetMaxHealthForBuffing( void ) const;
 
 	virtual int GetRenderTeamNumber( void );
 
@@ -112,9 +109,7 @@ public:
 
 	virtual float GetMinFOV() const;
 
-	virtual int GetVisionFilterFlags( bool bWeaponCheck );
-
-	virtual const QAngle &EyeAngles();
+	virtual const QAngle& EyeAngles();
 
 	int GetBuildResources( void );
 
@@ -128,14 +123,12 @@ public:
 	// Taunts/VCDs
 	virtual bool	StartSceneEvent( CSceneEventInfo *info, CChoreoScene *scene, CChoreoEvent *event, CChoreoActor *actor, C_BaseEntity *pTarget );
 	virtual void	CalcView( Vector &eyeOrigin, QAngle &eyeAngles, float &zNear, float &zFar, float &fov );
-	bool			StartGestureSceneEvent( CSceneEventInfo *info, CChoreoScene *scene, CChoreoEvent *event, CChoreoActor *actor, C_BaseEntity *pTarget );
+	bool			StartGestureSceneEvent( CSceneEventInfo *info, CChoreoScene *scene, CChoreoEvent *event, CChoreoActor *actor, CBaseEntity *pTarget );
 	void			TurnOnTauntCam( void );
 	void			TurnOffTauntCam( void );
-	void			TauntCamInterpolation( void );
+	void			TauntCamInterpolation( void ); 
 	bool			InTauntCam( void ) { return m_bWasTaunting; }
 	virtual void	ThirdPersonSwitch( bool bThirdperson );
-
-	void			BuildTransformations( CStudioHdr *pStudioHdr, Vector *pos, Quaternion q[], const matrix3x4_t &cameraTransform, int boneMask, CBoneBitList &boneComputed );
 
 	// Minimal Viewmodels
 	void			CalcMinViewmodelOffset( void );
@@ -146,9 +139,8 @@ public:
 
 	// Gibs.
 	void InitPlayerGibs( void );
-	void CreatePlayerGibs( const Vector &vecOrigin, const Vector &vecVelocity, float flImpactScale, bool bBurning, bool bHeadGib );
+	void CreatePlayerGibs( const Vector &vecOrigin, const Vector &vecVelocity, float flImpactScale, bool bBurning );
 	void DropPartyHat( breakablepropparams_t &breakParams, Vector &vecBreakVelocity );
-	void DropHat( breakablepropparams_t &breakParams, Vector &vecBreakVelocity );
 
 	int	GetObjectCount( void );
 	C_BaseObject *GetObject( int index );
@@ -160,29 +152,27 @@ public:
 	float GetPercentInvisible( void );
 	float GetEffectiveInvisibilityLevel( void );	// takes viewer into account
 
-	virtual void AddDecal( const Vector &rayStart, const Vector &rayEnd,
-		const Vector &decalCenter, int hitbox, int decalIndex, bool doTrace, trace_t &tr, int maxLODToDecal = ADDDECAL_TO_ALL_LODS );
+	virtual void AddDecal( const Vector& rayStart, const Vector& rayEnd,
+		const Vector& decalCenter, int hitbox, int decalIndex, bool doTrace, trace_t& tr, int maxLODToDecal = ADDDECAL_TO_ALL_LODS );
 
-	virtual void CalcDeathCamView( Vector &eyeOrigin, QAngle &eyeAngles, float &fov );
-	virtual Vector GetChaseCamViewOffset( C_BaseEntity *target );
+	virtual void CalcDeathCamView(Vector& eyeOrigin, QAngle& eyeAngles, float& fov);
+	virtual Vector GetChaseCamViewOffset( CBaseEntity *target );
 
 	void ClientPlayerRespawn( void );
 
 	void CreateSaveMeEffect( void );
-
+	
 	virtual bool	IsOverridingViewmodel( void );
 	virtual int		DrawOverriddenViewmodel( C_BaseViewModel *pViewmodel, int flags );
 
 	void			SetHealer( C_TFPlayer *pHealer, float flChargeLevel );
 	void			GetHealer( C_TFPlayer **pHealer, float *flChargeLevel ) { *pHealer = m_hHealer; *flChargeLevel = m_flHealerChargeLevel; }
 	float			MedicGetChargeLevel( void );
-	C_BaseEntity *MedicGetHealTarget( void );
+	CBaseEntity		*MedicGetHealTarget( void );
 
 	void			StartBurningSound( void );
 	void			StopBurningSound( void );
 	void			UpdateRecentlyTeleportedEffect( void );
-
-	void			StopViewModelParticles( C_BaseEntity *pEntity );
 
 	bool			CanShowClassMenu( void );
 
@@ -192,57 +182,56 @@ public:
 	bool			IsEnemyPlayer( void );
 	void			ShowNemesisIcon( bool bShow );
 
-	CUtlVector<EHANDLE> *GetSpawnedGibs( void ) { return &m_hSpawnedGibs; }
+	CUtlVector<EHANDLE>		*GetSpawnedGibs( void ) { return &m_hSpawnedGibs; }
 
 	Vector 			GetClassEyeHeight( void );
 
 	void			ForceUpdateObjectHudState( void );
 
-	bool			GetMedigunAutoHeal( void ) { return tf_medigun_autoheal.GetBool(); }
-	bool			ShouldAutoRezoom( void ) { return cl_autorezoom.GetBool(); }
-	bool			ShouldAutoReload( void ) { return cl_autoreload.GetBool(); }
-	bool			ShouldFlipViewModel( void ) { return cl_flipviewmodels.GetBool(); }
+	bool			GetMedigunAutoHeal( void ){ return tf_medigun_autoheal.GetBool(); }
+	bool			ShouldAutoRezoom( void ){ return cl_autorezoom.GetBool(); }
+	bool			ShouldAutoReload( void ){ return cl_autoreload.GetBool(); }
+	bool			ShouldFlipViewModel( void ){ return cl_flipviewmodels.GetBool(); }
 
 public:
 	// Shared functions
 	void			TeamFortress_SetSpeed();
 	bool			HasItem( void );					// Currently can have only one item at a time.
 	void			SetItem( C_TFItem *pItem );
-	C_TFItem *GetItem( void );
+	C_TFItem		*GetItem( void );
 	bool			IsAllowedToPickUpFlag( void );
 	bool			HasTheFlag( void );
 	float			GetCritMult( void ) { return m_Shared.GetCritMult(); }
 
 	virtual void	ItemPostFrame( void );
 
-	void			SetOffHandWeapon( C_TFWeaponBase *pWeapon );
+	void			SetOffHandWeapon( CTFWeaponBase *pWeapon );
 	void			HolsterOffHandWeapon( void );
 
 	virtual int GetSkin();
 
-	virtual bool		Weapon_ShouldSetLast( C_BaseCombatWeapon *pOldWeapon, C_BaseCombatWeapon *pNewWeapon );
+	virtual bool		Weapon_ShouldSetLast( CBaseCombatWeapon *pOldWeapon, CBaseCombatWeapon *pNewWeapon );
 	virtual	bool		Weapon_Switch( C_BaseCombatWeapon *pWeapon, int viewmodelindex = 0 );
 
-	C_WeaponMedigun *GetMedigun( void );
-	C_TFWeaponBase *Weapon_OwnsThisID( int iWeaponID );
-	C_TFWeaponBase *Weapon_GetWeaponByType( int iType );
-	virtual bool		Weapon_SlotOccupied( C_BaseCombatWeapon *pWeapon );
-	virtual C_BaseCombatWeapon *Weapon_GetSlot( int slot ) const;
-	C_EconEntity *GetEntityForLoadoutSlot( int iSlot );
-	C_EconWearable *GetWearableForLoadoutSlot( int iSlot );
+	CWeaponMedigun		*GetMedigun( void );
+	CTFWeaponBase		*Weapon_OwnsThisID( int iWeaponID );
+	CTFWeaponBase		*Weapon_GetWeaponByType( int iType );
+	virtual bool		Weapon_SlotOccupied( CBaseCombatWeapon *pWeapon );
+	virtual CBaseCombatWeapon *Weapon_GetSlot( int slot ) const;
+	C_EconEntity			*GetEntityForLoadoutSlot( int iSlot );
+	C_EconWearable		*GetWearableForLoadoutSlot( int iSlot );
 
 	virtual void		GetStepSoundVelocities( float *velwalk, float *velrun );
 	virtual void		SetStepSoundTime( stepsoundtimes_t iStepSoundTime, bool bWalking );
 
 	bool	DoClassSpecialSkill( void );
-	bool	CanGoInvisible( bool bFeigning = false );
+	bool	CanGoInvisible( void );
 
 	int		GetMaxAmmo( int iAmmoIndex, int iClassNumber = -1 );
 
 	virtual CAttributeManager *GetAttributeManager() { return &m_AttributeManager; }
 	virtual CAttributeContainer *GetAttributeContainer() { return NULL; }
-	virtual C_BaseEntity *GetAttributeOwner() { return NULL; }
-	virtual CAttributeList *GetAttributeList() { return &m_AttributeList; }
+	virtual CBaseEntity *GetAttributeOwner() { return NULL; }
 	virtual void ReapplyProvision( void ) { /*Do nothing*/ };
 
 	// Gunslinger
@@ -251,7 +240,7 @@ public:
 public:
 	// Ragdolls.
 	virtual C_BaseAnimating *BecomeRagdollOnClient();
-	virtual IRagdoll *GetRepresentativeRagdoll() const;
+	virtual IRagdoll		*GetRepresentativeRagdoll() const;
 	EHANDLE	m_hRagdoll;
 	Vector m_vecRagdollVelocity;
 
@@ -264,25 +253,18 @@ public:
 	void				DisplaysHintsForTarget( C_BaseEntity *pTarget );
 
 	// Shadows
-	virtual ShadowType_t ShadowCastType( void );
+	virtual ShadowType_t ShadowCastType( void ) ;
 	virtual void GetShadowRenderBounds( Vector &mins, Vector &maxs, ShadowType_t shadowType );
-	virtual void GetRenderBounds( Vector &theMins, Vector &theMaxs );
+	virtual void GetRenderBounds( Vector& theMins, Vector& theMaxs );
 	virtual bool GetShadowCastDirection( Vector *pDirection, ShadowType_t shadowType ) const;
 
-	IMaterial *GetInvulnMaterial( void ) const { return m_InvulnerableMaterial; }
+	CMaterialReference *GetInvulnMaterialRef( void ) { return &m_InvulnerableMaterial; }
 	bool IsNemesisOfLocalPlayer();
 	bool ShouldShowNemesisIcon();
 
 	virtual	IMaterial *GetHeadLabelMaterial( void );
 
-	void UpdateSpyMask(void);
-	void UpdateTypingBubble( void );
-
 	void UpdateOverhealEffect( bool bForceHide = false );
-
-	void UpdateDemomanEyeEffect( int iDecapCount );
-
-	bool ShouldDrawSpyAsDisguised( void );
 
 protected:
 
@@ -318,7 +300,7 @@ private:
 	int					m_iIDEntIndex;
 	int					m_iForcedIDTarget;
 
-	CNewParticleEffect *m_pTeleporterEffect;
+	CNewParticleEffect	*m_pTeleporterEffect;
 	bool				m_bToolRecordingVisibility;
 
 	int					m_iOldState;
@@ -351,8 +333,7 @@ private:
 	bool m_bCigaretteSmokeActive;
 
 	// Medic callout particle effect
-	CNewParticleEffect *m_pSaveMeEffect;
-	CNewParticleEffect *m_pTypingEffect;
+	CNewParticleEffect	*m_pSaveMeEffect;
 
 	bool m_bUpdateObjectHudState;
 
@@ -378,7 +359,6 @@ public:
 	bool			m_bIsDisplayingNemesisIcon;
 
 	int				m_nForceTauntCam;
-	bool			m_bTyping;
 
 	int				m_iSpawnCounter;
 
@@ -389,24 +369,22 @@ public:
 	float			m_flWaterEntryTime;
 	bool			m_bWaterExitEffectActive;
 
-	float			m_flHeadScale;
-
 	CMaterialReference	m_InvulnerableMaterial;
 
 	// Overheal
 	CNewParticleEffect *m_pOverhealEffect;
 
 	// Burning
-	CSoundPatch *m_pBurningSound;
-	CNewParticleEffect *m_pBurningEffect;
+	CSoundPatch			*m_pBurningSound;
+	CNewParticleEffect	*m_pBurningEffect;
 	float				m_flBurnEffectStartTime;
 	float				m_flBurnEffectEndTime;
 
 	// Jumping
-	CSoundPatch *m_pJumpSound;
+	CSoundPatch			*m_pJumpSound;
 
 
-	CNewParticleEffect *m_pDisguisingEffect;
+	CNewParticleEffect	*m_pDisguisingEffect;
 	float m_flDisguiseEffectStartTime;
 	float m_flDisguiseEndEffectStartTime;
 
@@ -423,16 +401,12 @@ public:
 
 	EHANDLE			m_hOldActiveWeapon;
 
-	CNewParticleEffect *m_pDemoEyeEffect;
-
 	int GetNumActivePipebombs( void );
 
 	int				m_iSpyMaskBodygroup;
 
 	bool			m_bUpdatePartyHat;
 	CHandle<C_PlayerAttachedModel>	m_hPartyHat;
-	
-	CHandle<C_TFSpyMask> m_hSpyMask;
 
 	CAttributeManager m_AttributeManager;
 
@@ -449,13 +423,13 @@ private:
 	C_TFPlayer( const C_TFPlayer & );
 };
 
-inline C_TFPlayer *ToTFPlayer( C_BaseEntity *pEntity )
+inline C_TFPlayer* ToTFPlayer( C_BaseEntity *pEntity )
 {
 	if ( !pEntity || !pEntity->IsPlayer() )
 		return NULL;
 
-	Assert( dynamic_cast<C_TFPlayer *>( pEntity ) != 0 );
-	return static_cast<C_TFPlayer *>( pEntity );
+	Assert( dynamic_cast<C_TFPlayer*>( pEntity ) != 0 );
+	return static_cast< C_TFPlayer* >( pEntity );
 }
 
 #endif // C_TF_PLAYER_H

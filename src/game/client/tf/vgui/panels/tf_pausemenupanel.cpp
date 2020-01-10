@@ -2,7 +2,6 @@
 #include "tf_pausemenupanel.h"
 #include "controls/tf_advbutton.h"
 #include "tf_notificationmanager.h"
-#include "vgui_avatarimage.h"
 
 using namespace vgui;
 // memdbgon must be the last include file in a .cpp file!!!
@@ -28,14 +27,7 @@ bool CTFPauseMenuPanel::Init()
 {
 	BaseClass::Init();
 
-	if (steamapicontext->SteamUser())
-	{
-		m_SteamID = steamapicontext->SteamUser()->GetSteamID();
-	}
-
 	m_pNotificationButton = NULL;
-	m_pProfileAvatar = NULL;
-	m_pVersionLabel = NULL;
 	bInMenu = false;
 	bInGame = true;
 	return true;
@@ -47,33 +39,12 @@ void CTFPauseMenuPanel::ApplySchemeSettings(vgui::IScheme *pScheme)
 	BaseClass::ApplySchemeSettings(pScheme);
 
 	LoadControlSettings("resource/UI/main_menu/PauseMenuPanel.res");
-	m_pVersionLabel = dynamic_cast<CExLabel *>(FindChildByName("VersionLabel"));
 	m_pNotificationButton = dynamic_cast<CTFAdvButton*>(FindChildByName("NotificationButton"));
-	m_pProfileAvatar = dynamic_cast<CAvatarImagePanel *>(FindChildByName("AvatarImage"));
 }
 
 void CTFPauseMenuPanel::PerformLayout()
 {
 	BaseClass::PerformLayout();
-
-	if (m_pProfileAvatar)
-	{
-		m_pProfileAvatar->SetPlayer(m_SteamID, k_EAvatarSize64x64);
-		m_pProfileAvatar->SetShouldDrawFriendIcon(false);
-	}
-
-	char szNickName[64];
-	Q_snprintf(szNickName, sizeof(szNickName),
-		(steamapicontext->SteamFriends() ? steamapicontext->SteamFriends()->GetPersonaName() : "Unknown"));
-	//SetDialogVariable( "nickname", szNickName ); 
-	SetDialogVariable("playername", szNickName); // easier than changing all the language resource files
-
-	if (m_pVersionLabel)
-	{
-		char verString[64];
-		Q_snprintf(verString, sizeof(verString), "Version: %s", GetNotificationManager()->GetVersionString());
-		m_pVersionLabel->SetText(verString);
-	}
 };
 
 
@@ -89,12 +60,7 @@ void CTFPauseMenuPanel::OnCommand(const char* command)
 	}
 	else if (!Q_strcmp(command, "newloadout"))
 	{
-		bFromPause = true;
 		MAINMENU_ROOT->ShowPanel(LOADOUT_MENU);
-	}
-	else if (!Q_strcmp(command, "newstats"))
-	{
-		MAINMENU_ROOT->ShowPanel(STATSUMMARY_MENU);
 	}
 	else
 	{
@@ -115,13 +81,13 @@ void CTFPauseMenuPanel::OnThink()
 void CTFPauseMenuPanel::Show()
 {
 	BaseClass::Show();
-	//vgui::GetAnimationController()->RunAnimationCommand(this, "Alpha", 255, 0.0f, 0.5f, vgui::AnimationController::INTERPOLATOR_SIMPLESPLINE);
+	vgui::GetAnimationController()->RunAnimationCommand(this, "Alpha", 255, 0.0f, 0.5f, vgui::AnimationController::INTERPOLATOR_SIMPLESPLINE);
 };
 
 void CTFPauseMenuPanel::Hide()
 {
 	BaseClass::Hide();
-	//vgui::GetAnimationController()->RunAnimationCommand(this, "Alpha", 0, 0.0f, 0.1f, vgui::AnimationController::INTERPOLATOR_LINEAR);
+	vgui::GetAnimationController()->RunAnimationCommand(this, "Alpha", 0, 0.0f, 0.1f, vgui::AnimationController::INTERPOLATOR_LINEAR);
 };
 
 

@@ -828,8 +828,6 @@ void CGameRules::CheckHaptics(CBasePlayer* pPlayer)
 	}
 }
 
-extern ConVar tf2v_restrict_fov_max;
-
 void CGameRules::ClientSettingsChanged( CBasePlayer *pPlayer )
 {
 	const char *pszName = engine->GetClientConVarValue( pPlayer->entindex(), "name" );
@@ -861,15 +859,7 @@ void CGameRules::ClientSettingsChanged( CBasePlayer *pPlayer )
 	if ( pszFov )
 	{
 		int iFov = atoi(pszFov);
-		
-		// Check the server's FOV restriction and apply it.
-		int iAllowedFov = tf2v_restrict_fov_max.GetInt();
-		if ( iAllowedFov < MAX_FOV )
-			iAllowedFov = MAX_FOV;
-		else if ( iAllowedFov > MAX_FOV_UNLOCKED )
-			iAllowedFov = MAX_FOV_UNLOCKED;
-
-		iFov = clamp( iFov, 75, iAllowedFov );
+		iFov = clamp( iFov, 75, 90 );
 		pPlayer->SetDefaultFOV( iFov );
 	}
 

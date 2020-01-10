@@ -33,7 +33,6 @@
 #include "SceneCache.h"
 #include "scripted.h"
 #include "env_debughistory.h"
-#include "team.h"
 
 #ifdef HL2_EPISODIC
 #include "npc_alyx_episodic.h"
@@ -318,8 +317,6 @@ public:
 
 	DECLARE_CLASS( CSceneEntity, CPointEntity );
 	DECLARE_SERVERCLASS();
-	// script description
-	DECLARE_ENT_SCRIPTDESC();
 
 							CSceneEntity( void );
 							~CSceneEntity( void );
@@ -344,8 +341,6 @@ public:
 
 	virtual void			OnRestore();
 	virtual void			OnLoaded();
-
-	virtual int				DrawDebugTextOverlays();
 
 	DECLARE_DATADESC();
 
@@ -469,9 +464,6 @@ public:
 
 	void					InputScriptPlayerDeath( inputdata_t &inputdata );
 
-	void					AddBroadcastTeamTarget( int nTeamIndex );
-	void					RemoveBroadcastTeamTarget( int nTeamIndex );
-
 // Data
 public:
 	string_t				m_iszSceneFile;
@@ -533,8 +525,6 @@ public:
 	virtual CBaseEntity		*FindNamedEntity( const char *name, CBaseEntity *pActor = NULL, bool bBaseFlexOnly = false, bool bUseClear = false );
 	CBaseEntity				*FindNamedTarget( string_t iszTarget, bool bBaseFlexOnly = false );
 	virtual CBaseEntity		*FindNamedEntityClosest( const char *name, CBaseEntity *pActor = NULL, bool bBaseFlexOnly = false, bool bUseClear = false, const char *pszSecondary = NULL );
-	HSCRIPT					ScriptFindNamedEntity( const char *name );
-	bool					ScriptLoadSceneFromString( const char *pszFilename, const char *pszData );
 
 private:
 
@@ -746,16 +736,6 @@ BEGIN_DATADESC( CSceneEntity )
 END_DATADESC()
 
 const ConVar	*CSceneEntity::m_pcvSndMixahead = NULL;
-
-BEGIN_ENT_SCRIPTDESC( CSceneEntity, CBaseEntity, "Choreographed scene which controls animation and/or dialog on one or more actors." )
-	DEFINE_SCRIPTFUNC( EstimateLength, "Returns length of this scene in seconds." )
-	DEFINE_SCRIPTFUNC( IsPlayingBack, "If this scene is currently playing." )
-	DEFINE_SCRIPTFUNC( IsPaused, "If this scene is currently paused." )
-	DEFINE_SCRIPTFUNC( AddBroadcastTeamTarget, "Adds a team (by index) to the broadcast list" )
-	DEFINE_SCRIPTFUNC( RemoveBroadcastTeamTarget, "Removes a team (by index) from the broadcast list" )
-	DEFINE_SCRIPTFUNC_NAMED( ScriptFindNamedEntity, "FindNamedEntity", "given an entity reference, such as !target, get actual entity from scene object" )
-	DEFINE_SCRIPTFUNC_NAMED( ScriptLoadSceneFromString, "LoadSceneFromString", "given a dummy scene name and a vcd string, load the scene" )
-END_SCRIPTDESC();
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -1440,7 +1420,7 @@ void CSceneEntity::DispatchEndInterrupt( CChoreoScene *scene, CChoreoEvent *even
 //-----------------------------------------------------------------------------
 void CSceneEntity::DispatchStartExpression( CChoreoScene *scene, CBaseFlex *actor, CChoreoEvent *event )
 {
-	actor->AddSceneEvent( scene, event, NULL, this );
+	actor->AddSceneEvent( scene, event );
 }
 
 //-----------------------------------------------------------------------------
@@ -1460,7 +1440,7 @@ void CSceneEntity::DispatchEndExpression( CChoreoScene *scene, CBaseFlex *actor,
 //-----------------------------------------------------------------------------
 void CSceneEntity::DispatchStartFlexAnimation( CChoreoScene *scene, CBaseFlex *actor, CChoreoEvent *event )
 {
-	actor->AddSceneEvent( scene, event, NULL, this );
+	actor->AddSceneEvent( scene, event );
 }
 
 //-----------------------------------------------------------------------------
@@ -1484,7 +1464,7 @@ void CSceneEntity::DispatchStartGesture( CChoreoScene *scene, CBaseFlex *actor, 
 	if ( !Q_stricmp( event->GetName(), "NULL" ) )
 		return;
 
-	actor->AddSceneEvent( scene, event, NULL, this ); 
+	actor->AddSceneEvent( scene, event); 
 }
 
 
@@ -1510,7 +1490,7 @@ void CSceneEntity::DispatchEndGesture( CChoreoScene *scene, CBaseFlex *actor, CC
 void CSceneEntity::DispatchStartGeneric( CChoreoScene *scene, CBaseFlex *actor, CChoreoEvent *event )
 {
 	CBaseEntity *pTarget = FindNamedEntity( event->GetParameters2( ) );
-	actor->AddSceneEvent( scene, event, pTarget, this );
+	actor->AddSceneEvent( scene, event, pTarget );
 }
 
 
@@ -1531,7 +1511,7 @@ void CSceneEntity::DispatchEndGeneric( CChoreoScene *scene, CBaseFlex *actor, CC
 //-----------------------------------------------------------------------------
 void CSceneEntity::DispatchStartLookAt( CChoreoScene *scene, CBaseFlex *actor, CBaseEntity *actor2, CChoreoEvent *event )
 {
-	actor->AddSceneEvent( scene, event, actor2, this );
+	actor->AddSceneEvent( scene, event, actor2 );
 }
 
 
@@ -1550,7 +1530,7 @@ void CSceneEntity::DispatchEndLookAt( CChoreoScene *scene, CBaseFlex *actor, CCh
 //-----------------------------------------------------------------------------
 void CSceneEntity::DispatchStartMoveTo( CChoreoScene *scene, CBaseFlex *actor, CBaseEntity *actor2, CChoreoEvent *event )
 {
-	actor->AddSceneEvent( scene, event, actor2, this );
+	actor->AddSceneEvent( scene, event, actor2 );
 }
 
 
@@ -1800,7 +1780,7 @@ void CSceneEntity::DispatchStartSpeak( CChoreoScene *scene, CBaseFlex *actor, CC
 			}
 
 			EmitSound( filter2, actor->entindex(), es );
-			actor->AddSceneEvent( scene, event, NULL, this );
+			actor->AddSceneEvent( scene, event );
 		}
 	
 		// Close captioning only on master token no matter what...
@@ -1896,7 +1876,7 @@ void CSceneEntity::DispatchEndSpeak( CChoreoScene *scene, CBaseFlex *actor, CCho
 //-----------------------------------------------------------------------------
 void CSceneEntity::DispatchStartFace( CChoreoScene *scene, CBaseFlex *actor, CBaseEntity *actor2, CChoreoEvent *event )
 {
-	actor->AddSceneEvent( scene, event, actor2, this );
+	actor->AddSceneEvent( scene, event, actor2 );
 }
 
 
@@ -1919,7 +1899,7 @@ void CSceneEntity::DispatchEndFace( CChoreoScene *scene, CBaseFlex *actor, CChor
 //-----------------------------------------------------------------------------
 void CSceneEntity::DispatchStartSequence( CChoreoScene *scene, CBaseFlex *actor, CChoreoEvent *event )
 {
-	actor->AddSceneEvent( scene, event, NULL, this );
+	actor->AddSceneEvent( scene, event );
 }
 
 
@@ -3372,48 +3352,6 @@ CChoreoScene *BlockingLoadScene( const char *filename )
 	return CSceneEntity::LoadScene( filename, NULL );
 }
 
-
-//-----------------------------------------------------------------------------
-// Purpose: vscript - create a scene directly from a buffer containing
-// a vcd description, and load it into the scene entity.
-//-----------------------------------------------------------------------------
-
-bool CSceneEntity::ScriptLoadSceneFromString( const char *pszFilename, const char *pszData )
-{
-	CChoreoScene *pScene = new CChoreoScene( NULL );
-
-	// CSceneTokenProcessor SceneTokenProcessor;
-	// SceneTokenProcessor.SetBuffer( pszData );
-	g_TokenProcessor.SetBuffer( (char *)pszData );
-
-	if ( !pScene->ParseFromBuffer( pszFilename, &g_TokenProcessor ) ) //&SceneTokenProcessor ) )
-	{
-		Warning( "CSceneEntity::LoadSceneFromString: Unable to parse scene data '%s'\n", pszFilename );
-		delete pScene;
-		pScene = NULL;
-	}
-	else
-	{
-		pScene->SetPrintFunc( LocalScene_Printf );
-		pScene->SetEventCallbackInterface( this );
-
-		// precache all sounds for the newly constructed scene
-		PrecacheScene( pScene );
-	}
-
-	if ( pScene != NULL )
-	{
-		// release prior scene if present
-		UnloadScene();
-		m_pScene = pScene;
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
@@ -3766,12 +3704,6 @@ private:
 	float		m_flNearestToActor;
 	CBaseEntity *m_pNearestToActor;
 };
-
-
-HSCRIPT CSceneEntity::ScriptFindNamedEntity( const char *name )
-{
-	return ToHScript( FindNamedEntity( name, NULL, false, false ) );
-}
 
 //-----------------------------------------------------------------------------
 // Purpose: Search for an actor by name, make sure it can do face poses
@@ -4424,65 +4356,6 @@ void CSceneEntity::SetRecipientFilter( IRecipientFilter *filter )
 
 
 //-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-int CSceneEntity::DrawDebugTextOverlays()
-{
-	int nOffset = BaseClass::DrawDebugTextOverlays();
-
-	if ( m_debugOverlays & OVERLAY_TEXT_BIT )
-	{
-		char tempstr[ 512 ];
-		Q_snprintf( tempstr, sizeof( tempstr ), "Playing back: %s", m_bIsPlayingBack ? "yes" : "no" );
-		EntityText( nOffset, tempstr, 0 );
-		nOffset++;
-
-		Q_snprintf( tempstr, sizeof( tempstr ), "Paused: %s", m_bPaused ? ( m_bPausedViaInput ? "yes - via input" : "yes" ) : "no" );
-		EntityText( nOffset, tempstr, 0 );
-		nOffset++;
-	}
-
-	return nOffset;
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: Adds a player (by index) to the recipient filter
-//-----------------------------------------------------------------------------
-void CSceneEntity::AddBroadcastTeamTarget( int nTeamIndex )
-{
-	if ( m_pRecipientFilter == NULL )
-	{
-		CRecipientFilter filter;
-		SetRecipientFilter( &filter );
-	}
-
-	CTeam *pTeam = GetGlobalTeam( nTeamIndex );
-	Assert( pTeam );
-	if ( pTeam == NULL )
-		return;
-
-	m_pRecipientFilter->AddRecipientsByTeam( pTeam );
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: Removes a player (by index) from the recipient filter
-//-----------------------------------------------------------------------------
-void CSceneEntity::RemoveBroadcastTeamTarget( int nTeamIndex )
-{
-	if ( m_pRecipientFilter == NULL )
-	{
-		CRecipientFilter filter;
-		SetRecipientFilter( &filter );
-	}
-
-	CTeam *pTeam = GetGlobalTeam( nTeamIndex );
-	Assert( pTeam );
-	if ( pTeam == NULL )
-		return;
-
-	m_pRecipientFilter->RemoveRecipientsByTeam( pTeam );
-}
-
-//-----------------------------------------------------------------------------
 // Purpose: 
 // Input  :
 // Output :
@@ -4682,27 +4555,6 @@ void StopScriptedScene( CBaseFlex *pActor, EHANDLE hSceneEnt )
 		LocalScene_Printf( "%s : stop scripted scene\n", STRING( pScene->m_iszSceneFile ) );
 		pScene->CancelPlayback();
 	}
-}
-
-
-HSCRIPT ScriptCreateSceneEntity( const char *pszScene )
-{
-	if ( IsEntityCreationAllowedInScripts() == false )
-	{
-		Warning( "VScript error: A script attempted to create a scene entity mid-game. Entity creation from scripts is only allowed during map init.\n" );
-		return NULL;
-	}
-
-	g_pScriptVM->RegisterClass( GetScriptDescForClass( CSceneEntity ) );
-	CSceneEntity *pScene = (CSceneEntity *)CBaseEntity::CreateNoSpawn( "logic_choreographed_scene", vec3_origin, vec3_angle );
-
-	if ( pScene )
-	{
-		pScene->m_iszSceneFile = AllocPooledString( pszScene );
-		DispatchSpawn( pScene );
-	}
-
-	return ToHScript( pScene );
 }
 
 //-----------------------------------------------------------------------------

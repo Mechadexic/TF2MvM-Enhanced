@@ -56,8 +56,6 @@ public:
 
 	virtual bool		CanReload( void ) 			{ return false; }
 
-	float				GetCurrentCharge( void ) const;
-
 #ifdef CLIENT_DLL
 	void				CreateMove( float flInputSampleTime, CUserCmd *pCmd, const QAngle &vecOldViewAngles );
 	virtual void   	 	OnDataChanged( DataUpdateType_t updateType );

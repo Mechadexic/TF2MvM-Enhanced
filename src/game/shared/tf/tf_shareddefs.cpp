@@ -9,12 +9,6 @@
 #include "KeyValues.h"
 #include "takedamageinfo.h"
 #include "tf_gamerules.h"
-#include "bone_setup.h"
-#if defined( CLIENT_DLL )
-#include "c_team.h"
-#else
-#include "team.h"
-#endif
 
 //-----------------------------------------------------------------------------
 // Teams.
@@ -80,22 +74,6 @@ bool IsGameTeam( int iTeam )
 	return ( iTeam > LAST_SHARED_TEAM && iTeam < TF_TEAM_COUNT ); 
 }
 
-bool IsTeamName( const char *str )
-{
-	for (int i = 0; i < g_Teams.Size(); ++i)
-	{
-#if defined( CLIENT_DLL )
-		if (FStrEq( str, g_Teams[i]->Get_Name() ))
-			return true;
-#else
-		if (FStrEq( str, g_Teams[i]->GetName() ))
-			return true;
-#endif
-	}
-
-	return Q_strcasecmp( str, "spectate" ) == 0;
-}
-
 //-----------------------------------------------------------------------------
 // Classes.
 //-----------------------------------------------------------------------------
@@ -112,22 +90,6 @@ const char *g_aPlayerClassNames[] =
 	"#TF_Class_Name_Pyro",
 	"#TF_Class_Name_Spy",
 	"#TF_Class_Name_Engineer",
-	"#TF_SaxtonHat",
-};
-
-const char *g_aPlayerClassNames_NonLocalized[] =
-{
-	"Undefined",
-	"Scout",
-	"Sniper",
-	"Soldier",
-	"Demoman",
-	"Medic",
-	"Heavy",
-	"Pyro",
-	"Spy",
-	"Engineer",
-	"Saxton",
 };
 
 const char *g_aDominationEmblems[] =
@@ -161,7 +123,6 @@ const char *g_aPlayerClassEmblems[] =
 	"../hud/leaderboard_class_pyro",
 	"../hud/leaderboard_class_spy",
 	"../hud/leaderboard_class_engineer",
-	"../hud/leaderboard_class_tank",
 };
 
 const char *g_aPlayerClassEmblemsDead[] =
@@ -175,68 +136,21 @@ const char *g_aPlayerClassEmblemsDead[] =
 	"../hud/leaderboard_class_pyro_d",
 	"../hud/leaderboard_class_spy_d",
 	"../hud/leaderboard_class_engineer_d",
-	"../hud/leaderboard_class_tank",
 };
 
-typedef struct PlayerClassData
+const char *g_aPlayerClassNames_NonLocalized[] =
 {
-	const char *szClassName;
-	const char *szLocalizedName;
-} PlayerClassData_t;
-PlayerClassData_t gs_PlayerClassData[ TF_CLASS_COUNT_ALL ] ={
-	{	"Undefined",  "#TF_Class_Name_Undefined" },
-	{	"Scout",      "#TF_Class_Name_Scout"     },
-	{	"Sniper",     "#TF_Class_Name_Sniper"    },
-	{	"Soldier",    "#TF_Class_Name_Soldier"   },
-	{	"Demoman",    "#TF_Class_Name_Demoman"   },
-	{	"Medic",      "#TF_Class_Name_Medic"     },
-	{	"Heavy",      "#TF_Class_Name_HWGuy"     },
-	{	"Pyro",       "#TF_Class_Name_Pyro"      },
-	{	"Spy",        "#TF_Class_Name_Spy"       },
-	{	"Engineer",   "#TF_Class_Name_Engineer"  },
-	{	"Saxton",     "#TF_SaxtonHat"  },
+	"Undefined",
+	"Scout",
+	"Sniper",
+	"Soldier",
+	"Demoman",
+	"Medic",
+	"Heavy",
+	"Pyro",
+	"Spy",
+	"Engineer",
 };
-
-bool IsPlayerClassName( char const *str )
-{
-	for (int i = 1; i < TF_CLASS_COUNT_ALL; ++i)
-	{
-		TFPlayerClassData_t *data = GetPlayerClassData( i );
-		if (FStrEq( str, data->m_szClassName ))
-			return true;
-	}
-
-	return false;
-}
-
-int GetClassIndexFromString( char const *name, int maxClass )
-{	// what's the point of the second argument?
-	for (int i = TF_FIRST_NORMAL_CLASS; i <= maxClass; ++i)
-	{
-		// what's the point of checking length? investigate for inlines...
-		size_t length = strlen( g_aPlayerClassNames_NonLocalized[i] );
-		if (length <= strlen( name ) && !Q_strnicmp( g_aPlayerClassNames_NonLocalized[i], name, length ))
-			return i;
-	}
-
-	return TF_CLASS_UNDEFINED;
-}
-
-char const *GetPlayerClassName( int iClassIdx )
-{
-	if ( iClassIdx <= TF_CLASS_COUNT_ALL )
-		return gs_PlayerClassData[ iClassIdx ].szClassName;
-
-	return NULL;
-}
-
-char const *GetPlayerClassLocalizationKey( int iClassIdx )
-{
-	if ( iClassIdx <= TF_CLASS_COUNT_ALL )
-		return gs_PlayerClassData[ iClassIdx ].szLocalizedName;
-
-	return NULL;
-}
 
 //-----------------------------------------------------------------------------
 // Gametypes.
@@ -252,7 +166,8 @@ const char *g_aGameTypeNames[] =
 	"#GameType_Passtime",
 	"#GameType_PlayerDestruction",
 	"#Gametype_MVM",
-	"#Gametype_Medieval"
+	"#Gametype_DM",
+	"#Gametype_VIP",
 };
 
 //-----------------------------------------------------------------------------
@@ -260,19 +175,17 @@ const char *g_aGameTypeNames[] =
 //-----------------------------------------------------------------------------
 const char *g_AnimSlots[] =
 {
-	"PRIMARY",
-	"SECONDARY",
-	"MELEE",
-	"GRENADE",
-	"BUILDING",
-	"PDA",
-	"ITEM1",
-	"ITEM2",
-	"HEAD",
-	"MISC",
+	"primary",
+	"secondary",
+	"melee",
+	"grenade",
+	"building",
+	"pda",
+	"item1",
+	"item2",
 	"MELEE_ALLCLASS",
-	"SECONDARY2",
-	"PRIMARY2"
+	"secondary2",
+	"primary2"
 };
 
 const char *g_LoadoutSlots[] =
@@ -283,29 +196,9 @@ const char *g_LoadoutSlots[] =
 	"pda",
 	"pda2",
 	"building",
-	"utility",
 	"head",
 	"misc",
-	"action",
-	"misc2",
-	"zombie",
-	"medal",
-	"buffer"
-};
-
-const char *g_LoadoutTranslations[] ={
-	"#LoadoutSlot_Primary",
-	"#LoadoutSlot_Secondary",
-	"#LoadoutSlot_Melee",
-	"#LoadoutSlot_Building",
-	"#LoadoutSlot_pda",
-	"#LoadoutSlot_pda2",
-	"#LoadoutSlot_Utility",
-	"#LoadoutSlot_Head",
-	"#LoadoutSlot_Misc",
-	"#LoadoutSlot_Action",
-	"#LoadoutSlot_Misc",
-	"Undefined"
+	"action"
 };
 
 //-----------------------------------------------------------------------------
@@ -505,139 +398,78 @@ const char *g_aWeaponNames[] =
 	"TF_WEAPON_BAT_WOOD",
 	"TF_WEAPON_ROBOT_ARM",
 	"TF_WEAPON_BUFF_ITEM",
-	"TF_WEAPON_SWORD",
-	"TF_WEAPON_SENTRY_REVENGE",
-	"TF_WEAPON_JAR_MILK",
-	"TF_WEAPON_ASSAULTRIFLE",
-	"TF_WEAPON_MINIGUN_REAL",
-	"TF_WEAPON_HUNTERRIFLE",
-	"TF_WEAPON_UMBRELLA",
-	"TF_WEAPON_HAMMERFISTS",
-	"TF_WEAPON_CHAINSAW",
-	"TF_WEAPON_HEAVYARTILLERY",
-	"TF_WEAPON_ROCKETLAUNCHER_LEGACY",
-	"TF_WEAPON_GRENADELAUNCHER_LEGACY",
-	"TF_WEAPON_PIPEBOMBLAUNCHER_LEGACY",
-	"TF_WEAPON_CROSSBOW",
-	"TF_WEAPON_PIPEBOMBLAUNCHER_TF2BETA",
-	"TF_WEAPON_PIPEBOMBLAUNCHER_TFC",
-	"TF_WEAPON_SYRINGE",
-	"TF_WEAPON_SNIPERRIFLE_REAL",
-	"TF_WEAPON_SNIPERRIFLE_CLASSIC",
-	"TF_WEAPON_GRENADE_PIPEBOMB_BETA",
-	"TF_WEAPON_SHOVELFIST",
-	"TF_WEAPON_SODA_POPPER",
-	"TF_WEAPON_PEP_BRAWLER_BLASTER",
-	"TF_WEAPON_SNIPERRIFLE_DECAP",
-	"TF_WEAPON_KATANA",
-	"TF_WEAPON_ROCKETLAUNCHER_AIRSTRIKE",
-	"TF_WEAPON_PARACHUTE",
-	"TF_WEAPON_SLAP",
-	"TF_WEAPON_REVOLVER_DEX",
-	"TF_WEAPON_PUMPKNI_BOMB",
-	
 	"TF_WEAPON_COUNT",	// end marker, do not add below here
 };
 
 int g_aWeaponDamageTypes[] =
 {
-	DMG_GENERIC,								// TF_WEAPON_NONE
-	DMG_CLUB,									// TF_WEAPON_BAT,
-	DMG_CLUB,									// TF_WEAPON_BOTTLE, 
-	DMG_CLUB,									// TF_WEAPON_FIREAXE,
-	DMG_CLUB,									// TF_WEAPON_CLUB,
-	DMG_CLUB,									// TF_WEAPON_CROWBAR,
-	DMG_SLASH,									// TF_WEAPON_KNIFE,
-	DMG_CLUB,									// TF_WEAPON_FISTS,
-	DMG_CLUB,									// TF_WEAPON_SHOVEL,
-	DMG_CLUB,									// TF_WEAPON_WRENCH,
-	DMG_SLASH,									// TF_WEAPON_BONESAW,
-	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,			// TF_WEAPON_SHOTGUN_PRIMARY,
-	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,			// TF_WEAPON_SHOTGUN_SOLDIER,
-	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,			// TF_WEAPON_SHOTGUN_HWG,
-	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,			// TF_WEAPON_SHOTGUN_PYRO,
-	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,			// TF_WEAPON_SCATTERGUN,
-	DMG_BULLET | DMG_USE_HITLOCATIONS,			// TF_WEAPON_SNIPERRIFLE,
-	DMG_BULLET | DMG_USEDISTANCEMOD,			// TF_WEAPON_MINIGUN,
-	DMG_BULLET | DMG_USEDISTANCEMOD,			// TF_WEAPON_SMG,
-	DMG_BULLET | DMG_USEDISTANCEMOD | DMG_NOCLOSEDISTANCEMOD | DMG_PREVENT_PHYSICS_FORCE,	// TF_WEAPON_SYRINGEGUN_MEDIC,
-	DMG_BULLET | DMG_USEDISTANCEMOD | DMG_PREVENT_PHYSICS_FORCE | DMG_PARALYZE,	// TF_WEAPON_TRANQ,
+	DMG_GENERIC,	// TF_WEAPON_NONE
+	DMG_CLUB,		// TF_WEAPON_BAT,
+	DMG_CLUB,		// TF_WEAPON_BOTTLE, 
+	DMG_CLUB,		// TF_WEAPON_FIREAXE,
+	DMG_CLUB,		// TF_WEAPON_CLUB,
+	DMG_CLUB,		// TF_WEAPON_CROWBAR,
+	DMG_SLASH,		// TF_WEAPON_KNIFE,
+	DMG_CLUB,		// TF_WEAPON_FISTS,
+	DMG_CLUB,		// TF_WEAPON_SHOVEL,
+	DMG_CLUB,		// TF_WEAPON_WRENCH,
+	DMG_SLASH,		// TF_WEAPON_BONESAW,
+	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,	// TF_WEAPON_SHOTGUN_PRIMARY,
+	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,	// TF_WEAPON_SHOTGUN_SOLDIER,
+	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,	// TF_WEAPON_SHOTGUN_HWG,
+	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,	// TF_WEAPON_SHOTGUN_PYRO,
+	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,  // TF_WEAPON_SCATTERGUN,
+	DMG_BULLET | DMG_USE_HITLOCATIONS,	// TF_WEAPON_SNIPERRIFLE,
+	DMG_BULLET | DMG_USEDISTANCEMOD,		// TF_WEAPON_MINIGUN,
+	DMG_BULLET | DMG_USEDISTANCEMOD,		// TF_WEAPON_SMG,
+	DMG_BULLET | DMG_USEDISTANCEMOD | DMG_NOCLOSEDISTANCEMOD | DMG_PREVENT_PHYSICS_FORCE,		// TF_WEAPON_SYRINGEGUN_MEDIC,
+	DMG_BULLET | DMG_USEDISTANCEMOD | DMG_PREVENT_PHYSICS_FORCE | DMG_PARALYZE,		// TF_WEAPON_TRANQ,
 	DMG_BLAST | DMG_HALF_FALLOFF | DMG_USEDISTANCEMOD,		// TF_WEAPON_ROCKETLAUNCHER,
 	DMG_BLAST | DMG_HALF_FALLOFF | DMG_USEDISTANCEMOD,		// TF_WEAPON_GRENADELAUNCHER,
-	DMG_BLAST | DMG_HALF_FALLOFF,				// TF_WEAPON_PIPEBOMBLAUNCHER,
-	DMG_IGNITE | DMG_PREVENT_PHYSICS_FORCE | DMG_PREVENT_PHYSICS_FORCE,	// TF_WEAPON_FLAMETHROWER,
-	DMG_BLAST | DMG_HALF_FALLOFF,				// TF_WEAPON_GRENADE_NORMAL,
-	DMG_SONIC | DMG_HALF_FALLOFF,				// TF_WEAPON_GRENADE_CONCUSSION,
-	DMG_BULLET | DMG_HALF_FALLOFF,				// TF_WEAPON_GRENADE_NAIL,
-	DMG_BLAST | DMG_HALF_FALLOFF,				// TF_WEAPON_GRENADE_MIRV,
-	DMG_BLAST | DMG_HALF_FALLOFF,				// TF_WEAPON_GRENADE_MIRV_DEMOMAN,
-	DMG_IGNITE | DMG_RADIUS_MAX,				// TF_WEAPON_GRENADE_NAPALM,
-	DMG_POISON | DMG_HALF_FALLOFF,				// TF_WEAPON_GRENADE_GAS,
-	DMG_BLAST | DMG_HALF_FALLOFF | DMG_PREVENT_PHYSICS_FORCE,	// TF_WEAPON_GRENADE_EMP,
-	DMG_GENERIC,								// TF_WEAPON_GRENADE_CALTROP,
-	DMG_BLAST | DMG_HALF_FALLOFF,				// TF_WEAPON_GRENADE_PIPEBOMB,
-	DMG_GENERIC,								// TF_WEAPON_GRENADE_SMOKE_BOMB,
-	DMG_GENERIC,								// TF_WEAPON_GRENADE_HEAL
-	DMG_BULLET | DMG_USEDISTANCEMOD,			// TF_WEAPON_PISTOL,
-	DMG_BULLET | DMG_USEDISTANCEMOD,			// TF_WEAPON_PISTOL_SCOUT,
-	DMG_BULLET | DMG_USEDISTANCEMOD,			// TF_WEAPON_REVOLVER,
-	DMG_BULLET | DMG_USEDISTANCEMOD | DMG_NOCLOSEDISTANCEMOD | DMG_PREVENT_PHYSICS_FORCE,	// TF_WEAPON_NAILGUN,
-	DMG_BULLET,									// TF_WEAPON_PDA,
-	DMG_BULLET,									// TF_WEAPON_PDA_ENGINEER_BUILD,
-	DMG_BULLET,									// TF_WEAPON_PDA_ENGINEER_DESTROY,
-	DMG_BULLET,									// TF_WEAPON_PDA_SPY,
-	DMG_BULLET,									// TF_WEAPON_BUILDER
-	DMG_BULLET,									// TF_WEAPON_MEDIGUN
-	DMG_BLAST,									// TF_WEAPON_GRENADE_MIRVBOMB
-	DMG_BLAST | DMG_IGNITE | DMG_RADIUS_MAX,	// TF_WEAPON_FLAMETHROWER_ROCKET
-	DMG_BLAST | DMG_HALF_FALLOFF,				// TF_WEAPON_GRENADE_DEMOMAN
-	DMG_GENERIC,								// TF_WEAPON_SENTRY_BULLET
-	DMG_GENERIC,								// TF_WEAPON_SENTRY_ROCKET
-	DMG_GENERIC,								// TF_WEAPON_DISPENSER
-	DMG_GENERIC,								// TF_WEAPON_INVIS
-	DMG_GENERIC,								// TF_WEAPON_FLAG
-	DMG_IGNITE,									// TF_WEAPON_FLAREGUN,
-	DMG_GENERIC,								// TF_WEAPON_LUNCHBOX,
-	DMG_GENERIC,								// TF_WEAPON_LUNCHBOX_DRINK,
-	DMG_BULLET,									// TF_WEAPON_COMPOUND_BOW,
-	DMG_GENERIC,								// TF_WEAPON_JAR,
-	DMG_GENERIC,								// TF_WEAPON_LASER_POINTER,
-	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,			// TF_WEAPON_HANDGUN_SCOUT_PRIMARY,
-	DMG_CLUB,									// TF_WEAPON_STICKBOMB,
-	DMG_CLUB,									// TF_WEAPON_BAT_WOOD,
-	DMG_CLUB,									// TF_WEAPON_ROBOT_ARM
-	DMG_GENERIC,								// TF_WEAPON_BUFF_ITEM
-	DMG_SLASH,									// TF_WEAPON_SWORD
-	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,			// TF_WEAPON_SENTRY_REVENGE
-	DMG_GENERIC,								// TF_WEAPON_JAR_MILK
-	DMG_BULLET | DMG_USEDISTANCEMOD,			// TF_WEAPON_ASSAULTRIFLE
-	DMG_BULLET | DMG_USEDISTANCEMOD,			// TF_WEAPON_MINIGUN_REAL
-	DMG_BULLET | DMG_USE_HITLOCATIONS,			// TF_WEAPON_HUNTERRIFLE
-	DMG_CLUB, 									// TF_WEAPON_UMBRELLA,
-	DMG_CLUB,									// TF_WEAPON_HAMMERFISTS,
-	DMG_SLASH,									// TF_WEAPON_CHAINSAW,
-	DMG_BULLET | DMG_USEDISTANCEMOD,			// TF_WEAPON_HEAVYARTILLERY,
-	DMG_BLAST | DMG_HALF_FALLOFF | DMG_USEDISTANCEMOD,		// TF_WEAPON_ROCKETLAUNCHER_LEGACY,
-	DMG_BLAST | DMG_HALF_FALLOFF | DMG_USEDISTANCEMOD,		// TF_WEAPON_GRENADELAUNCHER_LEGACY,
-	DMG_BLAST | DMG_HALF_FALLOFF,				// TF_WEAPON_PIPEBOMBLAUNCHER_LEGACY,
-	DMG_BULLET | DMG_USEDISTANCEMOD | DMG_PREVENT_PHYSICS_FORCE,		// TF_WEAPON_CROSSBOW,
-	DMG_BLAST | DMG_HALF_FALLOFF,				// TF_WEAPON_PIPEBOMBLAUNCHER_TF2BETA,
-	DMG_BLAST | DMG_HALF_FALLOFF,				// TF_WEAPON_PIPEBOMBLAUNCHER_TFC,
-	DMG_CLUB,									// TF_WEAPON_SYRINGE,
-	DMG_BULLET | DMG_USE_HITLOCATIONS,			// TF_WEAPON_SNIPERRIFLE_REAL,
-	DMG_BULLET | DMG_USE_HITLOCATIONS,			// TF_WEAPON_SNIPERRIFLE_CLASSIC,
-	DMG_BLAST | DMG_HALF_FALLOFF,               // TF_WEAPON_GRENADE_PIPEBOMB_BETA
-	DMG_CLUB,									// TF_WEAPON_SHOVELFIST
-	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,          // TF_WEAPON_SODA_POPPER
-	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,          // TF_WEAPON_PEP_BRAWLER_BLASTER
-	DMG_BULLET | DMG_USE_HITLOCATIONS,			// TF_WEAPON_SNIPERRIFLE_DECAP,
-	DMG_SLASH,									// TF_WEAPON_KATANA,
-	DMG_BLAST | DMG_HALF_FALLOFF | DMG_USEDISTANCEMOD,		// TF_WEAPON_ROCKETLAUNCHER_AIRSTRIKE,
-	DMG_GENERIC,								// 	TF_WEAPON_PARACHUTE,
-	DMG_CLUB,									// TF_WEAPON_SLAP,
-	DMG_BULLET | DMG_USEDISTANCEMOD,			// TF_WEAPON_REVOLVER_DEX,
-	DMG_BLAST | DMG_HALF_FALLOFF,               // TF_WEAPON_PUMPKIN_BOMB,
-	
+	DMG_BLAST | DMG_HALF_FALLOFF,		// TF_WEAPON_PIPEBOMBLAUNCHER,
+	DMG_IGNITE | DMG_PREVENT_PHYSICS_FORCE | DMG_PREVENT_PHYSICS_FORCE,		// TF_WEAPON_FLAMETHROWER,
+	DMG_BLAST | DMG_HALF_FALLOFF,		// TF_WEAPON_GRENADE_NORMAL,
+	DMG_SONIC | DMG_HALF_FALLOFF,		// TF_WEAPON_GRENADE_CONCUSSION,
+	DMG_BULLET | DMG_HALF_FALLOFF,		// TF_WEAPON_GRENADE_NAIL,
+	DMG_BLAST | DMG_HALF_FALLOFF,		// TF_WEAPON_GRENADE_MIRV,
+	DMG_BLAST | DMG_HALF_FALLOFF,		// TF_WEAPON_GRENADE_MIRV_DEMOMAN,
+	DMG_BURN | DMG_RADIUS_MAX,		// TF_WEAPON_GRENADE_NAPALM,
+	DMG_POISON | DMG_HALF_FALLOFF,		// TF_WEAPON_GRENADE_GAS,
+	DMG_BLAST | DMG_HALF_FALLOFF | DMG_PREVENT_PHYSICS_FORCE,		// TF_WEAPON_GRENADE_EMP,
+	DMG_GENERIC,	// TF_WEAPON_GRENADE_CALTROP,
+	DMG_BLAST | DMG_HALF_FALLOFF,		// TF_WEAPON_GRENADE_PIPEBOMB,
+	DMG_GENERIC,	// TF_WEAPON_GRENADE_SMOKE_BOMB,
+	DMG_GENERIC,	// TF_WEAPON_GRENADE_HEAL
+	DMG_BULLET | DMG_USEDISTANCEMOD,		// TF_WEAPON_PISTOL,
+	DMG_BULLET | DMG_USEDISTANCEMOD,		// TF_WEAPON_PISTOL_SCOUT,
+	DMG_BULLET | DMG_USEDISTANCEMOD,		// TF_WEAPON_REVOLVER,
+	DMG_BULLET | DMG_USEDISTANCEMOD | DMG_NOCLOSEDISTANCEMOD | DMG_PREVENT_PHYSICS_FORCE,		// TF_WEAPON_NAILGUN,
+	DMG_BULLET,		// TF_WEAPON_PDA,
+	DMG_BULLET,		// TF_WEAPON_PDA_ENGINEER_BUILD,
+	DMG_BULLET,		// TF_WEAPON_PDA_ENGINEER_DESTROY,
+	DMG_BULLET,		// TF_WEAPON_PDA_SPY,
+	DMG_BULLET,		// TF_WEAPON_BUILDER
+	DMG_BULLET,		// TF_WEAPON_MEDIGUN
+	DMG_BLAST,		// TF_WEAPON_GRENADE_MIRVBOMB
+	DMG_BLAST | DMG_IGNITE | DMG_RADIUS_MAX,		// TF_WEAPON_FLAMETHROWER_ROCKET
+	DMG_BLAST | DMG_HALF_FALLOFF,					// TF_WEAPON_GRENADE_DEMOMAN
+	DMG_GENERIC,	// TF_WEAPON_SENTRY_BULLET
+	DMG_GENERIC,	// TF_WEAPON_SENTRY_ROCKET
+	DMG_GENERIC,	// TF_WEAPON_DISPENSER
+	DMG_GENERIC,	// TF_WEAPON_INVIS
+	DMG_GENERIC,	// TF_WEAPON_FLAG // ADD NEW WEAPONS AFTER THIS
+	DMG_IGNITE,		// TF_WEAPON_FLAREGUN,
+	DMG_GENERIC,	// TF_WEAPON_LUNCHBOX,
+	DMG_GENERIC,	// TF_WEAPON_LUNCHBOX_DRINK,
+	DMG_BULLET,		// TF_WEAPON_COMPOUND_BOW,
+	DMG_GENERIC,	// TF_WEAPON_JAR,
+	DMG_GENERIC,	// TF_WEAPON_LASER_POINTER,
+	DMG_BUCKSHOT | DMG_USEDISTANCEMOD,	// TF_WEAPON_HANDGUN_SCOUT_PRIMARY,
+	DMG_CLUB,	// TF_WEAPON_STICKBOMB,
+	DMG_CLUB,	// TF_WEAPON_BAT_WOOD,
+	DMG_CLUB,   // TF_WEAPON_ROBOT_ARM
+	DMG_GENERIC, // TF_WEAPON_BUFF_ITEM
+
 	// This is a special entry that must match with TF_WEAPON_COUNT
 	// to protect against updating the weapon list without updating this list
 	TF_DMG_SENTINEL_VALUE
@@ -689,19 +521,6 @@ const char *g_szProjectileNames[] =
 	"projectile_grapplinghook",
 	"projectile_sentry_rocket",
 	"projectile_bread_monster",
-	"projectile_nail",
-	"projectile_dart",
-	"weapon_grenade_caltrop_projectile",
-	"weapon_grenade_concussion_projectile",
-	"weapon_grenade_emp_projectile",
-	"weapon_grenade_gas_projectile",
-	"weapon_grenade_heal_projectile",
-	"weapon_grenade_mirv_projectile",
-	"weapon_grenade_nail_projectile",
-	"weapon_grenade_napalm_projectile",
-	"weapon_grenade_normal_projectile",
-	"weapon_grenade_smoke_bomb_projectile",
-	"weapon_grenade_pipebomb_projectile",
 };
 
 // these map to the projectiles named in g_szProjectileNames
@@ -710,8 +529,8 @@ int g_iProjectileWeapons[] =
 	TF_WEAPON_NONE,
 	TF_WEAPON_PISTOL,
 	TF_WEAPON_ROCKETLAUNCHER,
-	TF_WEAPON_GRENADELAUNCHER,
 	TF_WEAPON_PIPEBOMBLAUNCHER,
+	TF_WEAPON_GRENADELAUNCHER,
 	TF_WEAPON_SYRINGEGUN_MEDIC,
 	TF_WEAPON_FLAREGUN,
 };
@@ -856,19 +675,6 @@ int GetWeaponFromDamage( const CTakeDamageInfo &info )
 #endif
 
 //-----------------------------------------------------------------------------
-// Purpose:
-//-----------------------------------------------------------------------------
-bool WeaponID_IsSniperRifle( int iWeaponID )
-{
-	return iWeaponID == TF_WEAPON_SNIPERRIFLE || iWeaponID == TF_WEAPON_SNIPERRIFLE_DECAP || iWeaponID == TF_WEAPON_SNIPERRIFLE_CLASSIC;
-}
-
-bool WeaponID_IsLunchbox( int iWeaponID )
-{
-	return iWeaponID == TF_WEAPON_LUNCHBOX || iWeaponID == TF_WEAPON_LUNCHBOX_DRINK;
-}
-
-//-----------------------------------------------------------------------------
 // Conditions stuff.
 //-----------------------------------------------------------------------------
 int condition_to_attribute_translation[] =
@@ -1002,6 +808,7 @@ bool AreObjectInfosLoaded()
 	return g_ObjectInfos[0].m_pClassName != NULL;
 }
 
+
 void LoadObjectInfos( IBaseFileSystem *pFileSystem )
 {
 	const char *pFilename = "scripts/objects.txt";
@@ -1099,7 +906,6 @@ const CObjectInfo* GetObjectInfo( int iObject )
 }
 
 ConVar tf_cheapobjects( "tf_cheapobjects","0", FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY | FCVAR_REPLICATED, "Set to 1 and all objects will cost 0" );
-ConVar tf2v_use_new_teleporter_cost( "tf2v_use_new_teleporter_cost", "0", FCVAR_NOTIFY | FCVAR_REPLICATED, "Enables the F2P era cheaper teleporter costs." );
 
 //-----------------------------------------------------------------------------
 // Purpose: Return the cost of another object of the specified type
@@ -1120,11 +926,6 @@ int CalculateObjectCost( int iObjectType, bool bMini /*= false*/ )
 	if ( iObjectType == OBJ_SENTRYGUN && bMini )
 	{
 		iCost = 100;
-	}
-	
-	if ( iObjectType == OBJ_TELEPORTER && ( tf2v_use_new_teleporter_cost.GetBool() ) )
-	{
-		iCost = 50;	
 	}
 
 	return iCost;
@@ -1191,66 +992,3 @@ float g_flDispenserHealRates[] =
 	15.0,
 	20.0
 };
-
-bool IsSpaceToSpawnHere( const Vector &vecPos )
-{
-	Vector mins = VEC_HULL_MIN - Vector( -5.0f, -5.0f, 0 );
-	Vector maxs = VEC_HULL_MAX + Vector( 5.0f, 5.0f, 5.0f );
-
-	trace_t tr;
-	UTIL_TraceHull( vecPos, vecPos, mins, maxs, MASK_PLAYERSOLID, nullptr, COLLISION_GROUP_PLAYER_MOVEMENT, &tr );
-
-	return tr.fraction >= 1.0f;
-}
-
-void BuildBigHeadTransformation( CBaseAnimating *pAnimating, CStudioHdr *pStudio, Vector *pos, Quaternion *q, matrix3x4_t const &cameraTransformation, int boneMask, CBoneBitList &boneComputed, float flScale )
-{
-	if ( pAnimating == nullptr )
-		return;
-
-	if ( flScale == 1.0f )
-		return;
-
-	int headBone = pAnimating->LookupBone( "bip_head" );
-	if ( headBone == -1 )
-		return;
-
-#if defined( CLIENT_DLL )
-	matrix3x4_t &head = pAnimating->GetBoneForWrite( headBone );
-
-	Vector oldTransform, newTransform;
-	MatrixGetColumn( head, 3, &oldTransform );
-	MatrixScaleBy( flScale, head );
-
-	int helmetBone = pAnimating->LookupBone( "prp_helmet" );
-	if ( helmetBone != -1 )
-	{
-		matrix3x4_t &helmet = pAnimating->GetBoneForWrite( helmetBone );
-		MatrixScaleBy( flScale, helmet );
-
-		MatrixGetColumn( helmet, 3, &newTransform );
-		Vector transform = ( ( newTransform - oldTransform ) * flScale ) + oldTransform;
-		MatrixSetColumn( transform, 3, helmet );
-	}
-
-	int hatBone = pAnimating->LookupBone( "prp_hat" );
-	if ( hatBone != -1 )
-	{
-		matrix3x4_t &hat = pAnimating->GetBoneForWrite( hatBone );
-		MatrixScaleBy( flScale, hat );
-
-		MatrixGetColumn( hat, 3, &newTransform );
-		Vector transform = ( ( newTransform - oldTransform ) * flScale ) + oldTransform;
-		MatrixSetColumn( transform, 3, hat );
-	}
-#endif
-}
-
-const char *g_aPlayerLoadoutPresets[] =
-{
-	"A",
-	"B",
-	"C",
-	"D",
-};
-

@@ -6,7 +6,6 @@
 #include "cbase.h"
 #include "tf_weapon_grenadelauncher.h"
 #include "tf_fx_shared.h"
-#include "tf_gamerules.h"
 
 // Client specific.
 #ifdef CLIENT_DLL
@@ -43,11 +42,6 @@ END_DATADESC()
 #define TF_GRENADE_LAUNCER_MIN_VEL 1200
 #define TF_GRENADES_SWITCHGROUP 2 
 #define TF_GRENADE_BARREL_SPIN 0.25 // barrel increments by one quarter for each pill
-
-
-CREATE_SIMPLE_WEAPON_TABLE( TFGrenadeLauncher_Legacy, tf_weapon_grenadelauncher_legacy )
-
-extern ConVar tf2v_console_grenadelauncher;
 
 //=============================================================================
 //
@@ -105,32 +99,6 @@ int CTFGrenadeLauncher::GetMaxClip1( void ) const
 	return TF_GRENADE_LAUNCHER_XBOX_CLIP;
 #endif
 
-	// BaseClass::GetMaxClip1() but with the base set to TF_GRENADE_LAUNCHER_XBOX_CLIP.
-	// We need to do it this way in order to consider attributes.
-	if ( tf2v_console_grenadelauncher.GetBool() )
-	{
-		
-		int iMaxClip = TF_GRENADE_LAUNCHER_XBOX_CLIP;
-		if ( iMaxClip < 0 )
-			return iMaxClip;
-
-		CALL_ATTRIB_HOOK_FLOAT( iMaxClip, mult_clipsize );
-		if ( iMaxClip < 0 )
-			return iMaxClip;
-
-		CTFPlayer *pOwner = GetTFPlayerOwner();
-		if ( pOwner == NULL )
-			return iMaxClip;
-
-		int nClipSizePerKill = 0;
-		CALL_ATTRIB_HOOK_INT( nClipSizePerKill, clipsize_increase_on_kill );
-
-		iMaxClip += Min( nClipSizePerKill, pOwner->m_Shared.GetDecapitationCount() );
-
-		return iMaxClip;
-
-	}
-
 	return BaseClass::GetMaxClip1();
 }
 
@@ -143,10 +111,6 @@ int CTFGrenadeLauncher::GetDefaultClip1( void ) const
 	return TF_GRENADE_LAUNCHER_XBOX_CLIP;
 #endif
 
-	// BaseClass::GetDefaultClip1() is just checking GetMaxClip1(), nothing fancy to do here.
-	if ( tf2v_console_grenadelauncher.GetBool() )
-		return GetMaxClip1();
-	 
 	return BaseClass::GetDefaultClip1();
 }
 
@@ -182,17 +146,6 @@ void CTFGrenadeLauncher::WeaponIdle( void )
 	BaseClass::WeaponIdle();
 }
 
-CBaseEntity *CTFGrenadeLauncher::FireProjectileInternal( CTFPlayer *pPlayer )
-{
-	CTFWeaponBaseGrenadeProj *pGrenade = (CTFWeaponBaseGrenadeProj *)FireProjectile( pPlayer );
-	/*if ( pGrenade )
-	{
-		if ( GetDetonateMode() == TF_GL_MODE_FIZZLE )
-			pGrenade->m_bFizzle = true;
-	}*/
-	return pGrenade;
-}
-
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
@@ -210,7 +163,7 @@ void CTFGrenadeLauncher::LaunchGrenade( void )
 	pPlayer->SetAnimation( PLAYER_ATTACK1 );
 	pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
 
-	FireProjectileInternal(pPlayer);
+	FireProjectile(pPlayer);
 
 #if 0
 	CBaseEntity *pPipeBomb = 
@@ -309,11 +262,4 @@ void CTFGrenadeLauncher::SwitchBodyGroups( void )
 			vm->SetPoseParameter( "barrel_spin", TF_GRENADE_BARREL_SPIN * iState );
         }
     }
-}
-
-int CTFGrenadeLauncher::GetDetonateMode( void ) const
-{
-	int nDetonateMode = 0;
-	CALL_ATTRIB_HOOK_INT( nDetonateMode, set_detonate_mode );
-	return nDetonateMode;
 }

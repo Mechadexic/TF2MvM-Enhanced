@@ -20,17 +20,15 @@ PlayerClass
 //	"grenade2"		"TF_WEAPON_GRENADE_SMOKE_BOMB"
 
 	// Weapons.
-	"weapon1"		""
+	"weapon1"		"TF_WEAPON_KNIFE"
 	"weapon2"		"TF_WEAPON_REVOLVER"
-	"weapon3"		"TF_WEAPON_KNIFE"
-	"weapon4"		"TF_WEAPON_PDA_SPY"
-	"weapon5"		"TF_WEAPON_INVIS"
-	"weapon6"		"TF_WEAPON_BUILDER"
-	"weapon7"		""
-	"weapon8"		""
+	"weapon3"		"TF_WEAPON_PDA_SPY"
+	"weapon4"		"TF_WEAPON_INVIS"
+	"weapon5"		""
+	"weapon6"		"TF_WEAPON_BUILDER_SPY"
+	"weapon7"		"TF2V_COSMETIC_HAT"
+	"weapon8"		"TF2V_COSMETIC_MISC"
 	"weapon9"		""
-	"weapon10"		""
-	"weapon11"		""
 
 	
 	// Buildables
@@ -46,8 +44,8 @@ PlayerClass
 	{
 		"tf_ammo_primary"	"20"		
 		"tf_ammo_secondary"	"24"
-		"tf_ammo_metal"		"200"
-		"tf_ammo_grenades1"	"1"
+		"tf_ammo_metal"		"100"
+		"tf_ammo_grenades1"	"0"
 		"tf_ammo_grenades2"	"1"
 	}
 

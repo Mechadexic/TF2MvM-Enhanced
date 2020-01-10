@@ -7399,17 +7399,6 @@
 	"wave"			"vo/heavy_Thanks03.wav"
 }
 
-"Heavy.Thanks04"
-{
-	"channel"		"CHAN_VOICE"
-	"volume"		"0.820"
-	"pitch"			"PITCH_NORM"
-
-	"soundlevel"	"SNDLVL_95dB"
-
-	"wave"			"vo/heavy_Thanks04.wav"
-}
-
 "Heavy.ThanksForTheHeal01"
 {
 	"channel"		"CHAN_VOICE"
@@ -25577,6 +25566,7 @@
 	"wave"		"ui/halloween_boss_player_becomes_it.wav"
 }
 
+
 //-----------------------------------------------------------------------------
 //Soldier BATCH 9
 //-----------------------------------------------------------------------------
@@ -25670,49 +25660,49 @@
 	"wave"		"vo/soldier_DominationDemoman06.wav"
 }
 
-"Soldier.DominationDemomanUpdate01"
+"Soldier.DominationDemonmanUpdate01"
 {
 	"channel"		"CHAN_VOICE"
 	"volume"		"1.000"
 	"pitch"		"PITCH_NORM"
 	"soundlevel"		"SNDLVL_95dB"
-	"wave"		"vo/soldier_DominationDemomanUpdate01.mp3"
+	"wave"		"vo/soldier_DominationDemonmanUpdate01.wav"
 }
 
-"Soldier.DominationDemomanUpdate02"
+"Soldier.DominationDemonmanUpdate02"
 {
 	"channel"		"CHAN_VOICE"
 	"volume"		"1.000"
 	"pitch"		"PITCH_NORM"
 	"soundlevel"		"SNDLVL_95dB"
-	"wave"		"vo/soldier_DominationDemomanUpdate02.mp3"
+	"wave"		"vo/soldier_DominationDemonmanUpdate02.wav"
 }
 
-"Soldier.DominationDemomanUpdate03"
+"Soldier.DominationDemonmanUpdate03"
 {
 	"channel"		"CHAN_VOICE"
 	"volume"		"1.000"
 	"pitch"		"PITCH_NORM"
 	"soundlevel"		"SNDLVL_95dB"
-	"wave"		"vo/soldier_DominationDemomanUpdate03.mp3"
+	"wave"		"vo/soldier_DominationDemonmanUpdate03.wav"
 }
 
-"Soldier.DominationDemomanUpdate04"
+"Soldier.DominationDemonmanUpdate04"
 {
 	"channel"		"CHAN_VOICE"
 	"volume"		"1.000"
 	"pitch"		"PITCH_NORM"
 	"soundlevel"		"SNDLVL_95dB"
-	"wave"		"vo/soldier_DominationDemomanUpdate04.mp3"
+	"wave"		"vo/soldier_DominationDemonmanUpdate04.wav"
 }
 
-"Soldier.DominationDemomanUpdate05"
+"Soldier.DominationDemonmanUpdate05"
 {
 	"channel"		"CHAN_VOICE"
 	"volume"		"1.000"
 	"pitch"		"PITCH_NORM"
 	"soundlevel"		"SNDLVL_95dB"
-	"wave"		"vo/soldier_DominationDemomanUpdate05.mp3"
+	"wave"		"vo/soldier_DominationDemonmanUpdate05.wav"
 }
 
 "Soldier.DominationEngineer01"
@@ -26827,7 +26817,7 @@
 	"volume"		"1.000"
 	"pitch"		"PITCH_NORM"
 	"soundlevel"		"SNDLVL_95dB"
-	"wave"		"vo/demoman_dominationsoldierupdate01.mp3"
+	"wave"		"vo/demoman_dominationsoldierupdate01.wav"
 }
 
 "Demoman.dominationsoldierupdate02"
@@ -26836,7 +26826,7 @@
 	"volume"		"1.000"
 	"pitch"		"PITCH_NORM"
 	"soundlevel"		"SNDLVL_95dB"
-	"wave"		"vo/demoman_dominationsoldierupdate02.mp3"
+	"wave"		"vo/demoman_dominationsoldierupdate02.wav"
 }
 
 "Demoman.dominationsoldierupdate03"
@@ -26845,7 +26835,7 @@
 	"volume"		"1.000"
 	"pitch"		"PITCH_NORM"
 	"soundlevel"		"SNDLVL_95dB"
-	"wave"		"vo/demoman_dominationsoldierupdate03.mp3"
+	"wave"		"vo/demoman_dominationsoldierupdate03.wav"
 }
 
 "Demoman.dominationsoldierupdate04"
@@ -26854,7 +26844,7 @@
 	"volume"		"1.000"
 	"pitch"		"PITCH_NORM"
 	"soundlevel"		"SNDLVL_95dB"
-	"wave"		"vo/demoman_dominationsoldierupdate04.mp3"
+	"wave"		"vo/demoman_dominationsoldierupdate04.wav"
 }
 
 "Demoman.dominationsoldierupdate05"
@@ -26863,7 +26853,7 @@
 	"volume"		"1.000"
 	"pitch"		"PITCH_NORM"
 	"soundlevel"		"SNDLVL_95dB"
-	"wave"		"vo/demoman_dominationsoldierupdate05.mp3"
+	"wave"		"vo/demoman_dominationsoldierupdate05.wav"
 }
 
 "Demoman.dominationsoldierupdate06"
@@ -26872,7 +26862,7 @@
 	"volume"		"1.000"
 	"pitch"		"PITCH_NORM"
 	"soundlevel"		"SNDLVL_95dB"
-	"wave"		"vo/demoman_dominationsoldierupdate06.mp3"
+	"wave"		"vo/demoman_dominationsoldierupdate06.wav"
 }
 
 "Demoman.dominationspy01"

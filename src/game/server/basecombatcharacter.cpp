@@ -110,9 +110,6 @@ BEGIN_DATADESC( CBaseCombatCharacter )
 
 END_DATADESC()
 
-BEGIN_ENT_SCRIPTDESC( CBaseCombatCharacter, CBaseAnimating, "" )
-	DEFINE_SCRIPTFUNC( RemoveAllAmmo, "" )
-END_SCRIPTDESC()
 
 BEGIN_SIMPLE_DATADESC( Relationship_t )
 	DEFINE_FIELD( entity,			FIELD_EHANDLE ),
@@ -193,9 +190,9 @@ END_SEND_TABLE();
 // This table encodes the CBaseCombatCharacter
 //-----------------------------------------------------------------------------
 IMPLEMENT_SERVERCLASS_ST(CBaseCombatCharacter, DT_BaseCombatCharacter)
-
+#ifdef GLOWS_ENABLE
 	SendPropBool( SENDINFO( m_bGlowEnabled ) ),
-
+#endif // GLOWS_ENABLE
 	// Data that only gets sent to the local player.
 	SendPropDataTable( "bcc_localdata", 0, &REFERENCE_SEND_TABLE(DT_BCCLocalPlayerExclusive), SendProxy_SendBaseCombatCharacterLocalDataTable ),
 
@@ -747,9 +744,9 @@ CBaseCombatCharacter::CBaseCombatCharacter( void )
 
 	m_bForceServerRagdoll = ai_force_serverside_ragdoll.GetBool();
 
-
+#ifdef GLOWS_ENABLE
 	m_bGlowEnabled.Set( false );
-
+#endif // GLOWS_ENABLE
 }
 
 //------------------------------------------------------------------------------
@@ -854,9 +851,9 @@ void CBaseCombatCharacter::UpdateOnRemove( void )
 		SetOwnerEntity( NULL );
 	}
 
-
+#ifdef GLOWS_ENABLE
 	RemoveGlowEffect();
-
+#endif // GLOWS_ENABLE
 
 	// Chain at end to mimic destructor unwind order
 	BaseClass::UpdateOnRemove();
@@ -1323,11 +1320,11 @@ CBaseEntity *CBaseCombatCharacter::CheckTraceHullAttack( const Vector &vStart, c
 bool  CBaseCombatCharacter::Event_Gibbed( const CTakeDamageInfo &info )
 {
 	bool fade = false;
-	ConVarRef tf2v_lv( "tf2v_lv" );
+
 	if ( HasHumanGibs() )
 	{
 		ConVarRef violence_hgibs( "violence_hgibs" );
-		if ( violence_hgibs.IsValid() && ( ( violence_hgibs.GetInt() == 0 ) || ( tf2v_lv.GetInt() == 1 ) ) )
+		if ( violence_hgibs.IsValid() && violence_hgibs.GetInt() == 0 )
 		{
 			fade = true;
 		}
@@ -1335,7 +1332,7 @@ bool  CBaseCombatCharacter::Event_Gibbed( const CTakeDamageInfo &info )
 	else if ( HasAlienGibs() )
 	{
 		ConVarRef violence_agibs( "violence_agibs" );
-		if ( violence_agibs.IsValid() && ( ( violence_agibs.GetInt() == 0 ) || ( tf2v_lv.GetInt() == 1 ) ) )
+		if ( violence_agibs.IsValid() && violence_agibs.GetInt() == 0 )
 		{
 			fade = true;
 		}
@@ -1680,9 +1677,9 @@ void CBaseCombatCharacter::Event_Killed( const CTakeDamageInfo &info )
 	TheNextBots().OnKilled( this, info );
 #endif
 
-
+#ifdef GLOWS_ENABLE
 	RemoveGlowEffect();
-
+#endif // GLOWS_ENABLE
 }
 
 void CBaseCombatCharacter::Event_Dying( const CTakeDamageInfo &info )
@@ -2465,43 +2462,6 @@ int CBaseCombatCharacter::OnTakeDamage( const CTakeDamageInfo &info )
 
 int CBaseCombatCharacter::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 {
-	float flDamage = info.GetDamage();
-
-	if ( m_ScriptScope.IsInitialized() && m_ScriptScope.ValueExists( "OnTakeDamage_Alive" ) )
-	{
-		ScriptVariant_t newDamage;
-		ScriptStatus_t nStatus = m_ScriptScope.Call( "OnTakeDamage_Alive", &newDamage, ToHScript( info.GetInflictor() ), ToHScript( info.GetAttacker() ), ToHScript( info.GetWeapon() ), flDamage, info.GetDamageType(), info.GetAmmoName() );
-
-		if ( nStatus != SCRIPT_DONE )
-		{
-			DevWarning( "%s OnTakeDamage_Alive VScript function did not finish!\n", GetDebugName() );
-		}
-		else
-		{
-			newDamage.AssignTo( &flDamage );
-		}
-	}
-
-	if( g_pScriptVM )
-	{
-		if ( HSCRIPT hFunction = g_pScriptVM->LookupFunction( "OnTakeDamage_Alive_Any" ) )
-		{
-			ScriptVariant_t newDamage;
-			ScriptStatus_t nStatus = g_pScriptVM->Call( hFunction, NULL, true, &newDamage, ToHScript( this ), ToHScript( info.GetInflictor() ), ToHScript( info.GetAttacker() ), ToHScript( info.GetWeapon() ), flDamage, info.GetDamageType(), info.GetAmmoName() );
-
-			if ( nStatus != SCRIPT_DONE )
-			{
-				DevWarning( "OnTakeDamage_Alive_Any VScript function did not finish!\n" );
-			}
-			else
-			{
-				newDamage.AssignTo( &flDamage );
-			}
-
-			g_pScriptVM->ReleaseFunction( hFunction );
-		}
-	}
-
 	// grab the vector of the incoming attack. ( pretend that the inflictor is a little lower than it really is, so the body will tend to fly upward a bit).
 	Vector vecDir = vec3_origin;
 	if (info.GetInflictor())
@@ -2516,8 +2476,8 @@ int CBaseCombatCharacter::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 	if ( m_takedamage != DAMAGE_EVENTS_ONLY )
 	{
 		// Separate the fractional amount of damage from the whole
-		float flFractionalDamage = flDamage - floor( flDamage );
-		float flIntegerDamage = flDamage - flFractionalDamage;
+		float flFractionalDamage = info.GetDamage() - floor( info.GetDamage() );
+		float flIntegerDamage = info.GetDamage() - flFractionalDamage;
 
 		// Add fractional damage to the accumulator
 		m_flDamageAccumulator += flFractionalDamage;
@@ -3049,17 +3009,6 @@ int CBaseCombatCharacter::GiveAmmo( int iCount, const char *szName, bool bSuppre
 	return GiveAmmo( iCount, iAmmoType, bSuppressSound );
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Give the player some ammo.
-//-----------------------------------------------------------------------------
-void CBaseCombatCharacter::VScriptGiveAmmo( int iCount, int iAmmoIndex )
-{
-	if (iCount < 0)
-		return;
-
-	m_iAmmo.Set( iAmmoIndex, iCount );
-}
-
 
 ConVar	phys_stressbodyweights( "phys_stressbodyweights", "5.0" );
 void CBaseCombatCharacter::VPhysicsUpdate( IPhysicsObject *pPhysics )
@@ -3281,7 +3230,7 @@ float CBaseCombatCharacter::GetSpreadBias( CBaseCombatWeapon *pWeapon, CBaseEnti
 	return 1.0;
 }
 
-
+#ifdef GLOWS_ENABLE
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
@@ -3306,7 +3255,7 @@ bool CBaseCombatCharacter::IsGlowEffectActive( void )
 {
 	return m_bGlowEnabled;
 }
-
+#endif // GLOWS_ENABLE
 
 //-----------------------------------------------------------------------------
 // Assume everyone is average with every weapon. Override this to make exceptions.
@@ -3573,9 +3522,9 @@ void CBaseCombatCharacter::ChangeTeam( int iTeamNum )
 	// old team member no longer in the nav mesh
 	ClearLastKnownArea();
 
-
+#ifdef GLOWS_ENABLE
 	RemoveGlowEffect();
-
+#endif // GLOWS_ENABLE
 
 	BaseClass::ChangeTeam( iTeamNum );
 }

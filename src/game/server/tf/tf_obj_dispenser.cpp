@@ -366,6 +366,8 @@ void CObjectDispenser::Precache()
 
 	PrecacheVGuiScreen( "screen_obj_dispenser_blue" );
 	PrecacheVGuiScreen( "screen_obj_dispenser_red" );
+	PrecacheVGuiScreen( "screen_obj_dispenser_green" );
+	PrecacheVGuiScreen( "screen_obj_dispenser_yellow" );
 
 
 	PrecacheScriptSound( "Building_Dispenser.Idle" );
@@ -525,14 +527,11 @@ void CObjectDispenser::FinishUpgrading( void )
 bool CObjectDispenser::DispenseAmmo( CTFPlayer *pPlayer )
 {
 	int iTotalPickedUp = 0;
-	float flAmmoRate = GetAmmoRate();
+	float flAmmoRate = g_flDispenserAmmoRates[GetUpgradeLevel() - 1];
 
-	if ( CAttributeManager::AttribHookValue<int>( 0, "no_primary_ammo_from_dispensers", pPlayer->GetActiveWeapon() ) == 0 )
-	{
-		// primary
-		int iPrimary = pPlayer->GiveAmmo( floor( pPlayer->GetMaxAmmo( TF_AMMO_PRIMARY ) * flAmmoRate ), TF_AMMO_PRIMARY, false, TF_AMMO_SOURCE_DISPENSER );
-		iTotalPickedUp += iPrimary;
-	}
+	// primary
+	int iPrimary = pPlayer->GiveAmmo( floor( pPlayer->GetMaxAmmo( TF_AMMO_PRIMARY ) * flAmmoRate ), TF_AMMO_PRIMARY, false, TF_AMMO_SOURCE_DISPENSER );
+	iTotalPickedUp += iPrimary;
 
 	// secondary
 	int iSecondary = pPlayer->GiveAmmo( floor( pPlayer->GetMaxAmmo( TF_AMMO_SECONDARY ) * flAmmoRate ), TF_AMMO_SECONDARY, false, TF_AMMO_SOURCE_DISPENSER );
@@ -542,20 +541,17 @@ bool CObjectDispenser::DispenseAmmo( CTFPlayer *pPlayer )
 	int iMetalToGive = DISPENSER_DROP_METAL + 10 * ( GetUpgradeLevel() - 1 );
 
 	if ( ( GetObjectFlags() & OF_IS_CART_OBJECT ) == 0 )
-		iMetalToGive = Min( m_iAmmoMetal.Get(), iMetalToGive );
+		iMetalToGive = min( m_iAmmoMetal, iMetalToGive );
 
-	if ( CAttributeManager::AttribHookValue<int>( 0, "no_metal_from_dispensers_while_active", pPlayer->GetActiveWeapon() ) == 0 )
-	{
-		int iMetal = pPlayer->GiveAmmo( iMetalToGive, TF_AMMO_METAL, false, TF_AMMO_SOURCE_DISPENSER );
-		iTotalPickedUp += iMetal;
+	int iMetal = pPlayer->GiveAmmo( iMetalToGive, TF_AMMO_METAL, false, TF_AMMO_SOURCE_DISPENSER );
+	iTotalPickedUp += iMetal;
 
-		if ( ( GetObjectFlags() & OF_IS_CART_OBJECT ) == 0 )
-			m_iAmmoMetal -= iMetal;
-	}
+	if ( ( GetObjectFlags() & OF_IS_CART_OBJECT ) == 0 )
+		m_iAmmoMetal -= iMetal;
 
 	if ( iTotalPickedUp > 0 )
 	{
-		if (pPlayer->m_Shared.InCond( TF_COND_STEALTHED ))
+		if (pPlayer->m_Shared.InCond(TF_COND_STEALTHED))
 		{
 			CRecipientFilter filter;
 			filter.AddRecipient(pPlayer);
@@ -587,22 +583,7 @@ float CObjectDispenser::GetDispenserRadius( void )
 
 float CObjectDispenser::GetHealRate( void )
 {
-	float flHealRate = g_flDispenserHealRates[ GetUpgradeLevel() - 1 ];
-
-	if ( GetOwner() )
-		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( GetOwner(), flHealRate, mult_dispenser_rate );
-
-	return flHealRate;
-}
-
-float CObjectDispenser::GetAmmoRate( void )
-{
-	float flAmmoRate = g_flDispenserHealRates[GetUpgradeLevel() - 1];
-
-	if ( GetOwner() )
-		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( GetOwner(), flAmmoRate, mult_dispenser_rate );
-
-	return flAmmoRate;
+	return g_flDispenserHealRates[ GetUpgradeLevel() - 1 ];
 }
 
 void CObjectDispenser::RefillThink( void )
@@ -620,13 +601,7 @@ void CObjectDispenser::RefillThink( void )
 	// Auto-refill half the amount as tfc, but twice as often
 	if ( m_iAmmoMetal < DISPENSER_MAX_METAL_AMMO )
 	{
-		int iToRefill = DISPENSER_MAX_METAL_AMMO * ( 0.1 + 0.025 * ( GetUpgradeLevel() - 1 ) );
-
-		if ( GetOwner() )
-			CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( GetOwner(), iToRefill, mult_dispenser_rate );
-
-		m_iAmmoMetal = Min( m_iAmmoMetal + iToRefill, DISPENSER_MAX_METAL_AMMO );
-
+		m_iAmmoMetal = min( m_iAmmoMetal + DISPENSER_MAX_METAL_AMMO * ( 0.1 + 0.025 * ( GetUpgradeLevel() - 1 ) ), DISPENSER_MAX_METAL_AMMO );
 		EmitSound( "Building_Dispenser.GenerateMetal" );
 	}
 
@@ -780,8 +755,7 @@ void CObjectDispenser::StartHealing( CBaseEntity *pOther )
 
 	if ( pPlayer )
 	{
-		float flHealRate = GetHealRate();
-		pPlayer->m_Shared.Heal( GetOwner(), flHealRate, true );
+		pPlayer->m_Shared.Heal( GetOwner(), GetHealRate(), true );
 	}
 }
 

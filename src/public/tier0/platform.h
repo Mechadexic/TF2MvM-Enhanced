@@ -9,10 +9,6 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
-#ifdef COMPILER_MSVC
-#pragma once
-#endif
-
 #if defined(__x86_64__) || defined(_WIN64)
 #define PLATFORM_64BITS 1
 #endif
@@ -45,53 +41,6 @@
 #include "wchartypes.h"
 #include "basetypes.h"
 #include "tier0/valve_off.h"
-#include <malloc.h>
-#include <limits.h>
-#include <float.h>
-#include <stdlib.h>
-#include <string.h>
-
-#ifdef COMPILER_GCC
-	#include <new>
-#else
-	#include <new.h>
-#endif
-
-//-----------------------------------------------------------------------------
-// Old-school defines we don't want to use moving forward
-//-----------------------------------------------------------------------------
-#if CROSS_PLATFORM_VERSION < 1
-
-// feature enables
-#define NEW_SOFTWARE_LIGHTING
-#if !defined( _X360 )
-#define SUPPORT_PACKED_STORE
-#endif
-#define BINK_ENABLED_FOR_X360
-
-
-
-// Deprecating, infavor of IsX360() which will revert to IsXbox()
-// after confidence of xbox 1 code flush
-#define IsXbox()	false
-
-// C functions for external declarations that call the appropriate C++ methods
-#ifndef EXPORT
-	#ifdef _WIN32
-		#define EXPORT	_declspec( dllexport )
-	#else
-		#define EXPORT	/* */
-	#endif
-#endif
-
-#ifdef PLATFORM_POSIX
-typedef unsigned int DWORD;
-typedef unsigned short WORD;
-typedef void * HINSTANCE;
-#define _MAX_PATH PATH_MAX
-#endif
-
-#endif // CROSS_PLATFORM_VERSION < 1
 
 #ifdef _DEBUG
 #if !defined( PLAT_COMPILE_TIME_ASSERT )
@@ -103,6 +52,13 @@ typedef void * HINSTANCE;
 #endif
 #endif
 
+#ifdef _WIN32
+#pragma once
+#endif
+
+// feature enables
+#define NEW_SOFTWARE_LIGHTING
+
 #ifdef POSIX
 // need this for _alloca
 #include <alloca.h>
@@ -111,137 +67,18 @@ typedef void * HINSTANCE;
 #include <time.h>
 #endif
 
+#include <malloc.h>
+#include <new>
+
+// need this for memset
+#include <string.h>
+
 #include "tier0/valve_minmax_on.h"	// GCC 4.2.2 headers screw up our min/max defs.
 
-//-----------------------------------------------------------------------------
-// NOTE: All compiler defines are set up in the base VPC scripts
-// COMPILER_MSVC, COMPILER_MSVC32, COMPILER_MSVC64, COMPILER_MSVCX360
-// COMPILER_GCC
-// The rationale for this is that we need COMPILER_MSVC for the pragma blocks
-// #pragma once that occur at the top of all header files, therefore we can't
-// place the defines for these in here.
-//-----------------------------------------------------------------------------
-
-
-//-----------------------------------------------------------------------------
-// Set up platform defines.
-//-----------------------------------------------------------------------------
-#ifdef _WIN32
-	#define IsPlatformLinux()	false
-	#define IsPlatformPosix()	false
-	#define IsPlatformOSX()		false
-	#define IsPlatformPS3()		false
-	#define IsPlatformWindows() true
-	#define PLATFORM_WINDOWS	1
-
-	#ifndef _X360
-		#define IsPlatformX360() false
-		#define IsPlatformWindowsPC() true
-		#define PLATFORM_WINDOWS_PC 1
-
-		#ifdef _WIN64
-			#define IsPlatformWindowsPC64() true
-			#define IsPlatformWindowsPC32() false
-			#define PLATFORM_WINDOWS_PC64 1
-		#else
-			#define IsPlatformWindowsPC64() false
-			#define IsPlatformWindowsPC32() true
-			#define PLATFORM_WINDOWS_PC32 1
-		#endif
-
-	#else // _X360
-
-		#define IsPlatformWindowsPC()	false
-		#define IsPlatformWindowsPC64() false
-		#define IsPlatformWindowsPC32() false
-		#define IsPlatformX360()		true
-		#define PLATFORM_X360 1
-
-	#endif // _X360
-
-#elif defined(POSIX)
-	#define IsPlatformX360()		false
-	#define IsPlatformPS3()			false
-	#define IsPlatformWindows()		false
-	#define IsPlatformWindowsPC()	false
-	#define IsPlatformWindowsPC64()	false
-	#define IsPlatformWindowsPC32()	false
-	#define IsPlatformPosix()		true
-	#define PLATFORM_POSIX 1
-
-	#if defined( LINUX )
-		#define IsPlatformLinux() true
-		#define IsPlatformOSX() false
-		#define PLATFORM_LINUX 1
-	#elif defined ( OSX )
-		#define IsPlatformLinux() false
-		#define IsPlatformOSX() true
-		#define PLATFORM_OSX 1
-	#else
-		#define IsPlatformLinux() false
-		#define IsPlatformOSX() false
-	#endif
-
+#ifdef _RETAIL
+#define IsRetail() true
 #else
-	#error
-#endif
-
-
-//-----------------------------------------------------------------------------
-// Old-school defines we're going to support since much code uses them
-//-----------------------------------------------------------------------------
-#if CROSS_PLATFORM_VERSION < 2
-
-#define IsWindows() IsPlatformWindows()
-#define IsLinux()	IsPlatformLinux() 
-#define IsOSX()		IsPlatformOSX()
-#define IsPosix()	IsPlatformPosix()
-#define IsX360()	IsPlatformX360()
-#define IsPS3()		IsPlatformPS3()
-
-// Setup platform defines.
-#ifdef COMPILER_MSVC
-#define MSVC 1
-#endif
-
-#ifdef COMPILER_GCC
-#define GNUC 1
-#endif
-
-#if defined( _WIN32 )
-#define _WINDOWS 1
-#endif
-
-#ifdef PLATFORM_WINDOWS_PC
-#define IS_WINDOWS_PC 1
-#endif
-
-#endif // CROSS_PLATFORM_VERSION < 2
-
-
-//-----------------------------------------------------------------------------
-// Set up platform type defines.
-//-----------------------------------------------------------------------------
-#ifdef PLATFORM_X360
-	#ifndef _CONSOLE
-		#define _CONSOLE
-	#endif
-	#define IsPC()		false
-	#define IsConsole() true
-#else
-	#define IsPC()		true
-	#define IsConsole() false
-#endif
-
-
-
-//-----------------------------------------------------------------------------
-// Set up build configuration defines.
-//-----------------------------------------------------------------------------
-#ifdef _CERT
-#define IsCert() true
-#else
-#define IsCert() false
+#define IsRetail() false
 #endif
 
 #ifdef _DEBUG
@@ -252,19 +89,77 @@ typedef void * HINSTANCE;
 #define IsDebug() false
 #endif
 
-#ifdef _RETAIL
-#define IsRetail() true
+// Deprecating, infavor of IsX360() which will revert to IsXbox()
+// after confidence of xbox 1 code flush
+#define IsXbox()	false
+
+#ifdef _WIN32
+	#define IsLinux() false
+	#define IsOSX() false
+	#define IsPosix() false
+	#define PLATFORM_WINDOWS 1 // Windows PC or Xbox 360
+	#ifndef _X360
+		#define IsWindows() true
+		#define IsPC() true
+		#define IsConsole() false
+		#define IsX360() false
+		#define IsPS3() false
+		#define IS_WINDOWS_PC
+		#define PLATFORM_WINDOWS_PC 1 // Windows PC
+		#ifdef _WIN64
+			#define IsPlatformWindowsPC64() true
+			#define IsPlatformWindowsPC32() false
+			#define PLATFORM_WINDOWS_PC64 1
+		#else
+			#define IsPlatformWindowsPC64() false
+			#define IsPlatformWindowsPC32() true
+			#define PLATFORM_WINDOWS_PC32 1
+		#endif
+	#else
+		#define PLATFORM_X360 1
+		#ifndef _CONSOLE
+			#define _CONSOLE
+		#endif
+		#define IsWindows() false
+		#define IsPC() false
+		#define IsConsole() true
+		#define IsX360() true
+		#define IsPS3() false
+	#endif
+	// Adding IsPlatformOpenGL() to help fix a bunch of code that was using IsPosix() to infer if the DX->GL translation layer was being used.
+	#if defined( DX_TO_GL_ABSTRACTION )
+		#define IsPlatformOpenGL() true
+	#else
+		#define IsPlatformOpenGL() false
+	#endif
+#elif defined(POSIX)
+	#define IsPC() true
+	#define IsWindows() false
+	#define IsConsole() false
+	#define IsX360() false
+	#define IsPS3() false
+	#if defined( LINUX )
+		#define IsLinux() true
+	#else
+		#define IsLinux() false
+	#endif
+	
+	#if defined( OSX )
+		#define IsOSX() true
+	#else
+		#define IsOSX() false
+	#endif
+	
+	#define IsPosix() true
+	#define IsPlatformOpenGL() true
 #else
-#define IsRetail() false
+	#error
 #endif
 
-//-----------------------------------------------------------------------------
-// Portable data types
-//-----------------------------------------------------------------------------
-typedef unsigned char				uint8;
-typedef signed char					int8;
+typedef unsigned char uint8;
+typedef signed char int8;
 
-#if defined( COMPILER_MSVC )
+#if defined( _WIN32 )
 
 	typedef __int16					int16;
 	typedef unsigned __int16		uint16;
@@ -273,19 +168,29 @@ typedef signed char					int8;
 	typedef __int64					int64;
 	typedef unsigned __int64		uint64;
 
-	// intp is an integer that can accomodate a pointer
-	// (ie, sizeof(intp) >= sizeof(int) && sizeof(intp) >= sizeof(void *)
-	typedef intptr_t				intp;		
-	typedef uintptr_t				uintp;		
+	#ifdef PLATFORM_64BITS
+		typedef __int64 intp;				// intp is an integer that can accomodate a pointer
+		typedef unsigned __int64 uintp;		// (ie, sizeof(intp) >= sizeof(int) && sizeof(intp) >= sizeof(void *)
+	#else
+		typedef __int32 intp;
+		typedef unsigned __int32 uintp;
+	#endif
 
-	#if defined( COMPILER_MSVCX360 )
+	#if defined( _X360 )
 		#ifdef __m128
 			#undef __m128
 		#endif
 		#define __m128				__vector4
 	#endif
 
-#else // !COMPILER_MSVC
+	// Use this to specify that a function is an override of a virtual function.
+	// This lets the compiler catch cases where you meant to override a virtual
+	// function but you accidentally changed the function signature and created
+	// an overloaded function. Usage in function declarations is like this:
+	// int GetData() const OVERRIDE;
+	#define OVERRIDE override
+
+#else // _WIN32
 
 	typedef short					int16;
 	typedef unsigned short			uint16;
@@ -302,175 +207,6 @@ typedef signed char					int8;
 	#endif
 	typedef void *HWND;
 
-#endif // else COMPILER_MSVC
-
-typedef float				float32;
-typedef double				float64;
-
-// for when we don't care about how many bits we use
-typedef unsigned int		uint;
-
-
-#ifdef GNUC
-#undef offsetof
-//#define offsetof( type, var ) __builtin_offsetof( type, var ) 
-#define offsetof(s,m)	(size_t)&(((s *)0)->m)
-#else
-#include <stddef.h>
-#undef offsetof
-#define offsetof(s,m)	(size_t)&(((s *)0)->m)
-#endif
-
-
-#define  FLOAT32_MIN		FLT_MIN
-#define  FLOAT64_MIN		DBL_MIN
-
-// From steam/steamtypes.h
-// RTime32
-// We use this 32 bit time representing real world time.
-// It offers 1 second resolution beginning on January 1, 1970 (Unix time)
-typedef uint32 RTime32;
-
-typedef float				float32;
-typedef double				float64;
-
-// for when we don't care about how many bits we use
-typedef unsigned int		uint;
-
-//-----------------------------------------------------------------------------
-// Various compiler-specific keywords
-//-----------------------------------------------------------------------------
-#ifdef COMPILER_MSVC
-
-	#ifdef FORCEINLINE
-		#undef FORCEINLINE
-	#endif
-	#define STDCALL					__stdcall
-	#ifndef FASTCALL
-		#define  FASTCALL			__fastcall
-	#endif
-	#define FORCEINLINE				__forceinline
-	#define FORCEINLINE_TEMPLATE	__forceinline
-	#define NULLTERMINATED			__nullterminated
-
-	// This can be used to ensure the size of pointers to members when declaring
-	// a pointer type for a class that has only been forward declared
-	#define SINGLE_INHERITANCE		__single_inheritance
-	#define MULTIPLE_INHERITANCE	__multiple_inheritance
-	#define EXPLICIT				explicit
-	#define NO_VTABLE				__declspec( novtable )
-
-	// gcc doesn't allow storage specifiers on explicit template instatiation, but visual studio needs them to avoid link errors.
-	#define TEMPLATE_STATIC			static
-
-	// Used for dll exporting and importing
-	#define DLL_EXPORT				extern "C" __declspec( dllexport )
-	#define DLL_IMPORT				extern "C" __declspec( dllimport )
-
-	// Can't use extern "C" when DLL exporting a class
-	#define DLL_CLASS_EXPORT		__declspec( dllexport )
-	#define DLL_CLASS_IMPORT		__declspec( dllimport )
-
-	// Can't use extern "C" when DLL exporting a global
-	#define DLL_GLOBAL_EXPORT		extern __declspec( dllexport )
-	#define DLL_GLOBAL_IMPORT		extern __declspec( dllimport )
-
-	// Pass hints to the compiler to prevent it from generating unnessecary / stupid code
-	// in certain situations.  Several compilers other than MSVC also have an equivilent
-	// construct.
-	//
-	// Essentially the 'Hint' is that the condition specified is assumed to be true at
-	// that point in the compilation.  If '0' is passed, then the compiler assumes that
-	// any subsequent code in the same 'basic block' is unreachable, and thus usually
-	// removed.
-	#define HINT(THE_HINT)			__assume((THE_HINT))
-
-	// decls for aligning data
-	#define DECL_ALIGN(x)			__declspec( align( x ) )
-
-	// GCC had a few areas where it didn't construct objects in the same order 
-	// that Windows does. So when CVProfile::CVProfile() would access g_pMemAlloc,
-	// it would crash because the allocator wasn't initalized yet.
-	#define CONSTRUCT_EARLY
-
-	#define SELECTANY				__declspec(selectany)
-
-	#define RESTRICT				__restrict
-	#define RESTRICT_FUNC			__declspec(restrict)
-	#define FMTFUNCTION( a, b )
-	#define NOINLINE
-
-#if !defined( NO_THREAD_LOCAL )
-	#define DECL_THREAD_LOCAL		__declspec(thread)
-#endif 
-
-	#define DISABLE_VC_WARNING( x ) __pragma(warning(disable:4310) )
-	#define DEFAULT_VC_WARNING( x ) __pragma(warning(default:4310) )
-
-	// Use this to specify that a function is an override of a virtual function.
-	// This lets the compiler catch cases where you meant to override a virtual
-	// function but you accidentally changed the function signature and created
-	// an overloaded function. Usage in function declarations is like this:
-	// int GetData() const OVERRIDE;
-	#define OVERRIDE override
-
-
-#elif defined ( COMPILER_GCC )
-
-	#if (CROSS_PLATFORM_VERSION >= 1) && !defined( PLATFORM_64BITS )
-		#define  STDCALL			__attribute__ ((__stdcall__))
-	#else
-		#define  STDCALL
-		#define  __stdcall			__attribute__ ((__stdcall__))
-	#endif
-
-	#define  FASTCALL
-	#ifdef _LINUX_DEBUGGABLE
-		#define  FORCEINLINE
-	#else
-		#define  FORCEINLINE		inline
-	#endif
-
-	// GCC 3.4.1 has a bug in supporting forced inline of templated functions
-	// this macro lets us not force inlining in that case
-	#define FORCEINLINE_TEMPLATE	inline
-	#define SINGLE_INHERITANCE
-	#define MULTIPLE_INHERITANCE
-	#define EXPLICIT
-	#define NO_VTABLE
-
-	#define NULLTERMINATED			
-
-	#define TEMPLATE_STATIC
-
-	// Used for dll exporting and importing
-	#define DLL_EXPORT				extern "C" __attribute__ ((visibility("default")))
-	#define DLL_IMPORT				extern "C"
-
-	// Can't use extern "C" when DLL exporting a class
-	#define DLL_CLASS_EXPORT		__attribute__ ((visibility("default")))
-	#define DLL_CLASS_IMPORT
-
-	// Can't use extern "C" when DLL exporting a global
-	#define DLL_GLOBAL_EXPORT		__attribute__((visibility("default")))
-	#define DLL_GLOBAL_IMPORT		extern
-
-	#define HINT(THE_HINT)			0
-	#define DECL_ALIGN(x)			__attribute__( ( aligned( x ) ) )
-	#define CONSTRUCT_EARLY			__attribute__((init_priority(101)))
-	#define SELECTANY				__attribute__((weak))
-	#define RESTRICT
-	#define RESTRICT_FUNC
-	#define FMTFUNCTION( fmtargnumber, firstvarargnumber ) __attribute__ (( format( printf, fmtargnumber, firstvarargnumber )))
-	#define NOINLINE				__attribute__ ((noinline))
-
-#if !defined( NO_THREAD_LOCAL )
-	#define DECL_THREAD_LOCAL		__thread
-#endif
-
-	#define DISABLE_VC_WARNING( x )
-	#define DEFAULT_VC_WARNING( x )
-
 	// Avoid redefinition warnings if a previous header defines this.
 	#undef OVERRIDE
 	#if __cplusplus >= 201103L
@@ -484,11 +220,82 @@ typedef unsigned int		uint;
 		#define OVERRIDE
 	#endif
 
+#endif // else _WIN32
+
+//-----------------------------------------------------------------------------
+// Set up platform type defines.
+//-----------------------------------------------------------------------------
+#if defined( PLATFORM_X360 ) || defined( _PS3 )
+	#if !defined( _GAMECONSOLE )
+		#define _GAMECONSOLE
+	#endif
+	#define IsPC()			false
+	#define IsGameConsole()	true
 #else
+	#define IsPC()			true
+	#define IsGameConsole()	false
+#endif
 
-	#define DECL_ALIGN(x)			/* */
-	#define SELECTANY				static
+#ifdef PLATFORM_64BITS
+	#define IsPlatform64Bits()	true
+#else
+	#define IsPlatform64Bits()	false
+#endif
 
+// From steam/steamtypes.h
+// RTime32
+// We use this 32 bit time representing real world time.
+// It offers 1 second resolution beginning on January 1, 1970 (Unix time)
+typedef uint32 RTime32;
+
+typedef float				float32;
+typedef double				float64;
+
+// for when we don't care about how many bits we use
+typedef unsigned int		uint;
+
+#ifdef _MSC_VER
+#pragma once
+// Ensure that everybody has the right compiler version installed. The version
+// number can be obtained by looking at the compiler output when you type 'cl'
+// and removing the last two digits and the periods: 16.00.40219.01 becomes 160040219
+#if _MSC_FULL_VER > 180000000
+	#if _MSC_FULL_VER < 180030723
+		#error You must install VS 2013 Update 3
+	#endif
+#elif _MSC_FULL_VER > 160000000
+	#if _MSC_FULL_VER < 160040219
+		#error You must install VS 2010 SP1
+	#endif
+#else
+	#if _MSC_FULL_VER < 140050727
+		#error You must install VS 2005 SP1
+	#endif
+#endif
+#endif
+
+// This can be used to ensure the size of pointers to members when declaring
+// a pointer type for a class that has only been forward declared
+#ifdef _MSC_VER
+#define SINGLE_INHERITANCE __single_inheritance
+#define MULTIPLE_INHERITANCE __multiple_inheritance
+#else
+#define SINGLE_INHERITANCE
+#define MULTIPLE_INHERITANCE
+#endif
+
+#ifdef _MSC_VER
+#define NO_VTABLE __declspec( novtable )
+#else
+#define NO_VTABLE
+#endif
+
+#ifdef _MSC_VER
+	// This indicates that a function never returns, which helps with
+	// generating accurate compiler warnings
+	#define NORETURN				__declspec( noreturn )
+#else
+	#define NORETURN
 #endif
 
 // This can be used to declare an abstract (interface only) class.
@@ -517,6 +324,7 @@ typedef unsigned int		uint;
 // As a result, we pick the least common denominator here.  This should be used anywhere
 // you might typically want to use RAND_MAX
 #define VALVE_RAND_MAX 0x7fff
+
 
 
 /*
@@ -558,21 +366,27 @@ FIXME: Enable this when we no longer fear change =)
 #define  FLOAT64_MIN DBL_MIN
 */
 
-//-----------------------------------------------------------------------------
-// Why do we need this? It would be nice to make it die die die
-//-----------------------------------------------------------------------------
-// Alloca defined for this platform
-#if defined( COMPILER_MSVC ) && !defined( WINDED )
-	#if defined(_M_IX86)
-		#define __i386__	1
-	#endif
+// portability / compiler settings
+#if defined(_WIN32) && !defined(WINDED)
+
+#if defined(_M_IX86)
+#define __i386__	1
 #endif
 
-#if defined __i386__ && !defined __linux__
-	#define id386	1
+#elif POSIX
+#if defined( OSX ) && defined( CARBON_WORKAROUND )
+#define DWORD unsigned int
 #else
-	#define id386	0
-#endif  // __i386__
+typedef unsigned int DWORD;
+#endif
+typedef unsigned short WORD;
+typedef void * HINSTANCE;
+#define _MAX_PATH PATH_MAX
+#define __cdecl
+#define __stdcall
+#define __declspec
+
+#endif // defined(_WIN32) && !defined(WINDED)
 
 
 // Defines MAX_PATH
@@ -587,6 +401,15 @@ FIXME: Enable this when we no longer fear change =)
 #endif
 
 #define MAX_UNICODE_PATH_IN_UTF8 MAX_UNICODE_PATH*4
+
+#ifdef GNUC
+#undef offsetof
+//#define offsetof( type, var ) __builtin_offsetof( type, var ) 
+#define offsetof(s,m)	(size_t)&(((s *)0)->m)
+#else
+#undef offsetof
+#define offsetof(s,m)	(size_t)&(((s *)0)->m)
+#endif
 
 
 #define ALIGN_VALUE( val, alignment ) ( ( val + alignment - 1 ) & ~( alignment - 1 ) ) //  need macro for constant expression
@@ -627,6 +450,22 @@ FIXME: Enable this when we no longer fear change =)
 	#else
 		#define EXPORT	/* */
 	#endif
+#endif
+
+#if defined __i386__ && !defined __linux__
+	#define id386	1
+#else
+	#define id386	0
+#endif  // __i386__
+
+// decls for aligning data
+#ifdef _WIN32
+        #define DECL_ALIGN(x) __declspec(align(x))
+
+#elif GNUC
+	#define DECL_ALIGN(x) __attribute__((aligned(x)))
+#else
+        #define DECL_ALIGN(x) /* */
 #endif
 
 #ifdef _MSC_VER
@@ -687,6 +526,101 @@ FIXME: Enable this when we no longer fear change =)
 #endif
 
 #define  stackfree( _p )			0
+
+// Linux had a few areas where it didn't construct objects in the same order that Windows does.
+// So when CVProfile::CVProfile() would access g_pMemAlloc, it would crash because the allocator wasn't initalized yet.
+#ifdef POSIX
+	#define CONSTRUCT_EARLY __attribute__((init_priority(101)))
+#else
+	#define CONSTRUCT_EARLY
+	#endif
+
+#if defined(_MSC_VER)
+	#define SELECTANY __declspec(selectany)
+	#define RESTRICT __restrict
+	#define RESTRICT_FUNC __declspec(restrict)
+	#define FMTFUNCTION( a, b )
+#elif defined(GNUC)
+	#define SELECTANY __attribute__((weak))
+	#if defined(LINUX) && !defined(DEDICATED)
+		#define RESTRICT
+	#else
+		#define RESTRICT __restrict
+	#endif
+	#define RESTRICT_FUNC
+	// squirrel.h does a #define printf DevMsg which leads to warnings when we try
+	// to use printf as the prototype format function. Using __printf__ instead.
+	#define FMTFUNCTION( fmtargnumber, firstvarargnumber ) __attribute__ (( format( __printf__, fmtargnumber, firstvarargnumber )))
+#else
+	#define SELECTANY static
+	#define RESTRICT
+	#define RESTRICT_FUNC
+	#define FMTFUNCTION( a, b )
+#endif
+
+#if defined( _WIN32 )
+
+	// Used for dll exporting and importing
+	#define DLL_EXPORT				extern "C" __declspec( dllexport )
+	#define DLL_IMPORT				extern "C" __declspec( dllimport )
+
+	// Can't use extern "C" when DLL exporting a class
+	#define DLL_CLASS_EXPORT		__declspec( dllexport )
+	#define DLL_CLASS_IMPORT		__declspec( dllimport )
+
+	// Can't use extern "C" when DLL exporting a global
+	#define DLL_GLOBAL_EXPORT		extern __declspec( dllexport )
+	#define DLL_GLOBAL_IMPORT		extern __declspec( dllimport )
+
+	#define DLL_LOCAL
+
+#elif defined GNUC
+// Used for dll exporting and importing
+#define  DLL_EXPORT   extern "C" __attribute__ ((visibility("default")))
+#define  DLL_IMPORT   extern "C"
+
+// Can't use extern "C" when DLL exporting a class
+#define  DLL_CLASS_EXPORT __attribute__ ((visibility("default")))
+#define  DLL_CLASS_IMPORT
+
+// Can't use extern "C" when DLL exporting a global
+#define  DLL_GLOBAL_EXPORT   extern __attribute ((visibility("default")))
+#define  DLL_GLOBAL_IMPORT   extern
+
+#define  DLL_LOCAL __attribute__ ((visibility("hidden")))
+
+#else
+#error "Unsupported Platform."
+#endif
+
+// Used for standard calling conventions
+#if defined( _WIN32 ) && !defined( _X360 )
+	#define  STDCALL				__stdcall
+	#define  FASTCALL				__fastcall
+	#define  FORCEINLINE			__forceinline
+	// GCC 3.4.1 has a bug in supporting forced inline of templated functions
+	// this macro lets us not force inlining in that case
+	#define  FORCEINLINE_TEMPLATE		__forceinline
+#elif defined( _X360 )
+	#define  STDCALL				__stdcall
+	#ifdef FORCEINLINE
+		#undef FORCEINLINE
+#endif 
+	#define  FORCEINLINE			__forceinline
+	#define  FORCEINLINE_TEMPLATE		__forceinline
+	#else
+		#define  STDCALL
+	#define  FASTCALL
+	#ifdef _LINUX_DEBUGGABLE
+		#define  FORCEINLINE
+	#else
+			#define  FORCEINLINE inline __attribute__ ((always_inline))
+		#endif
+	// GCC 3.4.1 has a bug in supporting forced inline of templated functions
+	// this macro lets us not force inlining in that case
+	#define FORCEINLINE_TEMPLATE	inline
+//	#define  __stdcall			__attribute__ ((__stdcall__))
+#endif
 
 // Force a function call site -not- to inlined. (useful for profiling)
 #define DONT_INLINE(a) (((int)(a)+1)?(a):(a))

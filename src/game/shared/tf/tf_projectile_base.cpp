@@ -27,11 +27,9 @@ IMPLEMENT_NETWORKCLASS_ALIASED( TFBaseProjectile, DT_TFBaseProjectile )
 
 BEGIN_NETWORK_TABLE( CTFBaseProjectile, DT_TFBaseProjectile )
 #ifdef CLIENT_DLL
-	RecvPropVector( RECVINFO( m_vInitialVelocity ) ),
-	RecvPropEHandle( RECVINFO( m_hLauncher ) )
+	RecvPropVector( RECVINFO( m_vInitialVelocity ) )
 #else
-	SendPropVector( SENDINFO( m_vInitialVelocity ), 20 /*nbits*/, 0 /*flags*/, -3000 /*low value*/, 3000 /*high value*/	),
-	SendPropEHandle( SENDINFO( m_hLauncher ) )
+	SendPropVector( SENDINFO( m_vInitialVelocity ), 20 /*nbits*/, 0 /*flags*/, -3000 /*low value*/, 3000 /*high value*/	)
 #endif
 END_NETWORK_TABLE()
 
@@ -53,7 +51,7 @@ CTFBaseProjectile::CTFBaseProjectile()
 	m_vInitialVelocity.Init();
 
 	SetWeaponID( TF_WEAPON_NONE );
-	
+
 	// Client specific.
 #ifdef CLIENT_DLL
 
@@ -101,18 +99,8 @@ void CTFBaseProjectile::Spawn( void )
 
 	// Precache.
 	Precache();
-	
-	if ( m_hLauncher.Get() )
-	{
-		string_t strModelOverride = NULL_STRING;
-		CALL_ATTRIB_HOOK_STRING_ON_OTHER( m_hLauncher.Get(), strModelOverride, custom_projectile_model );
-		if ( strModelOverride != NULL_STRING )
-		{
-			SetModel( STRING( strModelOverride ) );
-		}
-	}
-	else
-		SetModel( GetProjectileModelName() );
+
+	SetModel( GetProjectileModelName() );
 
 	SetSolid( SOLID_BBOX );
 	SetMoveType( MOVETYPE_FLYGRAVITY, MOVECOLLIDE_FLY_CUSTOM );
@@ -142,7 +130,7 @@ void CTFBaseProjectile::Spawn( void )
 //-----------------------------------------------------------------------------
 CTFBaseProjectile *CTFBaseProjectile::Create( const char *pszClassname, const Vector &vecOrigin, 
 											 const QAngle &vecAngles, CBaseEntity *pOwner, float flVelocity, short iProjModelIndex, const char *pszDispatchEffect,
-											 CBaseEntity *pScorer, bool bCritical, CBaseEntity *pWeapon)
+											CBaseEntity *pScorer, bool bCritical )
 {
 	CTFBaseProjectile *pProjectile = NULL;
 
@@ -158,7 +146,7 @@ CTFBaseProjectile *CTFBaseProjectile::Create( const char *pszClassname, const Ve
 
 	// Initialize the owner.
 	pProjectile->SetOwnerEntity( pOwner );
-	pProjectile->SetLauncher( pWeapon );
+
 	pProjectile->SetScorer( pScorer );
 
 	// Spawn.

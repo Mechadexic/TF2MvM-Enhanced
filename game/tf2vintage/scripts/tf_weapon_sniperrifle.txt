@@ -6,10 +6,6 @@ WeaponData
 	"weight"		"3"
 	"WeaponType"		"primary"
 	"ITEM_FLAG_NOITEMPICKUP" 	"1"
-	"HasTeamSkins"			"1"
-	"HasTeamSkins_Worldmodel"	"1"
-	"HasTeamSkins_Viewmodel"	"1"
-
 	
 	// Attributes TF.
 	"Damage"		"4"
@@ -18,7 +14,10 @@ WeaponData
 	"Spread"		"0.0"
 	"TimeFireDelay"		"1.5"
 	"ProjectileType"	"projectile_bullet"
+	"HasTeamSkins_Viewmodel"	"1"
+	"HasTeamSkins_Worldmodel"	"1"
 	"MaxAmmo"		"25"
+	"SpawnAmmo"		"10"
 	
 	"DoInstantEjectBrass"	"0"
 	"BrassModel"		"models/weapons/shells/shell_sniperrifle.mdl"
@@ -40,6 +39,7 @@ WeaponData
 
 	// Animation.
 	"viewmodel"		"models/weapons/v_models/v_sniperrifle_sniper.mdl"
+	//"viewmodel_dm"		"models/weapons/v_models/v_sniperrifle_merc.mdl" // Redundant until we add unique animations.
 	"playermodel"		"models/weapons/w_models/w_sniperrifle.mdl"
 	"anim_prefix"		"shotgun"
 

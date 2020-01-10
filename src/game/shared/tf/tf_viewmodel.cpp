@@ -384,6 +384,8 @@ void CTFViewModel::StandardBlendingRules( CStudioHdr *hdr, Vector pos[], Quatern
 
 		int iBarrelBone = Studio_BoneIndexByName( hdr, "v_minigun_barrel" );
 
+		Assert( iBarrelBone != -1 );
+
 		if ( iBarrelBone != -1 && ( hdr->boneFlags( iBarrelBone ) & boneMask ) )
 		{
 			RadianEuler a;
@@ -422,16 +424,9 @@ int CTFViewModel::GetSkin()
 		return nSkin;
 
 	CTFPlayer *pPlayer = ToTFPlayer( GetOwner() );
-	if ( pPlayer && pPlayer->IsAlive() )
+	if ( pPlayer )
 	{
-		// Check for skin data from items_game
-		if ( pWeapon->GetItem() )
-		{
-			nSkin = pWeapon->GetItem()->GetSkin( pPlayer->GetTeamNumber(), true );
-		}
-
-		// No skin data found. Default to team skins
-		if ( pWeapon->GetTFWpnData().m_bHasTeamSkins_Viewmodel && nSkin == -1 )
+		if ( pWeapon->GetTFWpnData().m_bHasTeamSkins_Viewmodel )
 		{
 			switch( pPlayer->GetTeamNumber() )	
 			{
@@ -442,7 +437,7 @@ int CTFViewModel::GetSkin()
 				nSkin = 1;
 				break;
 			}
-		}
+		}	
 	}
 
 	return nSkin;
@@ -503,25 +498,11 @@ bool CTFViewModel::OnPostInternalDrawModel( ClientModelRenderInfo_t *pInfo )
 		C_EconEntity *pEntity = GetOwningWeapon();
 		if ( pEntity )
 		{
-			DrawEconEntityAttachedModels( this, pEntity, pInfo, AM_VIEWMODEL );
+			DrawEconEntityAttachedModels( this, pEntity, pInfo, 2 );
 		}
 		return true;
 	}
 	return false;
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: Particle override for weapon viewmodels
-//-----------------------------------------------------------------------------
-const char* C_TFViewModel::ModifyEventParticles( const char* token )
-{
-	C_EconEntity *pEntity = GetOwningWeapon();
-	if ( pEntity )
-	{
-		return pEntity->ModifyEventParticles( token );
-	}
-
-	return token;
 }
 
 //-----------------------------------------------------------------------------

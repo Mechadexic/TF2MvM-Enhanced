@@ -44,6 +44,5 @@ void PrecacheInstancedScene( char const *pszScene );
 char const *GetSceneFilename( CBaseEntity *ent );
 void ReloadSceneFromDisk( CBaseEntity *ent );
 
-HSCRIPT ScriptCreateSceneEntity( const char *pszScene );
 
 #endif // SCENEENTITY_H

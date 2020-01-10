@@ -68,7 +68,7 @@
 		"visible"				"1"
 		"enabled"				"1"
 		"tabPosition"			"0"
-		"labelText"				"#TF_PVE_UsePowerup_MinMode"
+		"labelText"				"#TF_Ball"
 		"textAlignment"			"north"
 		"centerwrap"			"1"
 		"dulltext"				"0"

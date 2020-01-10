@@ -57,8 +57,6 @@ public:
 
 	virtual float GetDispenserRadius( void );
 	virtual float GetHealRate( void );
-	virtual float GetAmmoRate( void );
-	virtual int GetAvailableMetal( void ) const { return m_iAmmoMetal; }
 
 	virtual void StartTouch( CBaseEntity *pOther );
 	virtual void EndTouch( CBaseEntity *pOther );

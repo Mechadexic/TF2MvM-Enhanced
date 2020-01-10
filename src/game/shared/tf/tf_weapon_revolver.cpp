@@ -14,10 +14,6 @@
 #include "tf_player.h"
 #endif
 
-#if defined( CLIENT_DLL )
-ConVar tf2v_revolver_scale_crosshair( "tf2v_revolver_scale_crosshair", "1", FCVAR_ARCHIVE, "Toggle the crosshair size scaling on the ambassador" );
-#endif
-
 //=============================================================================
 //
 // Weapon Revolver tables.
@@ -37,7 +33,6 @@ ConVar tf2v_revolver_scale_crosshair( "tf2v_revolver_scale_crosshair", "1", FCVA
 
 CREATE_SIMPLE_WEAPON_TABLE( TFRevolver, tf_weapon_revolver )
 CREATE_SIMPLE_WEAPON_TABLE( TFRevolver_Secondary, tf_weapon_revolver_secondary )
-CREATE_SIMPLE_WEAPON_TABLE( TFRevolver_Dex, tf_weapon_revolver_dex )
 
 //=============================================================================
 //
@@ -61,113 +56,3 @@ bool CTFRevolver::DefaultReload( int iClipSize1, int iClipSize2, int iActivity )
 
 	return BaseClass::DefaultReload( iClipSize1, iClipSize2, iActivity );
 }
-
-#if defined( CLIENT_DLL )
-void CTFRevolver::GetWeaponCrosshairScale( float &flScale )
-{
-	C_TFPlayer *pOwner = ToTFPlayer( GetOwner() );
-	if ( pOwner == nullptr )
-		return;
-
-	int iMode = 0;
-	CALL_ATTRIB_HOOK_INT( iMode, set_weapon_mode );
-	if ( iMode == 1 && tf2v_revolver_scale_crosshair.GetBool() )
-	{
-		/*const float flTimeBase = pOwner->GetFinalPredictedTime();
-		const float flFireInterval = ( ( gpGlobals->interpolation_amount * gpGlobals->interpolation_amount ) + flTimeBase ) - GetLastFireTime();
-		flScale = ( Clamp( ( flFireInterval + -1.0f ) * -2.0f, 0.0f, 1.0f ) * 1.75f ) + 0.75f;*/
-		float flFireInterval = Min( gpGlobals->curtime - GetLastFireTime(), 1.25f );
-		flScale = Clamp( ( flFireInterval / 1.25f ), 0.334f, 1.0f );
-	}
-}
-#endif
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CTFRevolver_Dex::PrimaryAttack( void )
-{
-	if ( !CanAttack() )
-		return;
-
-	BaseClass::PrimaryAttack();
-	CTFPlayer *pOwner = GetTFPlayerOwner();
-	if ( pOwner && pOwner->IsAlive() )
-	{
-		pOwner->m_Shared.DeductSapperKillCount();
-		
-		if ( pOwner->m_Shared.GetSapperKillCount() == 0 )
-			pOwner->m_Shared.RemoveCond( TF_COND_CRITBOOSTED );
-	}
-}
-
-//-----------------------------------------------------------------------------
-// Purpose:
-//-----------------------------------------------------------------------------
-void CTFRevolver_Dex::ItemPostFrame( void )
-{
-	CritThink();
-	BaseClass::ItemPostFrame();
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: Used for checking if we are critboosted or not.
-//-----------------------------------------------------------------------------
-void CTFRevolver_Dex::CritThink( void )
-{
-	CTFPlayer *pOwner = GetTFPlayerOwner();
-	if ( pOwner )
-	{
-		if ( pOwner->m_Shared.GetSapperKillCount() > 0 )
-		{
-			if ( !pOwner->m_Shared.InCond( TF_COND_CRITBOOSTED ) )
-				pOwner->m_Shared.AddCond( TF_COND_CRITBOOSTED );
-		}
-		else
-		{
-			if ( pOwner->m_Shared.InCond( TF_COND_CRITBOOSTED ) )
-				pOwner->m_Shared.RemoveCond( TF_COND_CRITBOOSTED );
-		}
-	}
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-bool CTFRevolver_Dex::Deploy( void )
-{
-	CTFPlayer *pOwner = GetTFPlayerOwner();
-	if ( pOwner && BaseClass::Deploy() )
-	{
-		if ( pOwner->m_Shared.GetSapperKillCount() > 0 )
-			pOwner->m_Shared.AddCond( TF_COND_CRITBOOSTED );
-		return true;
-	}
-
-	return false;
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-bool CTFRevolver_Dex::Holster( CBaseCombatWeapon *pSwitchTo )
-{
-	CTFPlayer *pOwner = GetTFPlayerOwner();
-	if ( pOwner && CTFRevolver::Holster( pSwitchTo ) )
-	{
-		pOwner->m_Shared.RemoveCond( TF_COND_CRITBOOSTED );
-		return true;
-	}
-
-	return false;
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CTFRevolver_Dex::Detach( void )
-{
-	m_iSapperCrits = 0;
-	BaseClass::Detach();
-}
-

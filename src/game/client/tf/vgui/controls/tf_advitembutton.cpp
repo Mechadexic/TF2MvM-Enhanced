@@ -44,7 +44,7 @@ void CTFAdvItemButton::Init()
 	BaseClass::Init();
 	m_pItemDefinition = NULL;
 	m_iLoadoutSlot = TF_LOADOUT_SLOT_PRIMARY;
-	pButton->SetContentAlignment( CTFAdvButtonBase::GetAlignment( "south" ) );
+	pButton->SetContentAlignment(CTFAdvButtonBase::GetAlignment("south"));
 	pButton->SetTextInset(0, -10);
 }
 
@@ -57,27 +57,6 @@ void CTFAdvItemButton::PerformLayout()
 	SetShouldScaleImage(true);
 
 	BaseClass::PerformLayout();
-};
-
-void CTFAdvItemButton::ApplySchemeSettings(vgui::IScheme *pScheme)
-{
-	BaseClass::ApplySchemeSettings(pScheme);
-
-	//LoadControlSettings("resource/UI/main_menu/advitembutton.res");
-}
-
-
-void CTFAdvItemButton::Paint()
-{
-	BaseClass::Paint();
-
-	//Default to Vintage Blue.
-	Color colButton;
-		colButton = Color(71, 98, 145, 255);
-	pButton->SetFgColor(colButton);
-	pButton->SetFontByString( "HudFontSmallestBold" );
-	pButton->SetCenterWrap( true );
-
 };
 
 //-----------------------------------------------------------------------------
