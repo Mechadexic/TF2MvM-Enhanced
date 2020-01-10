@@ -282,7 +282,7 @@
 			"anim_slot"	"FORCE_NOT_USED"
 			"loadondemand"	"1"
 			"itemfalloff"	"0"
-			"image_inventory"	"backpack/player/items/all_class/blank_icon"
+			"image_inventory"	"backpack/player/items/all_class/all_tf2v"
 			"act_as_wearable"	"1"
 			"attributes"
 			{
@@ -638,7 +638,28 @@
 		}
 		"weapon_spy_knife_item2"
 		{
-			"prefab"	"weapon_knife"
+			"item_class"	"tf_weapon_knife"
+			"item_type_name"	"#TF_Weapon_Knife"
+			"item_name"	"#TF_Weapon_Knife"
+			"item_slot"	"melee"
+			"image_inventory"	"backpack/weapons/w_models/w_knife"
+			"model_player"	"models/weapons/v_models/v_knife_spy.mdl"
+			"used_by_classes"
+			{
+				"spy"	"1"
+			}
+			"static_attrs"
+			{
+				"min_viewmodel_offset"					"5 0 -4"
+			}
+			"attributes"
+			{
+				"allowed in medieval mode"
+				{
+					"attribute_class"	"allowed_in_medieval_mode"
+					"value"	"1"
+				}
+			}
 			"visuals"
 			{
 				"animation_replacement"
@@ -659,7 +680,20 @@
 		}
 		"weapon_eternal_reward"
 		{
-			"prefab"	"weapon_spy_knife_item2"
+			"item_class"	"tf_weapon_knife"
+			"item_type_name"	"#TF_Weapon_Knife"
+			"item_name"	"#TF_Weapon_Knife"
+			"item_slot"	"melee"
+			"image_inventory"	"backpack/weapons/w_models/w_knife"
+			"model_player"	"models/weapons/v_models/v_knife_spy.mdl"
+			"used_by_classes"
+			{
+				"spy"	"1"
+			}
+			"static_attrs"
+			{
+				"min_viewmodel_offset"					"5 0 -4"
+			}
 			"attributes"
 			{
 				"disguise on backstab"
@@ -686,6 +720,28 @@
 				{
 					"attribute_class"	"mod_disguise_consumes_cloak_yer"
 					"value"				"1"
+				}
+				"allowed in medieval mode"
+				{
+					"attribute_class"	"allowed_in_medieval_mode"
+					"value"	"1"
+				}
+			}
+			"visuals"
+			{
+				"animation_replacement"
+				{
+					"ACT_VM_DRAW"	"ACT_ITEM2_VM_DRAW"
+					"ACT_VM_IDLE"	"ACT_ITEM2_VM_IDLE"
+					"ACT_VM_HITCENTER"	"ACT_ITEM2_VM_HITCENTER"
+					"ACT_VM_SWINGHARD"	"ACT_ITEM2_VM_SWINGHARD"
+					"ACT_BACKSTAB_VM_UP"	"ACT_ITEM2_BACKSTAB_VM_UP"
+					"ACT_BACKSTAB_VM_DOWN"	"ACT_ITEM2_BACKSTAB_VM_DOWN"
+					"ACT_BACKSTAB_VM_IDLE"	"ACT_ITEM2_BACKSTAB_VM_IDLE"
+					"ACT_MELEE_VM_STUN"	"ACT_MELEE_VM_ITEM2_STUN"
+					"ACT_MELEE_VM_INSPECT_START"	"ACT_ITEM2_VM_INSPECT_START"
+					"ACT_MELEE_VM_INSPECT_IDLE"		"ACT_ITEM2_VM_INSPECT_IDLE"
+					"ACT_MELEE_VM_INSPECT_END"		"ACT_ITEM2_VM_INSPECT_END"
 				}
 			}
 		}
@@ -719,7 +775,6 @@
 			"item_class"	"saxxy"
 			"anim_slot" "MELEE_ALLCLASS"
 			"item_slot"	"melee"
-			"anim_slot" "MELEE_ALLCLASS"
 			"static_attrs"
 			{
 				"min_viewmodel_offset"					"10 0 -6"
@@ -974,28 +1029,6 @@
 				{
 					"attribute_class"	"allowed_in_medieval_mode"
 					"value"	"1"
-				}
-			}
-		}
-		"weapon_axtinguisher"
-		{
-			"prefab"	"weapon_fireaxe"
-			"attributes"
-			{
-				"crit vs burning players"
-				{
-					"attribute_class"	"or_crit_vs_playercond"
-					"value"	"1"
-				}
-				"dmg penalty vs nonburning"
-				{
-					"attribute_class"	"mult_dmg_vs_nonburning"
-					"value"	"0.5"
-				}
-				"crit mod disabled"
-				{
-					"attribute_class"	"mult_crit_chance"
-					"value"	"0"
 				}
 			}
 		}
@@ -1272,7 +1305,7 @@
 				"clip size penalty"
 				{
 					"attribute_class"	"mult_clipsize"
-					"value" "0.66"
+					"value" "0.67"
 				}
 				"mod mini-crit airborne"
 				{
@@ -1303,10 +1336,6 @@
 			"propername"	"1"
 			"image_inventory"	"backpack/workshop/weapons/c_models/c_russian_riot/c_russian_riot"
 			"model_player"	"models/workshop/weapons/c_models/c_russian_riot/c_russian_riot.mdl"
-			"used_by_classes"
-			{
-				"heavy"	"1"
-			}
 			"static_attrs"
 			{
 				"min_viewmodel_offset"				"10 0 -10"
@@ -1321,7 +1350,7 @@
 				"clip size bonus"
 				{
 					"attribute_class"	"mult_clipsize"
-					"value" "1.33"
+					"value" "1.34"
 				}
 				"fire rate bonus"
 				{
@@ -1344,6 +1373,7 @@
 			"propername"	"1"
 			"image_inventory"	"backpack/workshop/weapons/c_models/c_tele_shotgun/c_tele_shotgun"
 			"model_player"	"models/workshop/weapons/c_models/c_tele_shotgun/c_tele_shotgun.mdl"
+			"item_slot"	"primary"
 			"used_by_classes"
 			{
 				"engineer"	"1"
@@ -1382,12 +1412,17 @@
 				"clip size penalty"
 				{
 					"attribute_class"	"mult_clipsize"
-					"value"				"0.66"
+					"value"				"0.67"
 				}
 				"repair health to metal ratio DISPLAY ONLY"
 				{
 					"attribute_class"	"repair_health_to_metal_ratio_DISPLAY_ONLY"
 					"value"				"4"
+				}
+				"damage bonus HIDDEN"
+				{
+					"attribute_class"	"mult_dmg"
+					"value"				"6.67"
 				}
 			}
 			"visuals"
@@ -1412,6 +1447,7 @@
 			"propername"		"1"
 			"image_inventory"	"backpack/workshop/weapons/c_models/c_trenchgun/c_trenchgun"
 			"model_player"	"models/workshop/weapons/c_models/c_trenchgun/c_trenchgun.mdl"
+			"item_slot"	"primary"
 			"used_by_classes"
 			{
 				"engineer"	"primary"
@@ -1425,25 +1461,30 @@
 			}
 			"attributes"
 			{
-				"damage penalty"
+				"panic_attack_negative"
 				{
-					"attribute_class"	"mult_dmg"
-					"value"	"0.8"
+					"attribute_class"	"panic_attack_negative"
+					"value"	"2.5"
+				}
+				"fire rate bonus with reduced health"
+				{
+					"attribute_class"	"mult_postfiredelay_with_reduced_health"
+					"value"	"0.50"
+				}
+				"fire rate bonus HIDDEN"
+				{
+					"attribute_class"	"mult_postfiredelay"
+					"value"	"0.70"
+				}
+				"clip size penalty HIDDEN"
+				{
+					"attribute_class"	"mult_clipsize"
+					"value"	"0.67"
 				}
 				"single wep deploy time decreased"
 				{
 					"attribute_class"	"mult_single_wep_deploy_time"
 					"value"	"0.5"
-				}
-				"bullets per shot bonus"
-				{
-					"attribute_class" 	"mult_bullets_per_shot"
-					"value" "1.5"
-				}
-				"weapon spread penalty"
-				{
-					"attribute_class"	"mult_spread_scale"
-					"value"	"1.4"
 				}
 			}
 			"visuals"
@@ -1710,6 +1751,7 @@
 			"item_type_name"	"#TF_Weapon_Parachute"
 			"item_name"	"#TF_Weapon_BaseJumper"
 			"item_description"	"#TF_Weapon_BaseJumper_Desc"
+			"item_slot"	"secondary"
 			"image_inventory"	"backpack/workshop/weapons/c_models/c_paratrooper_pack/c_paratrooper_pack"
 			"model_player" "models/workshop/weapons/c_models/c_paratooper_pack/c_paratrooper_pack.mdl"
 			"used_by_classes"
@@ -1740,59 +1782,10 @@
 					"attribute_class"	"rocket_jump_dmg_reduction"
 					"value"	"0.4"
 				}
-			}
-		}
-		"weapon_bat_basher"
-		{
-			"prefab"	"weapon_bat"
-			"static_attrs"
-			{
-				"min_viewmodel_offset"					"10 0 -6"
-			}
-			"attributes"
-			{
-				"bleeding duration"
+				"cancel falling damage"
 				{
-					"attribute_class"	"bleeding_duration"
-					"value" "5"
-				}
-				"hit self on miss"
-				{
-					"attribute_class"	"hit_self_on_miss"
-					"value"	"1"
-				}
-			}
-		}
-		"weapon_sledgehammer"
-		{
-			"prefab"	"weapon_fireaxe"
-			"item_type_name"	"#TF_Weapon_SledgeHammer"
-			"visuals"
-			{
-				"sound_melee_hit"	"Weapon_Machete.HitFlesh"
-			}
-		}
-		"weapon_homewrecker"
-		{
-			"prefab"	"weapon_sledgehammer"
-			"image_inventory"	"backpack/workshop/weapons/c_models/c_sledgehammer/c_sledgehammer"
-			"model_player"	"models/workshop/weapons/c_models/c_sledgehammer/c_sledgehammer.mdl"
-			"attributes"
-			{
-				"dmg bonus vs buildings"
-				{
-					"attribute_class"	"mult_dmg_vs_buildings"
-					"value"	"2.0"
-				}
-				"dmg penalty vs players"
-				{
-					"attribute_class"	"mult_dmg_vs_players"
-					"value"	"0.75"
-				}
-				"damage applies to sappers"
-				{
-					"attribute_class"	"set_dmg_apply_to_sapper"
-					"value"	"1"
+					"attribute_class"	"cancel_falling_damage"
+					"value" "1"
 				}
 			}
 		}
@@ -1864,7 +1857,7 @@
 		}
 		"weapon_detonator"
 		{
-			"item_class"	"tf_weapon_flaregun"
+			"prefab"	"weapon_flaregun"
 			"item_logname" "detonator"
 			"item_iconname" "detonator"
 			"item_name"		"#TF_Weapon_Flaregun_Detonator"
@@ -1901,6 +1894,56 @@
 				"sound_special1"	"Weapon_Detonator.Detonate"
 				"sound_special2"	"Weapon_Detonator.DetonateWorld"
 
+				"animation_replacement"
+				{
+					"ACT_SECONDARY_VM_INSPECT_START"	"ACT_ITEM1_VM_INSPECT_START"
+					"ACT_SECONDARY_VM_INSPECT_IDLE"		"ACT_ITEM1_VM_INSPECT_IDLE"
+					"ACT_SECONDARY_VM_INSPECT_END"		"ACT_ITEM1_VM_INSPECT_END"
+				}
+			}
+		}
+		"weapon_scorch_shot"
+		{
+			"prefab"	"weapon_flaregun"
+			"item_logname"	"scorch_shot"
+			"item_iconname"	"scorch_shot"
+			"item_name"	"#TF_ScorchShot"
+			"item_description"	"#TF_ScorchShot_Desc"
+			"image_inventory"	"backpack/workshop/weapons/c_models/c_scorch_shot/c_scorch_shot"
+			"model_player"	"models/workshop/weapons/c_models/c_scorch_shot/c_scorch_shot.mdl"
+			"propername"	"1"
+			"attributes"
+			{
+				"self dmg push force decreased"
+				{
+					"attribute_class"	"mult_dmgself_push_force"
+					"value"		"0.65"
+				}
+				"minicrit vs burning player"
+				{
+					"attribute_class"	"or_minicrit_vs_playercond_burning"
+					"value"	"1"
+				}
+				"damage penalty"
+				{
+					"attribute_class"	"mult_dmg"
+					"value"	"0.65"
+				}
+				"mod flaregun fires pellets with knockback"
+				{
+					"attribute_class"	"set_weapon_mode"
+					"value"	"3"
+				}
+				"special taunt"
+				{
+					"attribute_class"	"special_taunt"
+					"value" "1"
+				}
+			}
+			"visuals"
+			{
+				"sound_single_shot"	"Weapon_ScorchShot.Single"
+				"sound_burst"		"Weapon_ScorchShot.SingleCrit"
 				"animation_replacement"
 				{
 					"ACT_SECONDARY_VM_INSPECT_START"	"ACT_ITEM1_VM_INSPECT_START"
@@ -2289,6 +2332,80 @@
 				"min_viewmodel_offset"					"12 0 -8"
 			}
 		}
+		"weapon_slapper"
+		{
+			"item_class"	"tf_weapon_slap"
+			"item_type_name"	"#TF_Weapon_Slap"
+			"item_name"	"#TF_Weapon_HotHand"
+			"item_description"	"#TF_Weapon_HotHand_Desc"
+			"item_slot"	"melee"
+			"anim_slot"	"MELEE_ALLCLASS"
+			"item_logname"	"hot_hand"
+			"item_iconname"	"hot_hand"
+			"image_inventory"	"backpack/weapons/c_models/c_slapping_glove/w_slapping_glove"
+			"model_player"		"models/weapons/c_models/c_slapping_glove/c_slapping_glove.mdl"
+			"attach_to_hands" "1"
+			"propername"	"1"
+			"used_by_classes"
+			{
+				"pyro"	"1"
+			}
+			"static_attrs"
+			{
+				"min_viewmodel_offset"		"10 0 -7"
+			}
+			"attributes"
+			{
+				"speed_boost_on_hit_enemy"
+				{
+					"attribute_class"	"speed_boost_on_hit_enemy"
+					"value"	"1.0"
+				}
+				"damage penalty"
+				{
+					"attribute_class"	"mult_dmg"
+					"value"	"0.8"
+				}
+				"allowed in medieval mode"
+				{
+					"attribute_class"	"allowed_in_medieval_mode"
+					"value"	"1"
+				}
+				"disable weapon hiding for animations"
+				{
+					"attribute_class"	"disable_weapon_hiding_for_animations"
+					"value"	"1"
+				}
+			}
+			"visuals"
+			{
+				"animation_replacement"
+				{
+					"ACT_VM_IDLE"				"ACT_ITEM3_VM_IDLE"
+					"ACT_VM_DRAW"				"ACT_ITEM3_VM_DRAW"
+					"ACT_VM_HITCENTER"			"ACT_ITEM3_VM_PRIMARYATTACK"
+					"ACT_VM_SWINGHARD"			"ACT_ITEM3_VM_PRIMARYATTACK"
+					"ACT_MELEE_VM_INSPECT_START"		"ACT_ITEM3_VM_INSPECT_START"
+					"ACT_MELEE_VM_INSPECT_IDLE"			"ACT_ITEM3_VM_INSPECT_IDLE"
+					"ACT_MELEE_VM_INSPECT_END"			"ACT_ITEM3_VM_INSPECT_END"
+
+
+					"ACT_MP_ATTACK_STAND_MELEE_ALLCLASS"		"ACT_MP_ATTACK_STAND_ITEM3"
+					"ACT_MP_ATTACK_CROUCH_MELEE_ALLCLASS"		"ACT_MP_ATTACK_CROUCH_ITEM3"
+					"ACT_MP_ATTACK_SWIM_MELEE_ALLCLASS"			"ACT_MP_ATTACK_SWIM_ITEM3"
+				}
+				"player_poseparam"
+				{
+					"r_hand_grip"		"15"
+					"r_arm"				"3"
+				}
+				"sound_deploy"	"Weapon_Slap.Draw"
+				"sound_melee_miss"	"Weapon_Slap.Swing"
+				"sound_burst"	"Weapon_Slap.SwingCrit"
+				"sound_special1"	"Weapon_Slap.SwingFire"
+				"sound_special2"	"Weapon_Slap.SwingFireCrit"
+			}
+		}
 		"weapon_stickbomb"
 		{
 			"item_class"	"tf_weapon_stickbomb"
@@ -2321,92 +2438,6 @@
 			{
 				"min_viewmodel_offset"		"12 0 -17"				
 			}
-		}
-		"weapon_stickybombjumper"
-		{
-			"prefab"	"weapon_stickybomb_launcher"
-			"item_name"	"#TF_Weapon_StickyBomb_Jump"
-			"item_description"	"#TF_Weapon_StickyBomb_Jump_Desc"
-			"propername"	"0"
-			"attributes"
-			{
-				"damage penalty"
-				{
-					"attribute_class"	"mult_dmg"
-					"value"	"0"
-				}
-				"crit mod disabled"
-				{
-					"attribute_class"	"mult_crit_chance"
-					"value"	"0"
-				}
-				"no self blast dmg"
-				{
-					"attribute_class"	"no_self_blast_dmg"
-					"value" "1"
-				}
-				"maxammo secondary increased"
-				{
-					"attribute_class"	"mult_maxammo_secondary"
-					"value" "3"
-				}
-				"cannot pick up intelligence"
-				{
-					"attribute_class"	"cannot_pick_up_intelligence"
-					"value"				"1"
-				}
-				"custom projectile model"
-				{
-					"attribute_class"	 "custom_projectile_model"
-					"value"			   "models/weapons/w_models/w_stickybomb2.mdl"
-				}
-			}
-			"visuals"
-			{
-				"sound_single_shot"	"Weapon_Sticky_Jumper.Single"
-				"sound_special1"	"Weapon_Sticky_Jumper.Explode"
-			}
-		}
-		"weapon_rocketjumper"
-		{
-			"prefab"	"weapon_rocketlauncher"
-			"item_name"	"#TF_Weapon_RocketLauncher_Jump"
-			"item_description"	"#TF_Weapon_RocketLauncher_Jump_Desc"
-			"propername"	"0"
-			"attributes"
-			{
-				"damage penalty"
-				{
-					"attribute_class"	"mult_dmg"
-					"value"	"0"
-				}
-				"crit mod disabled"
-				{
-					"attribute_class"	"mult_crit_chance"
-					"value"	"0"
-				}
-				"no self blast dmg"
-				{
-					"attribute_class"	"no_self_blast_dmg"
-					"value" "2"
-				}
-				"maxammo primary increased"
-				{
-					"attribute_class"	"mult_maxammo_primary"
-					"value" "3.0"
-				}
-				"cannot pick up intelligence"
-				{
-					"attribute_class"	"cannot_pick_up_intelligence"
-					"value"				"1"
-				}
-			}
-			"visuals"
-			{
-				"sound_single_shot"		"Weapon_Rocket_Jumper.Single"
-				"sound_special1"		"Weapon_Rocket_Jumper.Explode"
-			}
-
 		}
 		"weapon_quadball"
 		{
@@ -2590,12 +2621,63 @@
 				"sound_special2"	"Sword.Idle"
 			}
 		}
+		"weapon_katana"
+		{
+			"item_class"	"tf_weapon_katana"
+			"item_type_name"	"#TF_Weapon_Sword"
+			"demoknight"	"1"
+			"item_slot"	"melee"
+			"anim_slot"	"item1"
+			"image_inventory"	"backpack/workshop_partner/weapons/c_models/c_shogun_katana/c_shogun_katana"
+			"used_by_classes"
+			{
+				"soldier"	"1"
+				"demoman"	"1"
+			}
+			"model_player_per_class"
+			{
+				"soldier"	"models/workshop_partner/weapons/c_models/c_shogun_katana/c_shogun_katana_soldier.mdl"
+				"demoman"	"models/workshop_partner/weapons/c_models/c_shogun_katana/c_shogun_katana.mdl"
+			}
+			"static_attrs"
+			{
+				"min_viewmodel_offset"					"10 -5 -10"
+			}
+			"attributes"
+			{
+				"allowed in medieval mode"
+				{
+					"attribute_class"	"allowed_in_medieval_mode"
+					"value"	"1"
+				}
+			}
+			"visuals"
+			{
+				"sound_melee_miss"	"Weapon_Sword.Swing"
+				"sound_melee_hit"	"Weapon_Sword.HitFlesh"
+				"sound_melee_hit_world"	"Weapon_Sword.HitWorld"
+				"sound_burst"		"Weapon_Sword.SwingCrit"
+				"sound_special1"	"Sword.Hit"
+				"sound_special2"	"Sword.Idle"
+			}
+		}
 		"weapon_eyelander"
 		{
-			"prefab"	"weapon_sword"
+			"item_class"	"tf_weapon_sword"
+			"demoknight"	"1"
+			"item_slot"	"melee"
+			"anim_slot"	"item1"
 			"item_type_name"	"#TF_Weapon_Sword"
 			"image_inventory"	"backpack/weapons/c_models/c_claymore/c_claymore"
 			"model_player"	"models/weapons/c_models/c_claymore/c_claymore.mdl"
+			"used_by_classes"
+			{
+				"demoman"	"1"
+			}
+			"static_attrs"
+			{
+				"min_viewmodel_offset"			"12 -3 -10"		
+			}
 			"attributes"
 			{
 				"crit mod disabled"
@@ -2624,9 +2706,14 @@
 					"value"	"6"			
 				}
 			}
-			"static_attrs"
+			"visuals"
 			{
-				"min_viewmodel_offset"			"12 -3 -10"		
+				"sound_melee_miss"	"Weapon_Sword.Swing"
+				"sound_melee_hit"	"Weapon_Sword.HitFlesh"
+				"sound_melee_hit_world"	"Weapon_Sword.HitWorld"
+				"sound_burst"		"Weapon_Sword.SwingCrit"
+				"sound_special1"	"Sword.Hit"
+				"sound_special2"	"Sword.Idle"
 			}
 		}
 		"weapon_battleaxe"
@@ -2667,6 +2754,11 @@
 			"model_player"	"models/workshop/weapons/c_models/c_claidheamohmor/c_claidheamohmor.mdl"
 			"attributes"
 			{
+				"kill refills meter"
+				{
+					"attribute_class"	"kill_refills_meter"
+					"value"			"0.25"
+				}
 				"crit mod disabled"
 				{
 					"attribute_class"	"mult_crit_chance"
@@ -2771,52 +2863,6 @@
 				}
 			}
 		}
-		"weapon_demoman_boots"
-		{
-			"prefab"			"weapon_wearable"
-			"demoknight"	"1"
-			"item_type_name" 	"#TF_Wearable_Boots"
-			"base_item_name"	"The Bootlegger"
-			"item_slot"		"primary"
-			"equip_region"	"feet"
-			"anim_slot"		"FORCE_NOT_USED"
-			"propername"	"0"
-			"act_as_wearable" "1"
-			"used_by_classes"
-			{
-				"demoman"	"1"
-			}
-			"attributes"
-			{
-				"mult charge turn control"
-				{
-					"attribute_class"	"charge_turn_control"
-					"value"			"3"
-				}
-				"max health additive bonus"
-				{
-					"attribute_class"	"add_maxhealth"
-					"value" "25"
-				}
-				"kill refills meter"
-				{
-					"attribute_class"	"kill_refills_meter"
-					"value"			"0.25"
-				}
-				"move speed bonus"
-				{
-					"attribute_class"	"mult_player_movespeed"
-					"value"	"1.10"
-				}
-			}
-			"visuals"
-			{
-				"player_bodygroups"
-				{
-					"shoes"			"1"
-				}
-			}
-		}
 		"weapon_shield"
 		{
 			"prefab"	"weapon_wearable"
@@ -2842,25 +2888,6 @@
 				{
 					"attribute_class"	"allowed_in_medieval_mode"
 					"value"	"1"
-				}
-			}
-		}
-		"weapon_targe"
-		{
-			"prefab"	"weapon_shield"
-			"propername"	"1"
-			"image_inventory"	"backpack/weapons/c_models/c_targe/c_targe"
-			"attributes"
-			{
-				"dmg taken from fire reduced"
-				{
-					"attribute_class"	"mult_dmgtaken_from_fire"
-					"value"			"0.5"
-				}
-				"dmg taken from blast reduced"
-				{
-					"attribute_class"	"mult_dmgtaken_from_explosions"
-					"value"			"0.6"
 				}
 			}
 		}
@@ -3484,7 +3511,7 @@
 		"38"
 		{
 			"name"	"The Axtinguisher"			
-			"prefab"	"weapon_axtinguisher"
+			"prefab"	"weapon_fireaxe"
 			"year"			"2008"
 			"item_logname"	"axtinguisher"
 			"item_iconname"	"axtinguisher"
@@ -3492,6 +3519,24 @@
 			"propername"	"1"
 			"image_inventory"	"backpack/weapons/c_models/c_axtinguisher/c_axtinguisher_pyro"
 			"model_player"	"models/weapons/c_models/c_axtinguisher/c_axtinguisher_pyro.mdl"
+			"attributes"
+			{
+				"crit vs burning players"
+				{
+					"attribute_class"	"or_crit_vs_playercond"
+					"value"	"1"
+				}
+				"dmg penalty vs nonburning"
+				{
+					"attribute_class"	"mult_dmg_vs_nonburning"
+					"value"	"0.5"
+				}
+				"crit mod disabled"
+				{
+					"attribute_class"	"mult_crit_chance"
+					"value"	"0"
+				}
+			}
 		}
 		"39"
 		{
@@ -3909,6 +3954,11 @@
 					"attribute_class"	"set_buff_type"
 					"value"	"1"
 				}
+				"maxammo primary increased"
+				{
+					"attribute_class"	"mult_maxammo_primary"
+					"value" "1.2"
+				}
 			}
 		}
 		"130"
@@ -3948,9 +3998,32 @@
 		"131"
 		{
 			"name"	"Legacy Chargin' Targe"
-			"prefab"	"weapon_targe"
+			"prefab"	"weapon_shield"
 			"year"		"2009"
+			"propername"	"1"
+			"image_inventory"	"backpack/weapons/c_models/c_targe/c_targe"
 			"model_player"	"models/weapons/c_models/c_targe/c_targe_team.mdl"
+			"attributes"
+			{
+				"dmg taken from fire reduced"
+				{
+					"attribute_class"	"mult_dmgtaken_from_fire"
+					"value"			"0.5"
+				}
+				"dmg taken from blast reduced"
+				{
+					"attribute_class"	"mult_dmgtaken_from_explosions"
+					"value"			"0.6"
+				}
+			}
+			"visuals_red"
+			{
+				"skin"	"0"
+			}
+			"visuals_blu"
+			{
+				"skin"	"1"
+			}
 		}
 		"132"
 		{
@@ -4007,12 +4080,37 @@
 		"153"
 		{
 			"name"	"The Homewrecker"
-			"prefab"		"weapon_homewrecker"
+			"prefab"	"weapon_fireaxe"
 			"propername"	"1"
 			"year"			"2010"
 			"item_logname"	"sledgehammer"
 			"item_iconname"	"sledgehammer"
+			"item_type_name"	"#TF_Weapon_SledgeHammer"
 			"item_name"	"#TF_Unique_SledgeHammer"
+			"image_inventory"	"backpack/workshop/weapons/c_models/c_sledgehammer/c_sledgehammer"
+			"model_player"	"models/workshop/weapons/c_models/c_sledgehammer/c_sledgehammer.mdl"
+			"attributes"
+			{
+				"dmg bonus vs buildings"
+				{
+					"attribute_class"	"mult_dmg_vs_buildings"
+					"value"	"2.0"
+				}
+				"dmg penalty vs players"
+				{
+					"attribute_class"	"mult_dmg_vs_players"
+					"value"	"0.75"
+				}
+				"damage applies to sappers"
+				{
+					"attribute_class"	"set_dmg_apply_to_sapper"
+					"value"	"1"
+				}
+			}
+			"visuals"
+			{
+				"sound_melee_hit"	"Weapon_Machete.HitFlesh"
+			}
 		}
 		"154"
 		{
@@ -4056,11 +4154,6 @@
 					"attribute_class"	"mult_dmgtaken_from_fire"
 					"value"			"1.20"
 				}
-				"engy dispenser radius increased"
-				{
-					"attribute_class"	"mult_dispenser_radius"
-					"value"			"3.0"
-				}
 				"reveal disguised victim on hit"
 				{
 					"attribute_class"	"reveal_disguised_victim_on_hit"
@@ -4103,7 +4196,7 @@
 			"item_type_name"	"#TF_Weapon_LunchBox"
 			"item_name"	"#TF_Unique_Lunchbox_Chocolate"
 			"propername"	"1"
-			"image_inventory"	"backpack/weapons/c_models/c_chocolate/c_chocolate"
+			"image_inventory"	"backpack/workshop/weapons/c_models/c_chocolate/c_chocolate"
 			"model_player"	"models/weapons/c_models/c_chocolate/c_chocolate.mdl"
 			"attributes"
 			{
@@ -4211,10 +4304,11 @@
 		"214"
 		{
 			"name"	"The Powerjack"
-			"prefab"	"weapon_sledgehammer"
+			"prefab"	"weapon_fireaxe"
 			"year"			"2010"
 			"item_logname"	"powerjack"
 			"item_iconname"	"powerjack"
+			"item_type_name"	"#TF_Weapon_SledgeHammer"
 			"item_name"	"#TF_ThePowerjack"
 			"propername"	"1"
 			"image_inventory"	"backpack/workshop/weapons/c_models/c_powerjack/c_powerjack"
@@ -4241,6 +4335,10 @@
 					"attribute_class"	"mult_dmgtaken"
 					"value"	"1.2"
 				}
+			}
+			"visuals"
+			{
+				"sound_melee_hit"	"Weapon_Machete.HitFlesh"
 			}
 		}
 		"215"
@@ -4546,10 +4644,46 @@
 		"237"
 		{
 			"name"	"Legacy Rocket Jumper"
-			"prefab"	"weapon_rocketjumper"
+			"prefab"	"weapon_rocketlauncher"
 			"year"			"2010"
+			"item_name"	"#TF_Weapon_RocketLauncher_Jump"
+			"item_description"	"#TF_Weapon_RocketLauncher_Jump_Desc"
+			"propername"	"0"
 			"image_inventory"	"backpack/weapons/c_models/c_rocketjumper/c_rocketjumper_legacy"
 			"model_player"	"models/weapons/c_models/c_rocketjumper/c_rocketjumper_legacy.mdl"
+			"attributes"
+			{
+				"damage penalty"
+				{
+					"attribute_class"	"mult_dmg"
+					"value"	"0"
+				}
+				"crit mod disabled"
+				{
+					"attribute_class"	"mult_crit_chance"
+					"value"	"0"
+				}
+				"no self blast dmg"
+				{
+					"attribute_class"	"no_self_blast_dmg"
+					"value" "2"
+				}
+				"maxammo primary increased"
+				{
+					"attribute_class"	"mult_maxammo_primary"
+					"value" "3.0"
+				}
+				"cannot pick up intelligence"
+				{
+					"attribute_class"	"cannot_pick_up_intelligence"
+					"value"				"1"
+				}
+			}
+			"visuals"
+			{
+				"sound_single_shot"		"Weapon_Rocket_Jumper.Single"
+				"sound_special1"		"Weapon_Rocket_Jumper.Explode"
+			}
 		}
 		"239"
 		{
@@ -4614,10 +4748,51 @@
 		"265"
 		{
 			"name"	"Legacy Stickybomb Jumper"
-			"prefab"	"weapon_stickybombjumper"
+			"prefab"	"weapon_stickybomb_launcher"
 			"year"			"2010"
+			"item_name"	"#TF_Weapon_StickyBomb_Jump"
+			"item_description"	"#TF_Weapon_StickyBomb_Jump_Desc"
+			"propername"	"0"
 			"image_inventory"	"backpack/weapons/c_models/c_sticky_jumper/c_sticky_jumper_legacy"
 			"model_player"	"models/weapons/c_models/c_sticky_jumper/c_sticky_jumper_legacy.mdl"
+			"attributes"
+			{
+				"damage penalty"
+				{
+					"attribute_class"	"mult_dmg"
+					"value"	"0"
+				}
+				"crit mod disabled"
+				{
+					"attribute_class"	"mult_crit_chance"
+					"value"	"0"
+				}
+				"no self blast dmg"
+				{
+					"attribute_class"	"no_self_blast_dmg"
+					"value" "1"
+				}
+				"maxammo secondary increased"
+				{
+					"attribute_class"	"mult_maxammo_secondary"
+					"value" "3"
+				}
+				"cannot pick up intelligence"
+				{
+					"attribute_class"	"cannot_pick_up_intelligence"
+					"value"				"1"
+				}
+				"custom projectile model"
+				{
+					"attribute_class"	 "custom_projectile_model"
+					"value"			   "models/weapons/w_models/w_stickybomb2.mdl"
+				}
+			}
+			"visuals"
+			{
+				"sound_single_shot"	"Weapon_Sticky_Jumper.Single"
+				"sound_special1"	"Weapon_Sticky_Jumper.Explode"
+			}
 		}
 		"304"
 		{
@@ -4838,7 +5013,7 @@
 		"325"
 		{
 			"name"	"The Boston Basher"
-			"prefab"	"weapon_bat_basher"
+			"prefab"	"weapon_bat"
 			"year"			"2010"
 			"item_name"	"#TF_BostonBasher"
 			"propername"	"1"
@@ -4846,6 +5021,23 @@
 			"item_iconname"	"boston_basher"
 			"image_inventory"	"backpack/workshop/weapons/c_models/c_boston_basher/c_boston_basher"
 			"model_player"	"models/workshop/weapons/c_models/c_boston_basher/c_boston_basher.mdl"
+			"static_attrs"
+			{
+				"min_viewmodel_offset"					"10 0 -6"
+			}
+			"attributes"
+			{
+				"bleeding duration"
+				{
+					"attribute_class"	"bleeding_duration"
+					"value" "5"
+				}
+				"hit self on miss"
+				{
+					"attribute_class"	"hit_self_on_miss"
+					"value"	"1"
+				}
+			}
 			"visuals"
 			{
 				"sound_melee_hit"		"BostonBasher.Impact"
@@ -4978,7 +5170,7 @@
             "propername"    "0"
             "item_slot"        "secondary"
             "equip_region"    "spy_coat"
-            "image_inventory"    "backpack/player/items/spy/firesuit_large"
+            "image_inventory"    "backpack/player/items/spy/firesuit"
             "model_player"    "models/workshop/player/items/spy/firesuit/firesuit.mdl"
             "used_by_classes"
             {
@@ -4992,6 +5184,14 @@
                     "value" "1"
                 }
             }
+			"visuals_red"
+			{
+				"skin"	"0"
+			}
+			"visuals_blu"
+			{
+				"skin"	"1"
+			}
         }
 		"348"
 		{
@@ -5183,31 +5383,14 @@
 		"357"
 		{
 			"name"	"The Half-Zatoichi"
-			"prefab"	"weapon_sword"
+			"prefab"	"weapon_katana"
 			"year"				"2011"
-			"item_class"	"tf_weapon_katana"
 			"item_logname"	"demokatana"
 			"item_iconname"	"demokatana"
 			"item_type_name"	"#TF_Weapon_SoldierKatana"
 			"item_name"	"#TF_SoldierKatana"
 			"item_description"	"#TF_SoldierKatana_Desc"
 			"propername"	"1"
-			"image_inventory"	"backpack/workshop_partner/weapons/c_models/c_shogun_katana/c_shogun_katana"
-			"anim_slot"	"melee"
-			"used_by_classes"
-			{
-				"soldier"	"1"
-				"demoman"	"1"
-			}
-			"static_attrs"
-			{
-				"min_viewmodel_offset"					"10 -5 -10"
-			}
-			"model_player_per_class"
-			{
-				"soldier"	"models/workshop_partner/weapons/c_models/c_shogun_katana/c_shogun_katana_soldier.mdl"
-				"demoman"	"models/workshop_partner/weapons/c_models/c_shogun_katana/c_shogun_katana.mdl"
-			}
 			"attributes"
 			{
 				"decapitate type"
@@ -5261,12 +5444,52 @@
 		"405"
 		{
 			"name"			"Ali Baba's Wee Booties"
-			"prefab"			"weapon_demoman_boots"
+			"prefab"			"weapon_wearable"
 			"year"				"2011"
+			"demoknight"		"1"
 			"item_type_name" 	"#TF_Wearable_Boots"
 			"item_name"		"#TF_Ali_Babas_Wee_Booties"
+			"item_slot"		"primary"
+			"equip_region"	"feet"
+			"anim_slot"		"FORCE_NOT_USED"
+			"propername"	"0"
+			"act_as_wearable" "1"
 			"image_inventory"	"backpack/workshop/player/items/demo/demo_booties/demo_booties"
 			"model_player"		"models/workshop/player/items/demo/demo_booties/demo_booties.mdl"
+			"used_by_classes"
+			{
+				"demoman"	"1"
+			}
+			"attributes"
+			{
+				"mult charge turn control"
+				{
+					"attribute_class"	"charge_turn_control"
+					"value"			"3"
+				}
+				"max health additive bonus"
+				{
+					"attribute_class"	"add_maxhealth"
+					"value" "25"
+				}
+				"kill refills meter"
+				{
+					"attribute_class"	"kill_refills_meter"
+					"value"			"0.25"
+				}
+				"move speed bonus"
+				{
+					"attribute_class"	"mult_player_movespeed"
+					"value"	"1.10"
+				}
+			}
+			"visuals"
+			{
+				"player_bodygroups"
+				{
+					"shoes"			"1"
+				}
+			}
 		}
 		"406"
 		{
@@ -5484,7 +5707,7 @@
 				"rocket jump damage reduction"
 				{
 					"attribute_class"	"rocket_jump_dmg_reduction"
-					"value" "0.75"
+					"value" "0.8"
 				}
 				"damage penalty"
 				{
@@ -5569,6 +5792,10 @@
 			"name"	"The Family Business"
 			"prefab"	"weapon_russian_riot"
 			"year"			"2011"
+			"used_by_classes"
+			{
+				"heavy"	"1"
+			}
 			"particle_suffix"	"family_business"
 		}
 		"426"
@@ -5628,6 +5855,20 @@
 					"ACT_MELEE_VM_INSPECT_END"		"ACT_MELEE_ALT3_VM_INSPECT_END"
 				}
 			}
+		}
+		"427"
+		{
+			"name"	"The Family Business (Multi-Class)"
+			"prefab"	"weapon_russian_riot"
+			"year"			"2011"
+			"particle_suffix"	"family_business"
+			"used_by_classes"
+			{
+				"pyro"	"secondary"
+				"soldier"	"secondary"
+				"engineer"	"primary"
+			}
+
 		}
 		"444"
 		{
@@ -5836,6 +6077,10 @@
 			"propername"	"1"
 			"image_inventory"	"backpack/workshop_partner/weapons/c_models/c_bet_rocketlauncher/c_bet_rocketlauncher"
 			"model_player"	"models/workshop_partner/weapons/c_models/c_bet_rocketlauncher/c_bet_rocketlauncher.mdl"
+			"static_attrs"
+			{
+				"min_viewmodel_offset"					"10 0 -5"				
+			}
 			"attributes"
 			{
 				"centerfire projectile"
@@ -5878,6 +6123,43 @@
 				"sound_special1"		"Weapon_QuakeRPG.Explode"
 			}
 		}
+		"525"
+		{
+			"name"	"The Diamondback"
+			"prefab"			"weapon_revolver"
+			"first_sale_date"	"2011"
+			"item_class"	"tf_weapon_revolver_dex"
+			"item_name"	"#TF_DEX_Revolver"
+			"item_description"	"#TF_DEX_Revolver_Desc"
+			"propername"	"1"
+			"item_logname"	"diamondback"
+			"item_iconname"	"diamondback"
+			"image_inventory"	"backpack/workshop_partner/weapons/c_models/c_dex_revolver/c_dex_revolver"
+			"model_player"	"models/workshop_partner/weapons/c_models/c_dex_revolver/c_dex_revolver.mdl"
+			"attributes"
+			{
+				"sapper kills collect crits"
+				{
+					"attribute_class"	"sapper_kills_collect_crits"
+					"value"	"1"
+				}
+				"damage penalty"
+				{
+					"attribute_class"	"mult_dmg"
+					"value"	"0.85"
+				}
+				"crit mod disabled"
+				{
+					"attribute_class"	"mult_crit_chance"
+					"value"	"0"
+				}
+			}
+			"visuals"
+			{
+				"sound_single_shot"	"Weapon_Diamond_Back.Single"
+				"sound_burst"	"Weapon_Diamond_Back.SingleCrit"
+			}
+		}
 		"527"
 		{
 			"name"	"The Widowmaker"
@@ -5890,6 +6172,7 @@
 			"propername"	"1"
 			"image_inventory"	"backpack/workshop_partner/weapons/c_models/c_dex_shotgun/c_dex_shotgun"
 			"model_player"	"models/workshop_partner/weapons/c_models/c_dex_shotgun/c_dex_shotgun.mdl"
+			"item_slot"	"primary"
 			"used_by_classes"
 			{
 				"engineer"	"1"
@@ -5982,6 +6265,72 @@
 				}
 			}
 		}
+		"656"
+		{
+			"name"	"The Holiday Punch"
+			"prefab"	"weapon_fists"
+			"year"				"2011"
+			"item_type_name"	"#TF_Weapon_Fists"
+			"item_name"			"#TF_MasculineMittens"
+			"item_description"	"#TF_MasculineMittens_Desc"
+			"item_logname"	"holiday_punch"
+			"item_iconname"	"holiday_punch"
+			"image_inventory"	"backpack/workshop/weapons/c_models/c_xms_gloves/c_xms_gloves"			
+			"model_player"	"models/workshop/weapons/c_models/c_xms_gloves/c_xms_gloves.mdl"
+			"propername"	"1"
+			"static_attrs"
+			{
+				"min_viewmodel_offset"		"10 0 -10"
+			}
+			"hide_bodygroups_deployed_only"	"1"
+			"attributes"
+			{
+				"crit forces victim to laugh"
+				{
+					"attribute_class"	"crit_forces_victim_to_laugh"
+					"value" "1"
+				}
+				"crit from behind"
+				{
+					"attribute_class"	"crit_from_behind"
+					"value" "1"
+				}
+				"crit does no damage"
+				{
+					"attribute_class"	"crit_does_no_damage"
+					"value" "1"
+				}
+				"tickle enemies wielding same weapon"
+				{
+					"attribute_class"	"tickle_enemies_wielding_same_weapon"
+					"value"	"1"
+				}
+			}
+			"visuals"
+			{
+				"player_bodygroups"
+				{
+					"hands"		"1"
+				}
+				"sound_deploy"			"Weapon_mittens.HitGlove"
+				"sound_melee_hit"		"Weapon_mittens.HitFlesh"
+				"sound_melee_hit_world"	"Weapon_mittens.HitWorld"
+				"sound_burst"			"Weapon_mittens.CritHit"
+				"animation_replacement"
+				{
+					"ACT_MELEE_VM_INSPECT_START"	"ACT_MELEE_ALT1_VM_INSPECT_START"
+					"ACT_MELEE_VM_INSPECT_IDLE"		"ACT_MELEE_ALT1_VM_INSPECT_IDLE"
+					"ACT_MELEE_VM_INSPECT_END"		"ACT_MELEE_ALT1_VM_INSPECT_END"
+				}
+			}
+		}
+		"740"
+		{
+			"name"	"The Scorch Shot"
+			"prefab" "weapon_scorch_shot"
+			"year"				"2012"
+			"particle_suffix"	"scorch_shot"
+		}
 		"751"
 		{
 			"name" "The Cleaner's Carbine"
@@ -6046,11 +6395,6 @@
 				"sniper no zoomout"
 				{
 					"attribute_class"	"sniper_no_zoomout"
-					"value" "1"			
-				}
-				"sniper no dot"
-				{
-					"attribute_class"	"sniper_no_dot"
 					"value" "1"			
 				}
 				"silent killer notaknife"
@@ -6119,7 +6463,7 @@
 				"clip size penalty"
 				{
 					"attribute_class"	"mult_clipsize"
-					"value"				"0.66"
+					"value"				"0.67"
 				}
 			}
 			"visuals"
@@ -6257,7 +6601,7 @@
 				"clip size penalty"
 				{
 					"attribute_class"	"mult_clipsize"
-					"value" "0.66"
+					"value" "0.67"
 				}
 				"spread penalty"
 				{
@@ -6354,11 +6698,83 @@
 			"year"				"2014"
 			"particle_suffix"	"panic_attack"
 		}
-		"1156"
+		"1190"
+		{
+			"name"		"The Second Banana"
+			"prefab"		"weapon_sandvich"
+			"year"		"2017"
+			"item_name"		"#TF_Unique_Lunchbox_Banana"
+			"item_description"		"#TF_Lunchbox_Banana_desc"
+			"image_inventory"		"backpack/weapons/c_models/c_banana/c_banana"
+			"model_player"		"models/weapons/c_models/c_banana/c_banana.mdl"
+			"propername"		"1"
+			"attributes"
+			{
+				"lunchbox adds minicrits"
+				{
+					"attribute_class"	"set_weapon_mode"
+					"value"	"6"
+				}
+				"lunchbox healing decreased"
+				{
+					"attribute_class" "lunchbox_healing_scale"
+					"value" "0.67"
+				}
+				"charge recharge rate increased"
+				{
+					"attribute_class"	"charge_recharge_rate"
+					"value"	"1.5"
+				}
+			}
+		}
+		"1194"
+		{
+			"name"		"Spawn Camper"
+			"prefab"		"weapon_backpack weapon_custom"
+			"item_name"		"#TF_sum19_spawn_camper_backpack"
+			"item_description"		"#TF_sum19_spawn_camper_backpack_Desc"
+			"item_type_name"		"#TF_Wearable_Backpack"
+			"image_inventory"		"backpack/workshop/player/items/pyro/sum19_spawn_camper_backpack/sum19_spawn_camper_backpack"
+			"model_player"			"models/workshop/player/items/pyro/sum19_spawn_camper_backpack/sum19_spawn_camper_backpack.mdl"
+			"item_slot"	"secondary"
+			"used_by_classes"
+			{
+				"pyro"		"1"
+			}
+			"visuals"
+			{
+				"player_bodygroups"
+				{
+					"backpack"		"1"
+				}
+			}
+			"visuals_red"
+			{
+				"skin"	"0"
+			}
+			"visuals_blu"
+			{
+				"skin"	"1"
+			}
+			"attributes"
+			{
+				"maxammo primary increased"
+				{
+					"attribute_class"	"mult_maxammo_primary"
+					"value" "1.5"
+				}
+				"health regen"
+				{
+					"attribute_class"	"add_health_regen"
+					"value"	"6"
+				}
+			}
+		}
+		"1195"
 		{
 			"name"	"Ludmila"
 			"prefab"	"weapon_minigun weapon_custom"
-			"year"			"2008"
+			"year"			"2019"
 			"item_type_name"	"#TF_Weapon_Minigun"
 			"item_name"	"#TF_Unique_Achievement_Minigun2"
 			"item_logname"	"ludmila"
@@ -6646,9 +7062,45 @@
 		"10131"
 		{
 			"name"	"The Chargin' Targe"
-			"prefab"	"weapon_targe weapon_reskin"
+			"prefab"	"weapon_wearable weapon_reskin"
 			"year"		"2010"
+			"demoknight"	"1"
+			"propername"	"1"
+			"item_class"		"tf_wearable_demoshield"
+			"item_type_name"	"#TF_Wearable_Shield"
+			"item_name"		"#TF_Unique_Achievement_Shield"
+			"item_description"	"#TF_Unique_Achievement_Shield_Desc"
+			"item_slot"		"secondary"
+			"equip_region"	"arms"
+			"item_logname"	"demoshield"
+			"item_iconname"	"demoshield"
+			"act_as_wearable" "1"
+			"attach_to_hands"	"0"
+			"attach_to_hands_vm_only"	"1"
+			"image_inventory"	"backpack/weapons/c_models/c_targe/c_targe"
 			"model_player"	"models/weapons/c_models/c_targe/c_targe.mdl"
+			"used_by_classes"
+			{
+				"demoman"	"1"
+			}
+			"attributes"
+			{
+				"dmg taken from fire reduced"
+				{
+					"attribute_class"	"mult_dmgtaken_from_fire"
+					"value"			"0.5"
+				}
+				"dmg taken from blast reduced"
+				{
+					"attribute_class"	"mult_dmgtaken_from_explosions"
+					"value"			"0.6"
+				}
+				"allowed in medieval mode"
+				{
+					"attribute_class"	"allowed_in_medieval_mode"
+					"value"	"1"
+				}
+			}
 		}
 		"10221"
 		{
@@ -6673,10 +7125,46 @@
 		"10237"
 		{
 			"name"	"Rocket Jumper"
-			"prefab"	"weapon_rocketjumper weapon_reskin"
+			"prefab"	"weapon_rocketlauncher weapon_reskin"
 			"year"			"2016"
+			"item_name"	"#TF_Weapon_RocketLauncher_Jump"
+			"item_description"	"#TF_Weapon_RocketLauncher_Jump_Desc"
+			"propername"	"0"
 			"image_inventory"	"backpack/weapons/c_models/c_rocketjumper/c_rocketjumper"
 			"model_player"	"models/weapons/c_models/c_rocketjumper/c_rocketjumper.mdl"
+			"attributes"
+			{
+				"damage penalty"
+				{
+					"attribute_class"	"mult_dmg"
+					"value"	"0"
+				}
+				"crit mod disabled"
+				{
+					"attribute_class"	"mult_crit_chance"
+					"value"	"0"
+				}
+				"no self blast dmg"
+				{
+					"attribute_class"	"no_self_blast_dmg"
+					"value" "2"
+				}
+				"maxammo primary increased"
+				{
+					"attribute_class"	"mult_maxammo_primary"
+					"value" "3.0"
+				}
+				"cannot pick up intelligence"
+				{
+					"attribute_class"	"cannot_pick_up_intelligence"
+					"value"				"1"
+				}
+			}
+			"visuals"
+			{
+				"sound_single_shot"		"Weapon_Rocket_Jumper.Single"
+				"sound_special1"		"Weapon_Rocket_Jumper.Explode"
+			}
 		}
 		"10264"
 		{
@@ -6712,10 +7200,51 @@
 		"10265"
 		{
 			"name"	"Stickybomb Jumper"
-			"prefab"	"weapon_stickybombjumper weapon_reskin"
+			"prefab"	"weapon_stickybomb_launcher weapon_reskin"
 			"year"			"2016"
+			"item_name"	"#TF_Weapon_StickyBomb_Jump"
+			"item_description"	"#TF_Weapon_StickyBomb_Jump_Desc"
+			"propername"	"0"
 			"image_inventory"	"backpack/weapons/c_models/c_sticky_jumper/c_sticky_jumper"
 			"model_player"	"models/weapons/c_models/c_sticky_jumper/c_sticky_jumper.mdl"
+			"attributes"
+			{
+				"damage penalty"
+				{
+					"attribute_class"	"mult_dmg"
+					"value"	"0"
+				}
+				"crit mod disabled"
+				{
+					"attribute_class"	"mult_crit_chance"
+					"value"	"0"
+				}
+				"no self blast dmg"
+				{
+					"attribute_class"	"no_self_blast_dmg"
+					"value" "1"
+				}
+				"maxammo secondary increased"
+				{
+					"attribute_class"	"mult_maxammo_secondary"
+					"value" "3"
+				}
+				"cannot pick up intelligence"
+				{
+					"attribute_class"	"cannot_pick_up_intelligence"
+					"value"				"1"
+				}
+				"custom projectile model"
+				{
+					"attribute_class"	 "custom_projectile_model"
+					"value"			   "models/weapons/w_models/w_stickybomb2.mdl"
+				}
+			}
+			"visuals"
+			{
+				"sound_single_shot"	"Weapon_Sticky_Jumper.Single"
+				"sound_special1"	"Weapon_Sticky_Jumper.Explode"
+			}
 		}
 		"10298"
 		{
@@ -6752,7 +7281,7 @@
 		"10452"
 		{
 			"name"	"Three-Rune Blade"
-			"prefab"	"weapon_bat_basher weapon_reskin"
+			"prefab"	"weapon_bat weapon_reskin"
 			"year"		"2011"
 			"item_type_name"	"#TF_Weapon_Sword"
 			"item_name"	"#TF_ScoutSword"
@@ -6762,6 +7291,23 @@
 			"propername"		"0"
 			"image_inventory"	"backpack/workshop/weapons/c_models/c_scout_sword/c_scout_sword"
 			"model_player"	"models/workshop/weapons/c_models/c_scout_sword/c_scout_sword.mdl"		
+			"static_attrs"
+			{
+				"min_viewmodel_offset"					"10 0 -6"
+			}
+			"attributes"
+			{
+				"bleeding duration"
+				{
+					"attribute_class"	"bleeding_duration"
+					"value" "5"
+				}
+				"hit self on miss"
+				{
+					"attribute_class"	"hit_self_on_miss"
+					"value"	"1"
+				}
+			}
 			"visuals"
 			{
 				"sound_melee_miss"	"Weapon_Sword.Swing"
@@ -6775,7 +7321,7 @@
 		"10457"
 		{
 			"name"	"The Postal Pummeler"
-			"prefab"	"weapon_axtinguisher weapon_reskin"
+			"prefab"	"weapon_fireaxe weapon_reskin"
 			"year"			"2011"
 			"item_logname"	"mailbox"
 			"item_iconname"	"mailbox"
@@ -6788,19 +7334,42 @@
 			{
 				"min_viewmodel_offset"					"15 2 -12"				
 			}
+			"attributes"
+			{
+				"crit vs burning players"
+				{
+					"attribute_class"	"or_crit_vs_playercond"
+					"value"	"1"
+				}
+				"dmg penalty vs nonburning"
+				{
+					"attribute_class"	"mult_dmg_vs_nonburning"
+					"value"	"0.5"
+				}
+				"crit mod disabled"
+				{
+					"attribute_class"	"mult_crit_chance"
+					"value"	"0"
+				}
+			}
 		}
 		"10466"
 		{
 			"name"	"The Maul"
-			"prefab"	"weapon_homewrecker weapon_reskin"
+			"prefab"	"weapon_fireaxe weapon_reskin"
 			"year"			"2011"
 			"item_logname"	"the_maul"
 			"item_iconname"	"the_maul"
+			"item_type_name"	"#TF_Weapon_SledgeHammer"
 			"item_name"	"#TF_RFAHammer"
 			"propername"	"1"
 			"item_description"	"#TF_RFAHammer_Desc"
 			"image_inventory"	"backpack/workshop/weapons/c_models/c_rfa_hammer/c_rfa_hammer"
 			"model_player"	"models/workshop/weapons/c_models/c_rfa_hammer/c_rfa_hammer.mdl"
+			"static_attrs"
+			{
+				"min_viewmodel_offset"					"15 2 -12"				
+			}
 			"attributes"
 			{
 				"dmg bonus vs buildings"
@@ -6819,9 +7388,9 @@
 					"value"	"1"
 				}
 			}
-			"static_attrs"
+			"visuals"
 			{
-				"min_viewmodel_offset"					"15 2 -12"				
+				"sound_melee_hit"	"Weapon_Machete.HitFlesh"
 			}
 		}
 		"10482"
@@ -6899,13 +7468,52 @@
 		"10608"
 		{
 			"name"	"The Bootlegger"
+			"prefab"			"weapon_wearable weapon_reskin"
 			"year"				"2011"
-			"prefab"			"weapon_demoman_boots weapon_reskin"
+			"demoknight"		"1"
 			"propername"		"1"
 			"item_name"			"#TF_Bootlegger"
 			"item_description"	"#TF_Bootlegger_Desc"
+			"item_slot"		"primary"
+			"equip_region"	"feet"
+			"anim_slot"		"FORCE_NOT_USED"
 			"image_inventory"	"backpack/workshop/player/items/demo/pegleg/pegleg"
 			"model_player"		"models/workshop/player/items/demo/pegleg/pegleg.mdl"
+			"act_as_wearable" "1"
+			"used_by_classes"
+			{
+				"demoman"	"1"
+			}
+			"attributes"
+			{
+				"mult charge turn control"
+				{
+					"attribute_class"	"charge_turn_control"
+					"value"			"3"
+				}
+				"max health additive bonus"
+				{
+					"attribute_class"	"add_maxhealth"
+					"value" "25"
+				}
+				"kill refills meter"
+				{
+					"attribute_class"	"kill_refills_meter"
+					"value"			"0.25"
+				}
+				"move speed bonus"
+				{
+					"attribute_class"	"mult_player_movespeed"
+					"value"	"1.10"
+				}
+			}
+			"visuals"
+			{
+				"player_bodygroups"
+				{
+					"shoes"			"1"
+				}
+			}
 		}
 		"10609"
 		{
@@ -7031,12 +7639,118 @@
 				}
 			}
 		}
-		"11006"
+		"30474"
+		{
+			"name"		"The Nostromo Napalmer"
+			"prefab"		"weapon_flamethrower weapon_reskin"
+			"year"					"2014"
+			"item_logname"		"ai_flamethrower"
+			"item_iconname"		"ai_flamethrower"
+			"item_type_name"		"#TF_Weapon_Flamethrower"
+			"item_name"		"#TF_NostromoNapalmer"
+			"item_description"		"#TF_NostromoNapalmer_Desc"
+			"image_inventory"		"backpack/workshop_partner/weapons/c_models/c_ai_flamethrower/c_ai_flamethrower"
+			"model_player"		"models/workshop_partner/weapons/c_models/c_ai_flamethrower/c_ai_flamethrower.mdl"
+			"propername"		"1"
+		}
+		"30666"
+		{
+			"name"		"The C.A.P.P.E.R"
+			"prefab"		"weapon_pistol weapon_reskin"
+			"year"					"2015"
+			"item_name"		"#TF_invasion_pistol"
+			"item_description"		"#TF_invasion_pistol_Desc"
+			"item_logname"		"the_capper"
+			"item_iconname"		"the_capper"
+			"propername"		"1"
+			"image_inventory"		"backpack/workshop/weapons/c_models/c_invasion_pistol/c_invasion_pistol"
+			"model_player"		"models/workshop/weapons/c_models/c_invasion_pistol/c_invasion_pistol.mdl"
+			"used_by_classes"
+			{
+				"scout"	"1"
+				"engineer"	"1"
+			}
+			"attributes"
+			{
+				"ragdolls become ash"
+				{
+					"attribute_class"	"ragdolls_become_ash"
+					"value"	"1"
+				}
+			}
+			"visuals"
+			{
+				"sound_single_shot"		"Weapon_Capper.Single"
+				"sound_burst"		"Weapon_Capper.SingleCrit"
+			}
+			"visuals_red"
+			{
+				"skin"		"0"
+				"muzzle_flash"		"muzzle_raygun_red"
+				"tracer_effect"		"bullet_tracer_raygun"
+			}
+			"visuals_blu"
+			{
+				"skin"		"1"
+				"muzzle_flash"		"muzzle_raygun_blue"
+				"tracer_effect"		"bullet_tracer_raygun"
+			}
+		}
+		"30667"
+		{
+			"name"		"Batsaber"
+			"prefab"		"weapon_bat weapon_reskin"
+			"year"					"2015"
+			"item_name"		"#TF_invasion_bat"
+			"item_description"		"#TF_invasion_bat_Desc"
+			"item_logname"		"batsaber"
+			"item_iconname"		"batsaber"
+			"image_inventory"		"backpack/workshop/weapons/c_models/c_invasion_bat/c_invasion_bat"
+			"model_player"		"models/workshop/weapons/c_models/c_invasion_bat/c_invasion_bat.mdl"
+			"attributes"
+			{
+				"ragdolls plasma effect"
+				{
+					"attribute_class"	"ragdolls_plasma_effect"
+					"value" "1"
+				}
+			}
+			"visuals"
+			{
+				"sound_melee_miss"		"Weapon_BatSaber.Swing"
+				"sound_melee_hit"		"Weapon_BatSaber.HitFlesh"
+				"sound_melee_hit_world"		"Weapon_BatSaber.HitWorld"
+				"sound_burst"		"Weapon_BatSaber.SwingCrit"
+				"sound_deploy"		"Weapon_BatSaber.Draw"
+			}
+			"visuals_red"
+			{
+				"skin"		"0"
+			}
+			"visuals_blu"
+			{
+				"skin"		"1"
+			}
+		}
+		"30668"
+		{
+			"name"		"The Giger Counter"
+			"prefab"		"weapon_wrangler weapon_reskin"
+			"year"					"2015"
+			"item_name"		"#TF_invasion_wrangler"
+			"item_description"		"#TF_invasion_wrangler_Desc"
+			"item_logname"		"giger_counter"
+			"item_iconname"		"giger_counter"
+			"propername"		"1"
+			"image_inventory"		"backpack/workshop/weapons/c_models/c_invasion_wrangler/c_invasion_wrangler"
+			"model_player"		"models/workshop/weapons/c_models/c_invasion_wrangler/c_invasion_wrangler.mdl"
+		}
+		"90001"
 		{
 			"name"			"Ambassador Dark"
 			"prefab"		"weapon_ambassador weapon_reskin"
 			"item_description"	"#TF_PyroHazmat_Style3"
-			"year"			"2012"
+			"year"			"2019"
 			"model_player"	"models/weapons/c_models/c_ambassador/c_ambassador_dark.mdl"
 		}
 	}

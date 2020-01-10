@@ -93,6 +93,7 @@
 	"Tomislav"										"1"
 	"The Family Business"							"1"
 	"The Eviction Notice"							"1"
+	"The Family Business (Multi-Class)"				"1"
 	"The Mantreads"									"1"
 	"The Disciplinary Action"						"1"
 	"The Soda Popper"								"1"
@@ -101,8 +102,11 @@
 	"The Enforcer"									"1"
 	"The Big Earner"								"1"
 	"The Original"									"1"
+	"The Diamondback"								"1"
 	"The Widowmaker"								"1"
 	"The Cozy Camper"								"1"
+	"The Holiday Punch"								"1"
+	"The Scorch Shot"								"1"
 	"The Cleaner's Carbine"							"1"
 	"The Hitman's Heatmaker"						"1"
 	"Baby Face's Blaster"							"1"
@@ -115,6 +119,8 @@
 	"The Quickiebomb Launcher"						"1"
 	"The Iron Bomber"								"1"
 	"Panic Attack Shotgun"							"1"
+	"The Second Banana"								"1"
+	"Spawn Camper"									"1"
 	"Ludmila"										"1"
 	
 	// Reskins
@@ -141,5 +147,9 @@
 	"The Ham Shank"									"1"
 	"The Fortified Compound"						"1"
 	"The Sharp Dresser"								"1"
+	"The Nostromo Napalmer"							"1"
+	"The C.A.P.P.E.R"								"1"
+	"Batsaber"										"1"
+	"The Giger Counter"								"1"
 	"Ambassador Dark"								"1"
 }

@@ -264,15 +264,6 @@ void CTFWeaponBaseGrenadeProj::InitGrenade( const Vector &velocity, const Angula
 		{
 			SetModel( STRING( strModelOverride ) );
 		}
-		
-		int nGrenadeNoBounce = 0;
-		CALL_ATTRIB_HOOK_INT_ON_OTHER( m_hLauncher.Get(), nGrenadeNoBounce, grenade_no_bounce );
-		if ( nGrenadeNoBounce != 0 )
-		{
-			int nDamperMult = 4;
-			SetFriction( ( 0.2f * nDamperMult ) );
-			SetElasticity( ( 0.45f / nDamperMult ) );
-		}
 	}
 
 	ChangeTeam( pOwner->GetTeamNumber() );
@@ -380,8 +371,9 @@ void CTFWeaponBaseGrenadeProj::Explode( trace_t *pTrace, int bitsDamageType )
 		DrawRadius( flRadius );
 	}
 
+	CTakeDamageInfo newInfo( this, GetThrower(), m_hLauncher, GetBlastForce(), GetAbsOrigin(), m_flDamage, bitsDamageType, TF_DMG_CUSTOM_NONE, &vecReported );
 	CTFRadiusDamageInfo radiusInfo;
-	radiusInfo.info.Set( this, GetThrower(), m_hLauncher, GetBlastForce(), GetAbsOrigin(), m_flDamage, bitsDamageType, TF_DMG_CUSTOM_NONE, &vecReported );
+	radiusInfo.info = &newInfo;
 	radiusInfo.m_vecSrc = vecOrigin;
 	radiusInfo.m_flRadius = flRadius;
 	radiusInfo.m_flSelfDamageRadius = 146.0f;

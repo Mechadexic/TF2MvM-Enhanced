@@ -118,6 +118,13 @@ void CTFWeaponBaseGun::PrimaryAttack( void )
 	
 	if ( pPlayer->m_Shared.InCond( TF_COND_BLASTJUMPING ) )
 			CALL_ATTRIB_HOOK_FLOAT( flFireDelay, rocketjump_attackrate_bonus );
+		
+	float flHealthModFireBonus = 1;
+	CALL_ATTRIB_HOOK_FLOAT( flHealthModFireBonus, mult_postfiredelay_with_reduced_health );
+	if (flHealthModFireBonus != 1)
+	{
+		flFireDelay *= RemapValClamped( pPlayer->GetHealth() / pPlayer->GetMaxHealth(), 0.2, 0.9, flHealthModFireBonus, 1.0 );
+	}
 
 	m_flNextPrimaryAttack = gpGlobals->curtime + flFireDelay;
 
@@ -496,15 +503,15 @@ CBaseEntity *CTFWeaponBaseGun::FireNail( CTFPlayer *pPlayer, int iSpecificNail )
 	switch( iSpecificNail )
 	{
 	case TF_PROJECTILE_SYRINGE:
-		pProjectile = CTFProjectile_Syringe::Create( vecSrc, angForward, pPlayer, pPlayer, IsCurrentAttackACrit() );
+		pProjectile = CTFProjectile_Syringe::Create(vecSrc, angForward, pPlayer, pPlayer, IsCurrentAttackACrit(), this );
 		break;
 
 	case TF_PROJECTILE_NAIL:
-		pProjectile = CTFProjectile_Nail::Create(vecSrc, angForward, pPlayer, pPlayer, IsCurrentAttackACrit());
+		pProjectile = CTFProjectile_Nail::Create(vecSrc, angForward, pPlayer, pPlayer, IsCurrentAttackACrit(), this );
 		break;
 
 	case TF_PROJECTILE_DART:
-		pProjectile = CTFProjectile_Dart::Create(vecSrc, angForward, pPlayer, pPlayer, IsCurrentAttackACrit());
+		pProjectile = CTFProjectile_Dart::Create(vecSrc, angForward, pPlayer, pPlayer, IsCurrentAttackACrit(), this );
 		break;
 
 	default:
@@ -845,6 +852,18 @@ float CTFWeaponBaseGun::GetWeaponSpread( void )
 {
 	float flSpread = m_pWeaponInfo->GetWeaponData( m_iWeaponMode ).m_flSpread;
 	CALL_ATTRIB_HOOK_FLOAT( flSpread, mult_spread_scale );
+	
+	CTFPlayer *pPlayer = ToTFPlayer( GetPlayerOwner() );
+	if ( pPlayer )
+	{
+		float flHealthModSpread = 1;
+		CALL_ATTRIB_HOOK_FLOAT( flHealthModSpread, panic_attack_negative );
+		if (flHealthModSpread != 1)
+		{
+			flSpread *= RemapValClamped( pPlayer->GetHealth() / pPlayer->GetMaxHealth(), 0.2, 0.9, flHealthModSpread, 1.0 );
+		}	
+	}
+	
 	return flSpread;
 }
 

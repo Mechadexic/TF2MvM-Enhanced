@@ -115,7 +115,7 @@ ConVar tf_allow_player_use( "tf_allow_player_use", "0", FCVAR_NOTIFY, "Allow pla
 
 ConVar tf_allow_sliding_taunt( "tf_allow_sliding_taunt", "0", 0, "Allow player to slide for a bit after taunting." );
 
-ConVar tf_halloween_giant_health_scale( "tf_halloween_giant_health_scale", "10", FCVAR_CHEAT );
+ConVar tf_halloween_giant_health_scale( "tf_halloween_giant_health_scale", "10", FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY );
 
 
 
@@ -132,6 +132,7 @@ extern ConVar tf_spy_invis_time;
 extern ConVar tf_spy_invis_unstealth_time;
 extern ConVar tf_stalematechangeclasstime;
 extern ConVar tf_damage_disablespread;
+extern ConVar tf_scout_energydrink_consume_rate;
 
 // TF2V commands
 ConVar tf2v_randomizer( "tf2v_randomizer", "0", FCVAR_NOTIFY, "Makes players spawn with random loadout and class." );
@@ -149,7 +150,7 @@ ConVar tf2v_legacy_weapons( "tf2v_legacy_weapons", "0", FCVAR_DEVELOPMENTONLY, "
 
 ConVar tf2v_disable_holiday_loot( "tf2v_disable_holiday_loot", "0", FCVAR_REPLICATED | FCVAR_NOTIFY, "Disable loot drops in holiday gamemodes" );
 
-ConVar tf2v_player_misses( "tf2v_player_misses", "1", FCVAR_NOTIFY | FCVAR_REPLICATED, "Whether or not random misses are enabled." );
+ConVar tf2v_player_misses( "tf2v_player_misses", "0", FCVAR_NOTIFY | FCVAR_REPLICATED, "Whether or not random misses are enabled." );
 ConVar tf2v_misschance( "tf2v_misschance", "2.0", FCVAR_NOTIFY | FCVAR_REPLICATED, "Percent chance for a random miss.");
 
 ConVar tf2v_sentry_resist_bonus( "tf2v_sentry_resist_bonus", "1", FCVAR_NOTIFY | FCVAR_REPLICATED, "Enables extra damage resistance on sentries for Defensive Buffs." );
@@ -1240,6 +1241,7 @@ void CTFPlayer::Spawn()
 	m_Shared.SetDecapitationCount( 0 );
 	m_Shared.SetHeadshotCount( 0 );
 	m_Shared.SetKillstreakCount( 0 );
+	m_Shared.SetSapperKillCount( 0 );
 	m_Shared.SetHypeMeterAbsolute( 0 );
 	m_Shared.SetFeignReady( false );
 	m_Shared.SetHasRecoiled( false );
@@ -1923,16 +1925,17 @@ void CTFPlayer::ValidateWeapons( bool bRegenerate )
 
 			if ( !ItemsMatch( pWeapon->GetItem(), pLoadoutItem, pWeapon ) )
 			{
+
+				// **HACK: Extra wearables aren't dying correctly sometimes so
+				// try and remove them here just in case ValidateWearables() fails
+				CEconWearable *pWearable = GetWearableForLoadoutSlot( iSlot );
+				if ( pWearable )
+				{
+					RemoveWearable( pWearable );
+				}
+				
 				if ( pWeapon->GetWeaponID() == TF_WEAPON_BUFF_ITEM )
 				{
-					// **HACK: Extra wearables aren't dying correctly sometimes so
-					// try and remove them here just in case ValidateWearables() fails
-					CEconWearable *pWearable = GetWearableForLoadoutSlot( iSlot );
-					if ( pWearable )
-					{
-						RemoveWearable( pWearable );
-					}
-
 					// Reset rage
 					m_Shared.ResetRageSystem();
 				}
@@ -2098,46 +2101,6 @@ void CTFPlayer::ManageRegularWeapons( TFPlayerClassData_t *pData )
 		
 	}
 
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CTFPlayer::PostInventoryApplication( void )
-{
-	m_Shared.RecalculatePlayerBodygroups();
-
-	IGameEvent *event = gameeventmanager->CreateEvent( "post_inventory_application" );
-	if ( event )
-	{
-		event->SetInt( "userid", GetUserID() );
-
-		gameeventmanager->FireEvent( event );
-	}
-}
-
-float CTFPlayer::GetDesiredHeadScale( void ) const
-{
-	float flHeadScale = 1.0f;
-	CALL_ATTRIB_HOOK_FLOAT( flHeadScale, head_scale );
-	return flHeadScale;
-}
-
-float CTFPlayer::GetHeadScaleSpeed( void )
-{
-	if ( m_Shared.InCond( TF_COND_HALLOWEEN_BOMB_HEAD ) )
-		return GetDesiredHeadScale();
-
-	if ( m_Shared.InCond( TF_COND_BALLOON_HEAD ) )
-		return GetDesiredHeadScale();
-
-	if ( m_Shared.InCond( TF_COND_MELEE_ONLY ) )
-		return GetDesiredHeadScale();
-
-	if ( m_Shared.InCond( TF_COND_HALLOWEEN_KART ) )
-		return GetDesiredHeadScale();
-
-	return gpGlobals->frametime;
 }
 
 //-----------------------------------------------------------------------------
@@ -2507,6 +2470,22 @@ void CTFPlayer::EnableVIP( TFPlayerClassData_t *pData , int iMedalType )
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CTFPlayer::PostInventoryApplication( void )
+{
+	m_Shared.RecalculatePlayerBodygroups();
+
+	IGameEvent *event = gameeventmanager->CreateEvent( "post_inventory_application" );
+	if ( event )
+	{
+		event->SetInt( "userid", GetUserID() );
+
+		gameeventmanager->FireEvent( event );
+	}
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: Get preset from the vector
 //-----------------------------------------------------------------------------
 CEconItemView *CTFPlayer::GetLoadoutItem( int iClass, int iSlot )
@@ -2825,6 +2804,36 @@ void CTFPlayer::OnNavAreaChanged( CNavArea *newArea, CNavArea *oldArea )
 		CTFNavArea *area = static_cast<CTFNavArea *>( ( *areas )[i] );
 		area->IncreaseDanger( GetTeamNumber(), ( area->GetCenter() - GetAbsOrigin() ).Length() );
 	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+float CTFPlayer::GetDesiredHeadScale( void ) const
+{
+	float flHeadScale = 1.0f;
+	CALL_ATTRIB_HOOK_FLOAT( flHeadScale, head_scale );
+	return flHeadScale;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+float CTFPlayer::GetHeadScaleSpeed( void )
+{
+	if ( m_Shared.InCond( TF_COND_HALLOWEEN_BOMB_HEAD ) )
+		return GetDesiredHeadScale();
+
+	if ( m_Shared.InCond( TF_COND_BALLOON_HEAD ) )
+		return GetDesiredHeadScale();
+
+	if ( m_Shared.InCond( TF_COND_MELEE_ONLY ) )
+		return GetDesiredHeadScale();
+
+	if ( m_Shared.InCond( TF_COND_HALLOWEEN_KART ) )
+		return GetDesiredHeadScale();
+
+	return gpGlobals->frametime;
 }
 
 //-----------------------------------------------------------------------------
@@ -3477,10 +3486,9 @@ const Vector &CTFPlayer::EstimateProjectileImpactPosition( float pitch, float ya
 	const float g = sv_gravity.GetFloat();
 
 	Vector alongDir = vecForward;
-	alongDir.z = 0.0f;
-	alongDir.NormalizeInPlace();
+	alongDir.AsVector2D().NormalizeInPlace();
 
-	float alongVel = FastSqrt( vecVelocity.x * vecVelocity.x + vecVelocity.y * vecVelocity.y );
+	float alongVel = vecVelocity.AsVector2D().Length();
 
 	trace_t                        trace;
 	NextBotTraceFilterIgnoreActors traceFilter( this, COLLISION_GROUP_NONE );
@@ -4164,7 +4172,7 @@ void CTFPlayer::TraceAttack( const CTakeDamageInfo &info, const Vector &vecDir, 
 					// play the critical shot sound to the shooter	
 					if ( pWpn )
 					{
-						if ( pWpn->IsWeapon( TF_WEAPON_SNIPERRIFLE ) )
+						if ( pWpn->IsWeapon( TF_WEAPON_SNIPERRIFLE ) || pWpn->IsWeapon( TF_WEAPON_SNIPERRIFLE_DECAP ) )
 							pWpn->WeaponSound( BURST );
 
 						CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pWpn, flDamage, headshot_damage_modify );
@@ -4562,7 +4570,7 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 	
 	// We calculate out a random chance of a critical miss happening.
 	bool bIsCriticalMiss = false;
-	if ( ( tf2v_misschance.GetFloat() > 0.0f ) && ( tf2v_player_misses.GetBool() ) )
+	if ( ( tf2v_misschance.GetFloat() > 0.0f ) && ( tf2v_player_misses.GetBool() == true ) )
 	{
 		int iRandomChance = RandomInt(0.0,100.0);
 		if ( iRandomChance <= tf2v_misschance.GetFloat() )
@@ -4674,8 +4682,8 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 	}
 
 	// Handle on-hit effects.
-	// Don't apply on-hit effects if a building did it.
-	if ( ( pWeapon && pAttacker != this ) && (!bObject)	)
+	// Don't apply on-hit effects if a building did it, or if it's done by afterburn.
+	if ( ( pWeapon && pAttacker != this ) && ( (!bObject) && !( info.GetDamageType() & DMG_BURN ) ) )
 	{
 		int nCritOnCond = 0;
 		CALL_ATTRIB_HOOK_INT_ON_OTHER( pWeapon, nCritOnCond, or_crit_vs_playercond );
@@ -4774,6 +4782,21 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 				info.AddDamageType( DMG_MINICRITICAL );
 			}
 			
+			// Add crits for a back hit.
+			// Doing this here makes it so it can be applied to any weapon.
+			int nHasBackCrits = 0;
+			CALL_ATTRIB_HOOK_INT_ON_OTHER( pWeapon, nHasBackCrits, crit_from_behind );
+			if ( bitsDamage & !DMG_CRITICAL && nHasBackCrits )
+			{
+				if ( ToTFPlayer(pAttacker) )
+				{
+					if ( ToTFPlayer(pAttacker)->IsBehindTarget(this) )
+					{
+						bitsDamage |= DMG_CRITICAL;
+						info.AddDamageType( DMG_CRITICAL );
+					}
+				}
+			}
 			
 			// Add minicrits for a close range back hit.
 			// Doing this here makes it so it can be applied to any weapon.
@@ -4792,7 +4815,6 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 						info.AddDamageType( DMG_MINICRITICAL );
 					}
 				}
-				
 			}
 			
 			// Promote or demote Crits and Minicrits. Having both simultaneously negates the attribute.
@@ -4813,6 +4835,20 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 				bitsDamage |= DMG_CRITICAL;
 			}
 
+			int nNoDamageOnCrit = 0;
+			CALL_ATTRIB_HOOK_INT_ON_OTHER( pWeapon, nNoDamageOnCrit, crit_does_no_damage );
+			if ( ( bitsDamage & DMG_CRITICAL ) && nNoDamageOnCrit )
+			{
+				info.SetDamage( 0.0f );
+				info.ScaleDamageForce( 0.0f );
+			}
+			
+			int nForceVictimToLaugh = 0;
+			CALL_ATTRIB_HOOK_INT_ON_OTHER( pWeapon, nForceVictimToLaugh, crit_forces_victim_to_laugh );
+			if ( ( bitsDamage & DMG_CRITICAL ) && nForceVictimToLaugh != 0 )
+			{
+				Taunt( TAUNT_LAUGH, MP_CONCEPT_TAUNT_LAUGH );
+			}
 			
 			// Notify the damaging weapon.
 			pWeapon->ApplyOnHitAttributes( this, pTFAttacker, info );
@@ -4880,6 +4916,7 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 				WRITE_BYTE( this->entindex() );
 			MessageEnd();
 		}
+
 	}
 
 	// If we're not damaging ourselves, apply randomness
@@ -5008,6 +5045,7 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 						switch ( pWeapon->GetWeaponID() )
 						{
 							case TF_WEAPON_ROCKETLAUNCHER:
+							case TF_WEAPON_ROCKETLAUNCHER_AIRSTRIKE:
 							case TF_WEAPON_PIPEBOMBLAUNCHER:
 								// Rocket launcher and sticky launcher only have half the bonus of the other weapons at short range
 								flRandomDamage *= 0.5;
@@ -5134,6 +5172,7 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 						switch ( pWeapon->GetWeaponID() )
 						{
 							case TF_WEAPON_ROCKETLAUNCHER:
+							case TF_WEAPON_ROCKETLAUNCHER_AIRSTRIKE:
 							case TF_WEAPON_PIPEBOMBLAUNCHER:
 								// Rocket launcher and sticky launcher only have half the bonus of the other weapons at short range
 								flRandomDamage *= 0.5;
@@ -5193,8 +5232,10 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 		
 		int nSpeedBoostOnHit = 0;
 		CALL_ATTRIB_HOOK_INT_ON_OTHER( pWeapon, nSpeedBoostOnHit, speed_boost_on_hit );
+		CALL_ATTRIB_HOOK_INT_ON_OTHER( pWeapon, nSpeedBoostOnHit, speed_boost_on_hit_enemy );
 		if ( nSpeedBoostOnHit > 0)
 			m_Shared.AddCond( TF_COND_SPEED_BOOST, nSpeedBoostOnHit );
+		
 	}
 
 	TeamFortress_SetSpeed();
@@ -5635,7 +5676,7 @@ int CTFPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 				flDamageRangedMult = 1.0f;
 			flDamage *= flDamageRangedMult;
 		}
-			
+		
 		if ( info.GetDamageType() & DMG_BURN|DMG_IGNITE )
 		{
 			float flDamageFireActiveMult = 1.0f;
@@ -5646,11 +5687,11 @@ int CTFPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 		}
 		
 		// Aiming resists, if actively using a minigun/sniper rifle and under 50% health.
-		if ( ( m_Shared.InCond(TF_COND_AIMING ) ) )
+		if ( ( m_Shared.InCond( TF_COND_AIMING ) ) )
 		{
 			// Regular old spinup resistance.
 			float flDamageAimMultFull = 1.0f;
-			CALL_ATTRIB_HOOK_FLOAT( flDamageAimMultFull, spunup_damage_resistance_full );
+			CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( GetActiveTFWeapon(), flDamageAimMultFull, spunup_damage_resistance_full );
 			if ( (nIgnoreResists == 1) && ( flDamageAimMultFull < 1.0f ) )
 				flDamageAimMultFull = 1.0f;
 			flDamage *= flDamageAimMultFull;
@@ -5659,22 +5700,30 @@ int CTFPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 			if ( ( GetHealth() < ( GetMaxHealth() / 2 ) ) )
 			{
 				float flDamageAimMult = 1.0f;
-				CALL_ATTRIB_HOOK_FLOAT( flDamageAimMult, spunup_damage_resistance );
+				CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( GetActiveTFWeapon(), flDamageAimMult, spunup_damage_resistance );
 				if ( (nIgnoreResists == 1) && ( flDamageAimMult < 1.0f ) )
 					flDamageAimMult = 1.0f;
 				flDamage *= flDamageAimMult;
 			}
 		}
 		
-		if ( m_Shared.InCond(TF_COND_ENERGY_BUFF ) )
+		int nForceLaughSameWeapon = 0;
+		CALL_ATTRIB_HOOK_INT_ON_OTHER( pTFWeapon, nForceLaughSameWeapon, tickle_enemies_wielding_same_weapon );
+		if ( nForceLaughSameWeapon != 0 )
 		{
-			float flEnergyBuffMult = 1.0f;
-			CALL_ATTRIB_HOOK_FLOAT( flEnergyBuffMult, energy_buff_dmg_taken_multiplier );
-			flDamage *= flEnergyBuffMult;
+			// Check if we have the same weapon.
+			if ( ItemsMatch( pTFWeapon->GetItem(), GetActiveTFWeapon()->GetItem() ) )
+				Taunt( TAUNT_LAUGH, MP_CONCEPT_TAUNT_LAUGH );
 		}
-		
 	}
-
+	
+	if ( m_Shared.InCond( TF_COND_ENERGY_BUFF ) )
+	{
+		float flEnergyBuffMult = 1.0f;
+		CALL_ATTRIB_HOOK_FLOAT( flEnergyBuffMult, energy_buff_dmg_taken_multiplier );
+		flDamage *= flEnergyBuffMult;
+	}
+		
 	if ( IsPlayerClass( TF_CLASS_SPY ) && info.GetDamageCustom() != TF_DMG_CUSTOM_TELEFRAG )
 	{
 		if ( m_Shared.InCond( TF_COND_FEIGN_DEATH ) )
@@ -6217,6 +6266,11 @@ void CTFPlayer::Event_KilledOther( CBaseEntity *pVictim, const CTakeDamageInfo &
 			{
 				m_Shared.SetMaxHealth( GetMaxHealth() );
 			}
+			
+			// If we killed them from a backstab, increase our sapper kill count.
+			if ( info.GetDamageCustom() == TF_DMG_CUSTOM_BACKSTAB )
+				m_Shared.StoreSapperKillCount();
+			
 		}
 	}
 	else
@@ -6267,11 +6321,10 @@ void CTFPlayer::Event_Killed( const CTakeDamageInfo &info )
 		if ( nDropHealthOnKill != 0 )
 			DropHealthPack();
 
-		// TODO: Play specific sequence
 		int nForceKillerToLaugh = 0;
 		CALL_ATTRIB_HOOK_INT_ON_OTHER( pTFAttacker, nForceKillerToLaugh, kill_forces_attacker_to_laugh );
 		if ( nForceKillerToLaugh != 0 )
-			pTFAttacker->Taunt();
+			pTFAttacker->Taunt( TAUNT_LAUGH, MP_CONCEPT_TAUNT_LAUGH );
 	}
 
 	RemoveTeleportEffect();
@@ -8662,7 +8715,6 @@ void CTFPlayer::OnMyWeaponFired( CBaseCombatWeapon *pWeapon )
 		case TF_WEAPON_LUNCHBOX:
 		case TF_WEAPON_LUNCHBOX_DRINK:
 		case TF_WEAPON_BUFF_ITEM:
-		//case TF_WEAPON_PDA_SPY_BUILD:
 			return;
 
 		default:
@@ -8738,6 +8790,23 @@ void CTFPlayer::SpyDeadRingerDeath( CTakeDamageInfo const &info )
 	EmitSound( "BaseCombatCharacter.StopWeaponSounds" );
 	DeathSound( info );
 	TFGameRules()->DeathNotice( this, info );
+
+	if ( GetActiveWeapon() )
+	{
+		int nDropsHealthPack = 0;
+		CALL_ATTRIB_HOOK_INT_ON_OTHER( GetActiveWeapon(), nDropsHealthPack, drop_health_pack_on_kill );
+		if ( nDropsHealthPack == 1 )
+			DropHealthPack();
+	}
+
+	CTFPlayer *pAttacker = ToTFPlayer( info.GetAttacker() );
+	if ( pAttacker )
+	{
+		int nKillForcesLaugh = 0;
+		CALL_ATTRIB_HOOK_INT_ON_OTHER( pAttacker, nKillForcesLaugh, kill_forces_attacker_to_laugh );
+		if ( nKillForcesLaugh == 1 )
+			pAttacker->Taunt( TAUNT_LAUGH, MP_CONCEPT_TAUNT_LAUGH );
+	}
 
 	SpeakConceptIfAllowed( MP_CONCEPT_DIED );
 
@@ -9285,27 +9354,14 @@ void CTFPlayer::CheckUncoveringSpies( CTFPlayer *pTouchedPlayer )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CTFPlayer::Taunt( void )
+void CTFPlayer::Taunt( taunts_t eTaunt, int iConcept )
 {
 	// Check to see if we can taunt again!
-	if ( m_Shared.InCond( TF_COND_TAUNTING ) )
+	if ( !IsAllowedToTaunt() || eTaunt == 3 /*TODO: Name*/ )
 		return;
 
-	// Check to see if we are in water (above our waist).
-	if ( GetWaterLevel() > WL_Waist )
-		return;
-
-	// Check to see if we are on the ground.
-	if ( GetGroundEntity() == NULL )
-		return;
-
-	// Can't taunt while cloaked.
-	if ( m_Shared.InCond( TF_COND_STEALTHED ) )
-		return;
-
-	// Can't taunt while disguised.
-	if ( m_Shared.InCond( TF_COND_DISGUISED ) )
-		return;
+	if ( eTaunt == 2 )
+		iConcept = MP_CONCEPT_PLAYER_SHOW_ITEM_TAUNT;
 
 	// Allow voice commands, etc to be interrupted.
 	CMultiplayer_Expresser *pExpresser = GetMultiplayerExpresser();
@@ -9314,8 +9370,9 @@ void CTFPlayer::Taunt( void )
 
 	m_bInitTaunt = true;
 	char szResponse[AI_Response::MAX_RESPONSE_NAME];
-	if ( SpeakConceptIfAllowed( MP_CONCEPT_PLAYER_TAUNT, NULL, szResponse, AI_Response::MAX_RESPONSE_NAME ) || tf2v_random_weapons.GetBool() || tf2v_randomizer.GetBool() )
+	if ( SpeakConceptIfAllowed( iConcept, NULL, szResponse, AI_Response::MAX_RESPONSE_NAME ) || tf2v_random_weapons.GetBool() || tf2v_randomizer.GetBool() )
 	{
+		
 		// Get the duration of the scene.
 		float flDuration = GetSceneDuration( szResponse ) + 0.2f;
 
@@ -9440,6 +9497,64 @@ void CTFPlayer::Taunt( void )
 	}
 
 	pExpresser->DisallowMultipleScenes();
+}
+
+bool CTFPlayer::IsAllowedToTaunt( void )
+{
+	CTFWeaponBase *pWeapon = GetActiveTFWeapon();
+
+	// Can't start another taunt in the middle of taunting
+	if ( m_Shared.InCond( TF_COND_TAUNTING ) )
+		return false;
+
+	if ( !IsAlive() )
+		return false;
+
+	if ( GetWaterLevel() > WL_Waist )
+		return false;
+
+	if ( GetGroundEntity() == NULL && !m_Shared.InCond( TF_COND_HALLOWEEN_KART ) )
+		return false;
+
+	// Will our weapon let us taunt?
+	if ( pWeapon )
+	{
+		if( !pWeapon->OwnerCanTaunt() )
+			return false;
+
+		if ( pWeapon->GetWeaponID() == TF_WEAPON_PDA_ENGINEER_BUILD || pWeapon->GetWeaponID() == TF_WEAPON_PDA_ENGINEER_DESTROY )
+			return false;
+	}
+
+	// Can't taunt while charging
+	if ( m_Shared.InCond( TF_COND_SHIELD_CHARGE ) )
+		return false;
+
+	// Can't taunt while cloaked.
+	if ( m_Shared.IsStealthed() || m_Shared.InCond( TF_COND_STEALTHED_BLINK ) )
+		return false;
+
+	// Can't taunt while disguised.
+	if ( m_Shared.InCond( TF_COND_DISGUISED ) || m_Shared.InCond( TF_COND_DISGUISING ) )
+		return false;
+
+	if( pWeapon && pWeapon->GetWeaponID() == TF_WEAPON_LUNCHBOX_DRINK )
+	{
+		// If we're already in a buff, prevent another from getting applied
+		if ( m_Shared.InCond( TF_COND_ENERGY_BUFF ) || m_Shared.InCond( TF_COND_PHASE ) )
+			return false;
+
+		// Can't use unless fully charged
+		if ( m_Shared.m_flEnergyDrinkMeter < 100.0f )
+			return false;
+
+		int nLunchBoxAddsMinicrits = 0;
+		CALL_ATTRIB_HOOK_INT_ON_OTHER( pWeapon, nLunchBoxAddsMinicrits, set_weapon_mode );
+		if ( nLunchBoxAddsMinicrits == 3 )
+			return false;
+	}
+
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -9693,6 +9808,8 @@ void CTFPlayer::DoTauntAttack( void )
 				m_flTauntAttackTime = gpGlobals->curtime + 0.1f;
 			}
 			break;
+
+			SelectLastItem();
 		}
 		case TAUNTATK_SNIPER_ARROW_STAB_IMPALE:
 		case TAUNTATK_SNIPER_ARROW_STAB_KILL:
@@ -9905,6 +10022,30 @@ void CTFPlayer::ModifyOrAppendCriteria( AI_CriteriaSet &criteriaSet )
 {
 	BaseClass::ModifyOrAppendCriteria( criteriaSet );
 
+	CTFWeaponBase *pActiveWeapon = m_Shared.GetActiveTFWeapon();
+
+	// Handle rage taunting
+	if ( pActiveWeapon )
+	{
+		int nGeneratesRage = 0;
+		CALL_ATTRIB_HOOK_INT_ON_OTHER( pActiveWeapon, nGeneratesRage, generates_rage_on_dmg );
+
+		if ( nGeneratesRage && pActiveWeapon->GetWeaponID() == TF_WEAPON_MINIGUN )
+		{
+			if ( m_Shared.GetRageProgress() < 100.0f )
+			{
+				if ( m_Shared.IsRageActive() )
+					return;
+			}
+			else
+			{
+				if ( !m_Shared.IsRageActive() )
+					m_Shared.SetRageActive( true );
+
+				EmitSound( "Heavy.Battlecry03" );
+			}
+		}
+	}
 	// If we have 'disguiseclass' criteria, pretend that we are actually our
 	// disguise class. That way we just look up the scene we would play as if 
 	// we were that class.
@@ -9951,7 +10092,6 @@ void CTFPlayer::ModifyOrAppendCriteria( AI_CriteriaSet &criteriaSet )
 	}
 
 	// Current weapon role
-	CTFWeaponBase *pActiveWeapon = m_Shared.GetActiveTFWeapon();
 	if ( pActiveWeapon )
 	{
 		int iWeaponRole = pActiveWeapon->GetTFWpnData().m_iWeaponType;
@@ -9981,7 +10121,7 @@ void CTFPlayer::ModifyOrAppendCriteria( AI_CriteriaSet &criteriaSet )
 				break;
 		}
 
-		if ( pActiveWeapon->GetWeaponID() == TF_WEAPON_SNIPERRIFLE )
+		if ( WeaponID_IsSniperRifle( pActiveWeapon->GetWeaponID() ) )
 		{
 			CTFSniperRifle *pRifle = dynamic_cast<CTFSniperRifle *>( pActiveWeapon );
 			if ( pRifle && pRifle->IsZoomed() )
@@ -10086,8 +10226,8 @@ void CTFPlayer::ModifyOrAppendCriteria( AI_CriteriaSet &criteriaSet )
 		}
 	}
 
-	if ( m_Shared.InCond( TF_COND_HALLOWEEN_THRILLER ) )
-		criteriaSet.AppendCriteria( "IsHalloweenTaunt", "1" );
+	int nSpecialTaunt = 0;
+	CALL_ATTRIB_HOOK_INT_ON_OTHER( pActiveWeapon, nSpecialTaunt, special_taunt );
 
 	if ( TFGameRules() )
 	{
@@ -10105,7 +10245,44 @@ void CTFPlayer::ModifyOrAppendCriteria( AI_CriteriaSet &criteriaSet )
 
 		bool bIsRedTeam = GetTeamNumber() == TF_TEAM_RED;
 		criteriaSet.AppendCriteria( "OnRedTeam", UTIL_VarArgs( "%d", bIsRedTeam ) );
+
+		if ( TFGameRules()->IsHolidayActive( kHoliday_Halloween ) && nSpecialTaunt == 0 )
+		{
+			if ( pActiveWeapon )
+			{
+				int nGeneratesRage = 0;
+				CALL_ATTRIB_HOOK_INT_ON_OTHER( pActiveWeapon, nGeneratesRage, burn_dmg_earns_rage );
+				CALL_ATTRIB_HOOK_INT_ON_OTHER( pActiveWeapon, nGeneratesRage, generate_rage_on_dmg );
+
+				if ( !WeaponID_IsLunchbox( pActiveWeapon->GetWeaponID() ) && ( nGeneratesRage == 0 || m_Shared.GetRageProgress() < 100.0f ) )
+				{
+					const float flRand = rand() / VALVE_RAND_MAX;
+					if ( flRand < 0.4f )
+						criteriaSet.AppendCriteria( "IsHalloweenTaunt", "1" );
+				}
+			}
+		}
+
+		if ( TFGameRules()->IsHolidayActive( kHoliday_AprilFools ) && nSpecialTaunt == 0 )
+		{
+			if ( pActiveWeapon )
+			{
+				int nGeneratesRage = 0;
+				CALL_ATTRIB_HOOK_INT_ON_OTHER( pActiveWeapon, nGeneratesRage, burn_dmg_earns_rage );
+				CALL_ATTRIB_HOOK_INT_ON_OTHER( pActiveWeapon, nGeneratesRage, generate_rage_on_dmg );
+
+				if ( !WeaponID_IsLunchbox( pActiveWeapon->GetWeaponID() ) && ( nGeneratesRage == 0 || m_Shared.GetRageProgress() < 100.0f ) )
+				{
+					const float flRand = rand() / VALVE_RAND_MAX;
+					if ( flRand < 0.8f )
+						criteriaSet.AppendCriteria( "IsHalloweenTaunt", "1" );
+				}
+			}
+		}
 	}
+
+	if ( m_Shared.InCond( TF_COND_HALLOWEEN_THRILLER ) )
+		criteriaSet.AppendCriteria( "IsHalloweenTaunt", "1" );
 
 	// Active Contexts
 

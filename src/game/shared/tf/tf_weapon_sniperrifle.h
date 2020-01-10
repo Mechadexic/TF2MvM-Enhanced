@@ -91,7 +91,7 @@ public:
 	~CTFSniperRifle();
 
 	virtual int	GetWeaponID( void ) const			{ return TF_WEAPON_SNIPERRIFLE; }
-
+	virtual bool	ShouldDrawCrosshair( void )						{ return false; }
 	virtual void Spawn();
 	virtual void Precache();
 	void		 ResetTimers( void );
@@ -188,13 +188,16 @@ public:
 	virtual int GetWeaponID( void ) const { return TF_WEAPON_SNIPERRIFLE_DECAP; }
 	virtual bool	HasChargeBar( void )			{ return true; }
 	virtual const char* GetEffectLabelText( void ) { return "#TF_Berzerk"; }
+	virtual bool	Deploy( void );
+	virtual bool 	Holster( CBaseCombatWeapon *pSwitchingTo );
 #ifdef GAME_DLL
+
 	virtual void	SetupGameEventListeners( void );
 	virtual void	FireGameEvent( IGameEvent *event );
 #endif
 	virtual void	OnHeadshot( void );
 	virtual float 	GetChargingRate(void);
-	virtual bool Holster( CBaseCombatWeapon *pSwitchingTo );
+
 };
 
 #endif // TF_WEAPON_SNIPERRIFLE_H

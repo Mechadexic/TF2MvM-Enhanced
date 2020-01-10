@@ -328,6 +328,7 @@ public:
 	void	SetRageMeter( float flRagePercent, int iBuffType );
 	void	ActivateRageBuff( CBaseEntity *pEntity, int iBuffType );
 	void	PulseRageBuff( /*CTFPlayerShared::ERageBuffSlot*/ );
+	void	SetRageActive( bool bSet )          { m_bRageActive = bSet; }
 	bool	IsRageActive( void )				{ return m_bRageActive; }
 	float	GetRageProgress( void )				{ return m_flEffectBarProgress; }
 	void	ResetRageSystem( void );
@@ -337,14 +338,14 @@ public:
 	void	SetHasRecoiled( bool value )		{ m_bRecoiled = value; }
 	float	GetHypeMeter( void ) const			{ return m_flHypeMeter; }
 	void	SetHypeMeter( float value, bool bIsPercent );
-	void	SetHypeMeterAbsolute( float value )		{ m_flHypeMeter = value; }
+	void	SetHypeMeterAbsolute( float value )	{ m_flHypeMeter = value; }
 	
 	int		GetKnockbackWeaponID( void ) const  { return m_iWeaponKnockbackID; }
 	void	SetKnockbackWeaponID( int userid )  { m_iWeaponKnockbackID = userid; }
 	CBasePlayer *GetKnockbackWeaponOwner( void );
 
 	// Knights
-	void	IncrementDecapitationCount( void )       	 { m_iDecapitations += 1; }
+	void	IncrementDecapitationCount( void )       { m_iDecapitations += 1; }
 	int		GetDecapitationCount( void ) const       { return m_iDecapitations; }
 	void	SetDecapitationCount( int count )        { m_iDecapitations = count; }
 	bool	HasDemoShieldEquipped( void ) const;
@@ -357,18 +358,27 @@ public:
 	void	SetShieldChargeRegenRate( float flRate ) { m_flChargeRegenRate = flRate; }
 	void	CalcChargeCrit( bool bForceFull );
 	
-	// Sniper rifle headshots
+	// Sniper rifle headshots (ie: Bazaar Bargin)
 	int		GetHeadshotCount( void ) const       { return m_iHeadshots; }
 	void	SetHeadshotCount( int count )        { m_iHeadshots = count; }
-	void	IncrementHeadshotCount( void )        { m_iHeadshots += 1; }
+	void	IncrementHeadshotCount( void )       { m_iHeadshots += 1; }
 	
 	// Killstreaks (ie: Air Strike)
 	int		GetKillstreakCount( void ) const       { return m_iKillstreak; }
 	void	SetKillstreakCount( int count )        { m_iKillstreak = count; }
-	void	IncrementKillstreakCount( void )        { m_iKillstreak += 1; }
+	void	IncrementKillstreakCount( void )       { m_iKillstreak += 1; }
+
+	// Sapper/Backstab content (ie: Diamondback)
+	int		GetSapperKillCount(void) const       { return m_iSapperKill; }
+	void	SetSapperKillCount(int count)        { m_iSapperKill = count; }
+	void	IncrementSapperKillCount(void)       { m_iSapperKill += 1; } // Not affected by TF_WEAPON_MAX_REVENGE
+	void	StoreSapperKillCount(void)			 { m_iSapperKill = Min( (m_iSapperKill + 1), TF_WEAPON_MAX_REVENGE ); } // Affected by TF_WEAPON_MAX_REVENGE
+	void	DeductSapperKillCount(void)			 { m_iSapperKill = Max( (m_iSapperKill - 1), 0 ); } // Affected by TF_WEAPON_MAX_REVENGE
 	
 #ifdef GAME_DLL
+	void	UpdateCloakMeter( void );
 	void	UpdateChargeMeter( void );
+	void	UpdateEnergyDrinkMeter( void );
 #endif
 	void	EndCharge( void );
 
@@ -585,18 +595,20 @@ private:
 	
 	CNetworkVar( int, m_iHeadshots );
 	CNetworkVar( int, m_iKillstreak );
-
-#ifdef CLIENT_DLL
-	CNetworkVar( float, m_flChargeMeter );
-	CNetworkVar( float, m_flHypeMeter );
-#endif
+	CNetworkVar(int, m_iSapperKill);
 #ifdef GAME_DLL
-	public:
+public:
+	CNetworkVar( float, m_flEnergyDrinkMeter );
 	CNetworkVar( float, m_flChargeMeter );
 	CNetworkVar( float, m_flHypeMeter );
-	private:
+private:
+#else
+	float m_flEnergyDrinkMeter;
+	float m_flChargeMeter;
+	float m_flHypeMeter;
 #endif
-
+	float m_flEnergyDrinkDrainRate;
+	float m_flEnergyDrinkRegenRate;
 	float m_flChargeDrainRate;
 	float m_flChargeRegenRate;
 #ifdef CLIENT_DLL

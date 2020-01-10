@@ -37,6 +37,7 @@ ConVar tf2v_revolver_scale_crosshair( "tf2v_revolver_scale_crosshair", "1", FCVA
 
 CREATE_SIMPLE_WEAPON_TABLE( TFRevolver, tf_weapon_revolver )
 CREATE_SIMPLE_WEAPON_TABLE( TFRevolver_Secondary, tf_weapon_revolver_secondary )
+CREATE_SIMPLE_WEAPON_TABLE( TFRevolver_Dex, tf_weapon_revolver_dex )
 
 //=============================================================================
 //
@@ -80,3 +81,93 @@ void CTFRevolver::GetWeaponCrosshairScale( float &flScale )
 	}
 }
 #endif
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CTFRevolver_Dex::PrimaryAttack( void )
+{
+	if ( !CanAttack() )
+		return;
+
+	BaseClass::PrimaryAttack();
+	CTFPlayer *pOwner = GetTFPlayerOwner();
+	if ( pOwner && pOwner->IsAlive() )
+	{
+		pOwner->m_Shared.DeductSapperKillCount();
+		
+		if ( pOwner->m_Shared.GetSapperKillCount() == 0 )
+			pOwner->m_Shared.RemoveCond( TF_COND_CRITBOOSTED );
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose:
+//-----------------------------------------------------------------------------
+void CTFRevolver_Dex::ItemPostFrame( void )
+{
+	CritThink();
+	BaseClass::ItemPostFrame();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Used for checking if we are critboosted or not.
+//-----------------------------------------------------------------------------
+void CTFRevolver_Dex::CritThink( void )
+{
+	CTFPlayer *pOwner = GetTFPlayerOwner();
+	if ( pOwner )
+	{
+		if ( pOwner->m_Shared.GetSapperKillCount() > 0 )
+		{
+			if ( !pOwner->m_Shared.InCond( TF_COND_CRITBOOSTED ) )
+				pOwner->m_Shared.AddCond( TF_COND_CRITBOOSTED );
+		}
+		else
+		{
+			if ( pOwner->m_Shared.InCond( TF_COND_CRITBOOSTED ) )
+				pOwner->m_Shared.RemoveCond( TF_COND_CRITBOOSTED );
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+bool CTFRevolver_Dex::Deploy( void )
+{
+	CTFPlayer *pOwner = GetTFPlayerOwner();
+	if ( pOwner && BaseClass::Deploy() )
+	{
+		if ( pOwner->m_Shared.GetSapperKillCount() > 0 )
+			pOwner->m_Shared.AddCond( TF_COND_CRITBOOSTED );
+		return true;
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+bool CTFRevolver_Dex::Holster( CBaseCombatWeapon *pSwitchTo )
+{
+	CTFPlayer *pOwner = GetTFPlayerOwner();
+	if ( pOwner && CTFRevolver::Holster( pSwitchTo ) )
+	{
+		pOwner->m_Shared.RemoveCond( TF_COND_CRITBOOSTED );
+		return true;
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CTFRevolver_Dex::Detach( void )
+{
+	m_iSapperCrits = 0;
+	BaseClass::Detach();
+}
+

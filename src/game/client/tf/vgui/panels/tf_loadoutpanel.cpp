@@ -104,6 +104,7 @@ CTFLoadoutPanel::CTFLoadoutPanel(vgui::Panel* parent, const char *panelName) : C
 CTFLoadoutPanel::~CTFLoadoutPanel()
 {
 	m_pWeaponIcons.RemoveAll();
+	
 }
 
 bool CTFLoadoutPanel::Init()
@@ -124,38 +125,12 @@ bool CTFLoadoutPanel::Init()
 		m_pWeaponIcons.AddToTail ( new CTFAdvItemButton ( this, szWeaponButton, "DUK" ) );
 	}
 
-
 	for ( int iClassIndex = 0; iClassIndex < TF_CLASS_COUNT_ALL; iClassIndex++ )
 	{
 		if ( pszClassModels[iClassIndex][0] != '\0' )
 			modelinfo->FindOrLoadModel( pszClassModels[iClassIndex] );
-
-		for ( int iSlot = 0; iSlot < TF_LOADOUT_SLOT_BUFFER; iSlot++ )
-		{
-			for ( int iPreset = 0; iPreset < INVENTORY_COLNUM; iPreset++ )
-			{
-				CEconItemView *pItem = GetTFInventory()->GetItem( iClassIndex, iSlot, iPreset );
-
-				if ( pItem )
-				{
-					const char *pszWeaponModel = GetWeaponModel( pItem->GetStaticData(), iClassIndex );
-
-					if ( pszWeaponModel[0] != '\0' )
-					{
-						modelinfo->FindOrLoadModel( pszWeaponModel );
-					}
-
-					const char *pszExtraWearableModel = GetExtraWearableModel( pItem->GetStaticData() );
-
-					if ( pszExtraWearableModel[0] != '\0' )
-					{
-						modelinfo->FindOrLoadModel( pszExtraWearableModel );
-					}
-				}
-			}
-		}
 	}
-
+	
 	return true;
 }
 
@@ -193,6 +168,7 @@ void CTFLoadoutPanel::SetCurrentClass(int iClass)
 	m_iCurrentClass = iClass;
 	m_iCurrentSlot = g_aClassLoadoutSlots[iClass][0];
 	DefaultLayout();
+	UpdateMenuBodygroups();
 
 };
 
@@ -396,28 +372,10 @@ void CTFLoadoutPanel::UpdateModelWeapons( void )
 			m_pClassModelPanel->SetMergeMDL( pszExtraWearableModel, NULL, m_iCurrentSkin );
 		}
 		
-		// Update the bodygroups.
-		PerTeamVisuals_t *pVisuals = pItemDef->GetVisuals();
-		if ( pVisuals )
-		{
-			for (int i = 0; i < m_pClassModelPanel->GetNumBodyGroups(); i++)
-			{
-				unsigned int index = pVisuals->player_bodygroups.Find(m_pClassModelPanel->GetBodygroupName(i));
-				if ( pVisuals->player_bodygroups.IsValidIndex( index ) )
-				{
-					bool bTrue = pVisuals->player_bodygroups.Element( index );
-					if ( bTrue )
-					{
-						m_pClassModelPanel->SetBodygroup(i, 1);
-					}
-					else
-					{
-						m_pClassModelPanel->SetBodygroup(i, 0);
-					}
-				}
-			}
-		}
+
 	}
+
+	UpdateMenuBodygroups();
 
 	// Set the animation.
 	m_pClassModelPanel->SetAnimationIndex( iAnimationIndex >= 0 ? iAnimationIndex : TF_WPN_TYPE_PRIMARY );
@@ -425,6 +383,61 @@ void CTFLoadoutPanel::UpdateModelWeapons( void )
 	m_pClassModelPanel->Update();
 }
 
+void CTFLoadoutPanel::UpdateMenuBodygroups(void)
+{
+	int iPreset = GetTFInventory()->GetWeaponPreset(m_iCurrentClass, m_iCurrentSlot);
+	CEconItemView *pActiveItem = GetTFInventory()->GetItem(m_iCurrentClass, m_iCurrentSlot, iPreset);
+	if (!pActiveItem)
+		return;
+	
+	// Reset all bodygroups back to normal first, to start with a clean bodygroup set.
+	for (int i = 0; i < m_pClassModelPanel->GetNumBodyGroups(); i++)
+	{
+		m_pClassModelPanel->SetBodygroup(i, 0);
+	}
+	
+	// Update all applicable bodygroups.
+	// Check through all inventory slots and see if they affect bodygroups.
+	for (int iSlot = TF_LOADOUT_SLOT_PRIMARY; iSlot < TF_LOADOUT_SLOT_ZOMBIE; iSlot++)
+	{
+		// Don't check special slots.
+		if ( iSlot == TF_LOADOUT_SLOT_ACTION || iSlot == TF_LOADOUT_SLOT_UTILITY )
+			continue;
+		
+		// Get item definitions.
+
+		int iSlotPreset = GetTFInventory()->GetWeaponPreset(m_iCurrentClass, iSlot);
+		CEconItemView *pEquippedItem = GetTFInventory()->GetItem(m_iCurrentClass, iSlot, iSlotPreset);
+		if (!pEquippedItem)
+			continue;
+		CEconItemDefinition *pItemDef = pEquippedItem->GetStaticData();
+		if (!pItemDef)
+			continue;
+
+		// For items with visual changes, update the appropriate bodygroup.
+		PerTeamVisuals_t *pVisuals = pItemDef->GetVisuals();
+		for (int i = 0; i < m_pClassModelPanel->GetNumBodyGroups(); i++)
+		{
+			// Get the bodygroup affected and update.
+			if (pVisuals)
+			{
+				unsigned int index = pVisuals->player_bodygroups.Find(m_pClassModelPanel->GetBodygroupName(i));
+				if (pVisuals->player_bodygroups.IsValidIndex(index))
+				{
+					bool bTrue = pVisuals->player_bodygroups.Element(index);
+					if (bTrue)
+					{
+						if (((pEquippedItem == pActiveItem && pItemDef->hide_bodygroups_deployed_only) || ( !pItemDef->hide_bodygroups_deployed_only ) ) || pItemDef->act_as_wearable )
+						{
+							m_pClassModelPanel->SetBodygroup(i, 1);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+	
 void CTFLoadoutPanel::Show()
 {
 	BaseClass::Show();
@@ -463,6 +476,11 @@ void CTFLoadoutPanel::OnThink()
 void CTFLoadoutPanel::SetModelClass( int iClass )
 {
 	m_pClassModelPanel->SetModelName( strdup( pszClassModels[iClass] ), m_iCurrentSkin );
+	// Reset all active bodygroups.
+	for (int i = 0; i < m_pClassModelPanel->GetNumBodyGroups(); i++)
+	{
+		m_pClassModelPanel->SetBodygroup(i, 0);
+	}
 }
 
 void CTFLoadoutPanel::UpdateModelPanels()

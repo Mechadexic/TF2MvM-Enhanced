@@ -907,6 +907,7 @@ void C_TFRagdoll::CreateTFRagdoll( void )
 //-----------------------------------------------------------------------------
 void C_TFRagdoll::UpdateRagdollWearables( bool bIsStatue, C_TFPlayer *pPlayer )
 {
+#if defined ( USES_ECON_ITEMS ) || defined ( TF_VINTAGE_CLIENT )
 	// Grab all the wearables the player has.
 	for ( int i=0; i<(pPlayer->m_hMyWearables.Count()); ++i )
 	{
@@ -914,7 +915,7 @@ void C_TFRagdoll::UpdateRagdollWearables( bool bIsStatue, C_TFPlayer *pPlayer )
 		if ( pItem && pItem->GetItem()->GetStaticData() ) // If valid item
 		{
 			// Add the items to the ragdoll. Skip over items that fall off when dying.
-			bool bItemFallsOff = pItem->GetItem()->GetStaticData()->itemfalloff;
+			bool bItemFallsOff = pItem->ItemFallsOffPlayer();
 			if ( !bItemFallsOff || ( bItemFallsOff && bIsStatue ) )
 			{
 				pItem->ValidateModelIndex();
@@ -925,6 +926,7 @@ void C_TFRagdoll::UpdateRagdollWearables( bool bIsStatue, C_TFPlayer *pPlayer )
 				pItem->UpdatePlayerBodygroups();	
 		}
 	}
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -4435,7 +4437,7 @@ void C_TFPlayer::DropHat( breakablepropparams_t &breakParams, Vector &vecBreakVe
 		CEconWearable* pItem = m_hMyWearables[i];
 		if ( pItem && pItem->GetItem()->GetStaticData() )
 		{
-			if ( pItem->m_bItemFallsOff )
+			if ( pItem->ItemFallsOffPlayer() == true )
 			{
 				breakmodel_t breakModel;
 				if (pItem->m_bExtraWearable)
@@ -4981,9 +4983,9 @@ void C_TFPlayer::Simulate( void )
 
 void C_TFPlayer::LoadInventory( void )
 {
-	for ( int iClass = 0; iClass < TF_CLASS_COUNT_ALL; iClass++ )
+	for ( int iClass = TF_FIRST_NORMAL_CLASS; iClass <= TF_LAST_NORMAL_CLASS; iClass++ )
 	{
-		for ( int iSlot = 0; iSlot < TF_LOADOUT_SLOT_COUNT; iSlot++ )
+		for ( int iSlot = 0; iSlot < TF_LOADOUT_SLOT_ZOMBIE; iSlot++ )
 		{
 			int iPreset = GetTFInventory()->GetWeaponPreset( iClass, iSlot );
 			char szCmd[64];

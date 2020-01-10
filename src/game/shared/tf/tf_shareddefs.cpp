@@ -531,6 +531,10 @@ const char *g_aWeaponNames[] =
 	"TF_WEAPON_SNIPERRIFLE_DECAP",
 	"TF_WEAPON_KATANA",
 	"TF_WEAPON_ROCKETLAUNCHER_AIRSTRIKE",
+	"TF_WEAPON_PARACHUTE",
+	"TF_WEAPON_SLAP",
+	"TF_WEAPON_REVOLVER_DEX",
+	"TF_WEAPON_PUMPKNI_BOMB",
 	
 	"TF_WEAPON_COUNT",	// end marker, do not add below here
 };
@@ -567,7 +571,7 @@ int g_aWeaponDamageTypes[] =
 	DMG_BULLET | DMG_HALF_FALLOFF,				// TF_WEAPON_GRENADE_NAIL,
 	DMG_BLAST | DMG_HALF_FALLOFF,				// TF_WEAPON_GRENADE_MIRV,
 	DMG_BLAST | DMG_HALF_FALLOFF,				// TF_WEAPON_GRENADE_MIRV_DEMOMAN,
-	DMG_BURN | DMG_RADIUS_MAX,					// TF_WEAPON_GRENADE_NAPALM,
+	DMG_IGNITE | DMG_RADIUS_MAX,				// TF_WEAPON_GRENADE_NAPALM,
 	DMG_POISON | DMG_HALF_FALLOFF,				// TF_WEAPON_GRENADE_GAS,
 	DMG_BLAST | DMG_HALF_FALLOFF | DMG_PREVENT_PHYSICS_FORCE,	// TF_WEAPON_GRENADE_EMP,
 	DMG_GENERIC,								// TF_WEAPON_GRENADE_CALTROP,
@@ -629,7 +633,11 @@ int g_aWeaponDamageTypes[] =
 	DMG_BULLET | DMG_USE_HITLOCATIONS,			// TF_WEAPON_SNIPERRIFLE_DECAP,
 	DMG_SLASH,									// TF_WEAPON_KATANA,
 	DMG_BLAST | DMG_HALF_FALLOFF | DMG_USEDISTANCEMOD,		// TF_WEAPON_ROCKETLAUNCHER_AIRSTRIKE,
-
+	DMG_GENERIC,								// 	TF_WEAPON_PARACHUTE,
+	DMG_CLUB,									// TF_WEAPON_SLAP,
+	DMG_BULLET | DMG_USEDISTANCEMOD,			// TF_WEAPON_REVOLVER_DEX,
+	DMG_BLAST | DMG_HALF_FALLOFF,               // TF_WEAPON_PUMPKIN_BOMB,
+	
 	// This is a special entry that must match with TF_WEAPON_COUNT
 	// to protect against updating the weapon list without updating this list
 	TF_DMG_SENTINEL_VALUE
@@ -852,7 +860,12 @@ int GetWeaponFromDamage( const CTakeDamageInfo &info )
 //-----------------------------------------------------------------------------
 bool WeaponID_IsSniperRifle( int iWeaponID )
 {
-	return iWeaponID == TF_WEAPON_SNIPERRIFLE/* || iWeaponID == TF_WEAPON_SNIPERRIFLE_DECAP || iWeaponID == TF_WEAPON_SNIPERRIFLE_CLASSIC*/;
+	return iWeaponID == TF_WEAPON_SNIPERRIFLE || iWeaponID == TF_WEAPON_SNIPERRIFLE_DECAP || iWeaponID == TF_WEAPON_SNIPERRIFLE_CLASSIC;
+}
+
+bool WeaponID_IsLunchbox( int iWeaponID )
+{
+	return iWeaponID == TF_WEAPON_LUNCHBOX || iWeaponID == TF_WEAPON_LUNCHBOX_DRINK;
 }
 
 //-----------------------------------------------------------------------------
@@ -1233,4 +1246,11 @@ void BuildBigHeadTransformation( CBaseAnimating *pAnimating, CStudioHdr *pStudio
 #endif
 }
 
+const char *g_aPlayerLoadoutPresets[] =
+{
+	"A",
+	"B",
+	"C",
+	"D",
+};
 
