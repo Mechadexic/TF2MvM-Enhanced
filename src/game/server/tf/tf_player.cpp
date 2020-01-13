@@ -1202,6 +1202,7 @@ void CTFPlayer::InitialSpawn( void )
 
 	m_iMaxSentryKills = 0;
 	CTF_GameStats.Event_MaxSentryKills( this, 0 );
+	m_Shared.SetKillstreakCount( 0 );
 
 	StateEnter( TF_STATE_WELCOME );
 }
@@ -1240,7 +1241,7 @@ void CTFPlayer::Spawn()
 
 	m_Shared.SetDecapitationCount( 0 );
 	m_Shared.SetHeadshotCount( 0 );
-	m_Shared.SetKillstreakCount( 0 );
+	m_Shared.SetStrikeCount( 0 );
 	m_Shared.SetSapperKillCount( 0 );
 	m_Shared.SetHypeMeterAbsolute( 0 );
 	m_Shared.SetFeignReady( false );
@@ -4688,36 +4689,29 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 		int nCritOnCond = 0;
 		CALL_ATTRIB_HOOK_INT_ON_OTHER( pWeapon, nCritOnCond, or_crit_vs_playercond );
 		CALL_ATTRIB_HOOK_INT_ON_OTHER( pWeapon, nCritOnCond, crit_vs_burning_FLARES_DISPLAY_ONLY );
-
-		if ( nCritOnCond )
-		{
-			for ( int i = 0; condition_to_attribute_translation[i] != TF_COND_LAST; i++ )
-			{
-				int nCond = condition_to_attribute_translation[i];
-				int nFlag = ( 1 << i );
-				if ( ( nCritOnCond & nFlag ) && m_Shared.InCond( nCond ) )
-				{
-					bitsDamage |= DMG_CRITICAL;
-					info.AddDamageType( DMG_CRITICAL );
-					break;
-				}
-			}
-		}
-		
 		int nMinicritOnCond = 0;
 		CALL_ATTRIB_HOOK_INT_ON_OTHER( pWeapon, nMinicritOnCond, or_minicrit_vs_playercond_burning );
-		// We have the attribute name set up for burning, but since we only have burn checks it's still usable.
-		if ( nMinicritOnCond )
+
+		if ( nCritOnCond || nMinicritOnCond )
 		{
 			for ( int i = 0; condition_to_attribute_translation[i] != TF_COND_LAST; i++ )
 			{
 				int nCond = condition_to_attribute_translation[i];
 				int nFlag = ( 1 << i );
-				if ( ( nCritOnCond & nFlag ) && m_Shared.InCond( nCond ) )
+				if ( ( nFlag ) && m_Shared.InCond( nCond ) )
 				{
-					bitsDamage |= DMG_MINICRITICAL;
-					info.AddDamageType( DMG_MINICRITICAL );
-					break;
+					if ( nCritOnCond )
+					{
+						bitsDamage |= DMG_CRITICAL;
+						info.AddDamageType( DMG_CRITICAL );
+						break;
+					}
+					else if ( nMinicritOnCond )
+					{
+						bitsDamage |= DMG_MINICRITICAL;
+						info.AddDamageType( DMG_MINICRITICAL );
+						break;	
+					}
 				}
 			}
 		}
@@ -4748,7 +4742,7 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 		
 		if ( pTFAttacker )
 		{
-			if ( pTFAttacker->m_Shared.InCond( TF_COND_ENERGY_BUFF ) || pTFAttacker->m_Shared.InCond( TF_COND_SODAPOPPER_HYPE ) )
+			if ( pTFAttacker->m_Shared.IsMiniCritBoosted() )
 			{
 				bitsDamage |= DMG_MINICRITICAL;
 				info.AddDamageType( DMG_MINICRITICAL );
@@ -5053,6 +5047,11 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 							case TF_WEAPON_SCATTERGUN:
 								// Scattergun gets 50% bonus of other weapons at short range
 								flRandomDamage *= 1.5;
+								break;
+							case TF_WEAPON_STICKBOMB:	
+								// Post-nerf Caber follows the standard explosive short range bonus.
+								if ( tf2v_use_new_caber.GetBool() )
+									flRandomDamage *= 0.5;
 								break;
 						}
 					}	
@@ -5930,6 +5929,11 @@ void CTFPlayer::ApplyPushFromDamage( const CTakeDamageInfo &info, Vector &vecDir
 		if ( flForceMultiplier != 1.0f )
 			vecForce *= flForceMultiplier;
 		
+		// Add some extra force to Pyro jumps.
+		// This is an approximation of the old blast model.
+		if ( IsPlayerClass( TF_CLASS_PYRO ) )
+			vecForce *= 1.5;
+		
 	}
 	else
 	{
@@ -6270,6 +6274,9 @@ void CTFPlayer::Event_KilledOther( CBaseEntity *pVictim, const CTakeDamageInfo &
 			// If we killed them from a backstab, increase our sapper kill count.
 			if ( info.GetDamageCustom() == TF_DMG_CUSTOM_BACKSTAB )
 				m_Shared.StoreSapperKillCount();
+			
+			// Increase our killstreak counter.
+			m_Shared.IncrementKillstreakCount();
 			
 		}
 	}
@@ -6770,14 +6777,24 @@ void CTFPlayer::DropHealthPack( void )
 		return;
 
 	// Investigate for constant expression
-	Vector vecRand;
-	vecRand.x = ( rand() * 0.000061037019 ) + -1.0f;
-	vecRand.y = ( rand() * 0.000061037019 ) + -1.0f;
-	vecRand.z = rand();
+	Vector vecRight, vecUp;
+	AngleVectors( EyeAngles(), NULL, &vecRight, &vecUp );
+		
+	Vector vecImpulse( 0.0f, 0.0f, 0.0f );
+	vecImpulse += vecUp * random->RandomFloat( -0.25, 0.25 );
+	vecImpulse += vecRight * random->RandomFloat( -0.25, 0.25 );
+	VectorNormalize( vecImpulse );
+	vecImpulse *= random->RandomFloat( tf_weapon_ragdoll_velocity_min.GetFloat(), tf_weapon_ragdoll_velocity_max.GetFloat() );
+	vecImpulse += GetAbsVelocity();
 
-	vecRand.AsVector2D().NormalizeInPlace();
+	// Cap the impulse.
+	float flSpeed = vecImpulse.Length();
+	if ( flSpeed > tf_weapon_ragdoll_maxspeed.GetFloat() )
+	{
+		VectorScale( vecImpulse, tf_weapon_ragdoll_maxspeed.GetFloat() / flSpeed, vecImpulse );
+	}
 
-	pPack->DropSingleInstance( 250 * vecRand, this, 0.0f, 0.1f );
+	pPack->DropSingleInstance( vecImpulse, this, 0.0f, 0.1f );
 }
 
 //-----------------------------------------------------------------------------

@@ -219,6 +219,7 @@ CTFWeaponBase::CTFWeaponBase()
 	m_flLastCritCheckTime = 0;
 	m_iLastCritCheckFrame = 0;
 	m_bCurrentAttackIsCrit = false;
+	m_bCurrentAttackIsMiniCrit = false;
 	m_iCurrentSeed = -1;
 	m_flLastFireTime = 0.0f;
 
@@ -1069,7 +1070,7 @@ int CTFWeaponBase::GetMaxClip1( void ) const
 	int nClipSizePerKill = 0;
 	CALL_ATTRIB_HOOK_INT( nClipSizePerKill, clipsize_increase_on_kill );
 
-	iMaxClip = Min( ( iMaxClip + nClipSizePerKill ), ( iMaxClip + pOwner->m_Shared.GetKillstreakCount() ) );
+	iMaxClip = Min( ( iMaxClip + nClipSizePerKill ), ( iMaxClip + pOwner->m_Shared.GetStrikeCount() ) );
 
 	return iMaxClip;
 }
