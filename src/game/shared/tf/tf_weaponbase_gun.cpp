@@ -71,8 +71,9 @@ CTFWeaponBaseGun::CTFWeaponBaseGun()
 //-----------------------------------------------------------------------------
 void CTFWeaponBaseGun::PrimaryAttack( void )
 {
+
 	// Check for ammunition.
-	if ( m_iClip1 <= 0 && UsesClipsForAmmo1() )
+	if ( ( m_iClip1 < GetAmmoPerShot() ) && UsesClipsForAmmo1() )
 		return;
 
 	// Are we capable of firing again?
@@ -83,7 +84,19 @@ void CTFWeaponBaseGun::PrimaryAttack( void )
 	CTFPlayer *pPlayer = ToTFPlayer( GetPlayerOwner() );
 	if ( !pPlayer )
 		return;
-
+	
+	// Check for ammunition for single shot/attributes.
+	if ( !UsesClipsForAmmo1() && ( m_iWeaponMode == TF_WEAPON_PRIMARY_MODE ) )
+	{
+		if ( pPlayer->GetAmmoCount( m_iPrimaryAmmoType ) < GetAmmoPerShot() )
+			return;
+	}
+	else if ( !UsesClipsForAmmo2() && ( m_iWeaponMode == TF_WEAPON_SECONDARY_MODE ) )
+	{
+		if ( pPlayer->GetAmmoCount( m_iSecondaryAmmoType ) < GetAmmoPerShot() )
+			return;
+	}
+	
 	if ( !CanAttack() )
 		return;
 
@@ -238,6 +251,17 @@ CBaseEntity *CTFWeaponBaseGun::FireProjectile( CTFPlayer *pPlayer )
 		DevMsg( "Weapon does not have a projectile type set\n" );
 		break;
 	}
+
+#if !defined( CLIENT_DLL )
+	if ( pProjectile )
+	{
+		string_t strModelOverride = NULL_STRING;
+		if ( GetProjectileOverrideModel( &strModelOverride ) )
+		{
+			pProjectile->SetModel( STRING( strModelOverride ) );
+		}
+	}
+#endif
 
 	DoFireEffects();
 
@@ -799,6 +823,7 @@ int CTFWeaponBaseGun::GetAmmoPerShot( void ) const
 void CTFWeaponBaseGun::RemoveAmmo( CTFPlayer *pPlayer )
 {
 #ifndef CLIENT_DLL
+
 	if (UsesClipsForAmmo1())
 	{
 		m_iClip1 -= GetAmmoPerShot();
@@ -807,13 +832,15 @@ void CTFWeaponBaseGun::RemoveAmmo( CTFPlayer *pPlayer )
 	{
 		if (m_iWeaponMode == TF_WEAPON_PRIMARY_MODE)
 		{
-			pPlayer->RemoveAmmo( GetAmmoPerShot(), m_iPrimaryAmmoType );
+			if ( !BaseClass::IsEnergyWeapon() )
+				pPlayer->RemoveAmmo( GetAmmoPerShot(), m_iPrimaryAmmoType );
 			if (0 < m_iRefundedAmmo)
 				pPlayer->GiveAmmo( m_iRefundedAmmo, m_iPrimaryAmmoType );
 		}
 		else
 		{
-			pPlayer->RemoveAmmo( GetAmmoPerShot(), m_iSecondaryAmmoType );
+			if ( !BaseClass::IsEnergyWeapon() )
+				pPlayer->RemoveAmmo( GetAmmoPerShot(), m_iSecondaryAmmoType );
 			if (0 < m_iRefundedAmmo)
 				pPlayer->GiveAmmo( m_iRefundedAmmo, m_iSecondaryAmmoType );
 		}
@@ -855,6 +882,7 @@ bool CTFWeaponBaseGun::IsFlameArrow(void)
 float CTFWeaponBaseGun::GetWeaponSpread( void )
 {
 	float flSpread = m_pWeaponInfo->GetWeaponData( m_iWeaponMode ).m_flSpread;
+	CALL_ATTRIB_HOOK_FLOAT( flSpread, projectile_spread_angle );
 	CALL_ATTRIB_HOOK_FLOAT( flSpread, mult_spread_scale );
 	
 	CTFPlayer *pPlayer = ToTFPlayer( GetPlayerOwner() );

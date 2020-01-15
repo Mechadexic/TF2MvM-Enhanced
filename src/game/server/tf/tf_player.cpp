@@ -489,7 +489,7 @@ float CAttributeContainerPlayer::ApplyAttributeFloat( float flValue, const CBase
 
 	m_bParsingMyself = true;;
 
-	CEconItemAttributeIterator_ApplyAttributeFloat func( m_hOuter, strAttributeClass, &flValue, pOutProviders );
+	CAttributeIterator_ApplyAttributeFloat func( m_hOuter, strAttributeClass, &flValue, pOutProviders );
 	m_hOuter->m_AttributeList.IterateAttributes( func );
 
 	m_bParsingMyself = false;
@@ -507,7 +507,7 @@ string_t CAttributeContainerPlayer::ApplyAttributeString( string_t strValue, con
 
 	m_bParsingMyself = true;
 
-	CEconItemAttributeIterator_ApplyAttributeString func( m_hOuter, strAttributeClass, &strValue, pOutProviders );
+	CAttributeIterator_ApplyAttributeString func( m_hOuter, strAttributeClass, &strValue, pOutProviders );
 	m_hOuter->m_AttributeList.IterateAttributes( func );
 
 	m_bParsingMyself = false;
@@ -2354,7 +2354,7 @@ void CTFPlayer::ManagePlayerCosmetics( TFPlayerClassData_t *pData )
 			if ( pItemDef->specialitem )
 			{
 				CTFPlayer *pPlayer = this;
-				if ( ( !pPlayer->m_bIsPlayerADev ) || ( pPlayer->m_iPlayerVIPRanking != -1 ) )
+				if ( pPlayer->m_iPlayerVIPRanking != -1 )
 					bIsSpecialRestricted = true;
 			}
 			
@@ -5257,6 +5257,7 @@ int CTFPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 			info.SetDamage( flDamage * 0.65f );
 		}
 	}
+
 	
 	// NOTE: Deliberately skip base player OnTakeDamage, because we don't want all the stuff it does re: suit voice
 	bTookDamage = CBaseCombatCharacter::OnTakeDamage( info );
@@ -5583,14 +5584,32 @@ int CTFPlayer::OnTakeDamage_Alive( const CTakeDamageInfo &info )
 		}
 	}
 	
-	// Check to see if the weapon pierces through our resistances.
+	// Check to see if the weapon has resistance piercing, or changed damage based on hitting a player.
 	int nIgnoreResists = 0;
-	if ( pInflictor )
+	if ( pTFAttacker != this && pWeapon )
 	{
-		if ( pTFWeapon )
+		CALL_ATTRIB_HOOK_INT_ON_OTHER( pWeapon, nIgnoreResists, mod_pierce_resists_absorbs );
+		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pWeapon, flDamage, mult_dmg_vs_players );
+		
+		// Remove Ubercharge level.
+		float flDeductCharge = 0;
+		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pWeapon, flDeductCharge, subtract_victim_medigun_charge_onhit );
+		if ( flDeductCharge )
 		{
-			CALL_ATTRIB_HOOK_INT_ON_OTHER( pTFWeapon, nIgnoreResists, mod_pierce_resists_absorbs );
+			CWeaponMedigun *pMedigun = GetMedigun();
+
+			if ( pMedigun )
+			{
+				pMedigun->RemoveCharge( flDeductCharge );
+			}
 		}
+		
+		// Remove cloak level.
+		float flDeductCloak = 0;
+		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pWeapon, flDeductCloak, subtract_victim_cloak_on_hit );
+		if ( flDeductCloak )
+			m_Shared.AddToSpyCloakMeter( ( flDeductCloak ) );
+
 	}
 	
 	// We check the original resistance first to see if it's a resistance/vurnerability.

@@ -37,6 +37,13 @@ const char *g_EffectTypes[] =
 	"negative"
 };
 
+static const char *const g_szAttributeTypes[] ={
+	"",
+	"uint64",
+	"float",
+	"string",
+};
+
 const char *g_szQualityStrings[] =
 {
 	"normal",
@@ -301,6 +308,9 @@ public:
 			const char *szEffect = pSubData->GetString( "effect_type" );
 			pAttribute->effect_type = UTIL_StringFieldToInt( szEffect, g_EffectTypes, ARRAYSIZE( g_EffectTypes ) );
 
+			const char *szType = pSubData->GetString( "attribute_type" );
+			pAttribute->attribute_type = GetItemSchema()->GetAttributeType( szType );
+
 			GET_BOOL( pAttribute, pSubData, hidden );
 			GET_BOOL( pAttribute, pSubData, stored_as_integer );
 
@@ -332,6 +342,16 @@ public:
 			else if ( !V_strcmp( pVisualData->GetName(), "custom_particlesystem" ) )
 			{
 				V_strncpy( pVisuals->custom_particlesystem, pVisualData->GetString( "system" ), sizeof( pVisuals->custom_particlesystem ) );
+			}
+			else if ( !V_stricmp(pVisualData->GetName(), "muzzle_flash" ) )
+			{
+				// Fetching this similar to weapon script file parsing.
+				V_strncpy( pVisuals->muzzle_flash, pVisualData->GetString( "system" ), sizeof( pVisuals->muzzle_flash ) );
+			}
+			else if ( !V_stricmp(pVisualData->GetName(), "tracer_effect") )
+			{
+				// Fetching this similar to weapon script file parsing.
+				V_strncpy( pVisuals->tracer_effect, pVisualData->GetString( "system" ), sizeof( pVisuals->tracer_effect ) );
 			}
 			else if ( !V_stricmp( pVisualData->GetName(), "animation_replacement" ) )
 			{
@@ -715,12 +735,27 @@ void CEconItemSchema::Precache( void )
 					CBaseEntity::PrecacheModel( pszModel );
 			}
 
-			// Precache custom particles
+			// Precache particles
+			// Custom Particles
 			const char *pszParticle = pVisuals->custom_particlesystem;
 			if ( pszParticle[0] != '\0' )
 			{
 				PrecacheParticleSystem( pszParticle );
 			}
+			// Muzzle Flash
+			const char *pszMuzzleFlash = pVisuals->muzzle_flash;
+			if (pszParticle[0] != '\0')
+			{
+				PrecacheParticleSystem(pszMuzzleFlash);
+			}
+			// Tracer Effect
+			const char *pszTracerEffect = pVisuals->tracer_effect;
+			if (pszParticle[0] != '\0')
+			{
+				PrecacheParticleSystem(pszTracerEffect);
+			}
+
+
 		}
 
 		// Cache all attrbute names.
@@ -804,6 +839,17 @@ int CEconItemSchema::GetAttributeIndex( const char *name )
 		{
 			return m_Attributes.Key( i );
 		}
+	}
+
+	return -1;
+}
+
+int CEconItemSchema::GetAttributeType( const char *type ) const
+{
+	for ( int i=0; i < ARRAYSIZE( g_szAttributeTypes ); ++i )
+	{
+		if ( !V_stricmp( type, g_szAttributeTypes[ i ] ) )
+			return i;
 	}
 
 	return -1;

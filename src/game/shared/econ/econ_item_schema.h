@@ -109,6 +109,7 @@ struct EconAttributeDefinition
 		string_attribute = false;
 		description_format = -1;
 		hidden = false;
+		attribute_type = -1;
 		effect_type = -1;
 		stored_as_integer = false;
 		m_iAttributeClass = NULL_STRING;
@@ -120,6 +121,7 @@ struct EconAttributeDefinition
 	char description_string[128];
 	bool string_attribute;
 	int description_format;
+	int attribute_type;
 	int effect_type;
 	bool hidden;
 	bool stored_as_integer;
@@ -137,17 +139,24 @@ struct AttachedModel_t
 
 typedef union
 {
-	int iVal;
+	unsigned iVal;
 	float flVal;
 	string_t sVal;
 } attrib_data_union_t;
+
+struct static_attrib_t
+{
+	char name[128];
+	EconAttributeDefinition const *attribute;
+	KeyValues const *schema;
+};
 
 class IEconAttributeIterator
 {
 public:
 	virtual bool OnIterateAttributeValue( EconAttributeDefinition const *, unsigned int ) = 0;
 	virtual bool OnIterateAttributeValue( EconAttributeDefinition const *, float ) = 0;
-	virtual bool OnIterateAttributeValue( EconAttributeDefinition const *, string_t const & ) = 0;
+	virtual bool OnIterateAttributeValue( EconAttributeDefinition const *, string_t ) = 0;
 };
 
 // Client specific.
@@ -220,6 +229,8 @@ typedef struct EconPerTeamVisuals
 		animation_replacement.SetLessFunc( [ ] ( const int &lhs, const int &rhs ) -> bool { return lhs < rhs; } );
 		V_memset( aWeaponSounds, 0, sizeof( aWeaponSounds ) );
 		CLEAR_STR( custom_particlesystem );
+		CLEAR_STR(muzzle_flash);
+		CLEAR_STR(tracer_effect);
 		skin = -1;
 	}
 
@@ -230,6 +241,8 @@ typedef struct EconPerTeamVisuals
 	CUtlVector< AttachedModel_t > attached_models;
 	char aWeaponSounds[NUM_SHOOT_SOUND_TYPES][MAX_WEAPON_STRING];
 	char custom_particlesystem[128];
+	char muzzle_flash[128];
+	char tracer_effect[128];
 	//CUtlDict< ItemStyle_t*, unsigned short > styles;
 	int skin;
 } PerTeamVisuals_t;
