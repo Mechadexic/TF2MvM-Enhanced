@@ -180,6 +180,7 @@ public:
 	DECLARE_CLASS( CBaseCombatWeapon, BASECOMBATWEAPON_DERIVED_FROM );
 	DECLARE_NETWORKCLASS();
 	DECLARE_PREDICTABLE();
+	DECLARE_ENT_SCRIPTDESC();
 
 							CBaseCombatWeapon();
 	virtual 				~CBaseCombatWeapon();
@@ -214,6 +215,7 @@ public:
 	virtual void			SetPickupTouch( void );
 	virtual void 			DefaultTouch( CBaseEntity *pOther );	// default weapon touch
 	virtual void			GiveTo( CBaseEntity *pOther );
+	void					ScriptGiveTo( HSCRIPT hOther ) { GiveTo( ToEnt( hOther ) ); }
 
 	// HUD Hints
 	virtual bool			ShouldDisplayAltFireHUDHint();
@@ -287,8 +289,10 @@ public:
 	bool					DefaultReload( int iClipSize1, int iClipSize2, int iActivity );
 	bool					ReloadsSingly( void ) const;
 
-	virtual bool			AutoFiresFullClip( void ) const { return false; }
+	virtual bool			AutoFiresFullClip( void );
 	virtual void			UpdateAutoFire( void );
+	virtual bool			CanOverload(void);
+	void					Overload(void);
 
 	// Weapon firing
 	virtual void			PrimaryAttack( void );						// do "+ATTACK"
@@ -335,7 +339,9 @@ public:
 	virtual char			*GetDeathNoticeName( void );	// Get the string to print death notices with
 
 	CBaseCombatCharacter	*GetOwner() const;
+	HSCRIPT					ScriptGetOwner( void ) { return ToHScript( GetOwner() ); }
 	void					SetOwner( CBaseCombatCharacter *owner );
+	void					ScriptSetOwner( HSCRIPT hScriptOwner ) { SetOwner( ToEnt( hScriptOwner )->MyCombatCharacterPointer() ); }
 	virtual void			OnPickedUp( CBaseCombatCharacter *pNewOwner );
 
 	virtual void			AddViewmodelBob( CBaseViewModel *viewmodel, Vector &origin, QAngle &angles ) {};
@@ -388,6 +394,15 @@ public:
 	virtual int				GetSecondaryAmmoType( void )  const { return m_iSecondaryAmmoType; }
 	virtual int				Clip1() { return m_iClip1; }
 	virtual int				Clip2() { return m_iClip2; }
+#ifdef GAME_DLL
+	void					ScriptSetClip1( int iClip1 ) { m_iClip1 = iClip1; }
+	void					ScriptSetClip2( int iClip2 ) { m_iClip2 = iClip2; }
+	void					ScriptSetClips( int nClips );
+#endif
+	int						ScriptGetMaxAmmo1();
+	int						ScriptGetMaxAmmo2();
+	int						ScriptGetClips();
+	int						ScriptGetMaxClips();
 
 	// Ammo quantity queries for weapons that do not use clips. These are only
 	// used to determine how much ammo is in a weapon that does not have an owner.
@@ -573,7 +588,8 @@ public:
 	// Weapon state
 	bool					m_bInReload;			// Are we in the middle of a reload;
 	bool					m_bFireOnEmpty;			// True when the gun is empty and the player is still holding down the attack key(s)
-	bool					m_bFiringWholeClip;		// Are we in the middle of firing the whole clip;
+	bool					m_bFiringWholeClip;		// Are we in the middle of firing the whole clip,
+	bool					m_bIsOverLoaded;		// If we overloaded and are misfiring,
 	// Weapon art
 	CNetworkVar( int, m_iViewModelIndex );
 	CNetworkVar( int, m_iWorldModelIndex );

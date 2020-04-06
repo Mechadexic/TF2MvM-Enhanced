@@ -253,7 +253,7 @@ END_DATADESC()
 BEGIN_DATADESC( CBasePlayer )
 
 	DEFINE_EMBEDDED( m_Local ),
-#if defined USES_ECON_ITEMS
+#if defined USES_ECON_ITEMS || defined TF_VINTAGE
 	DEFINE_EMBEDDED( m_AttributeList ),
 #endif
 	DEFINE_UTLVECTOR( m_hTriggerSoundscapeList, FIELD_EHANDLE ),
@@ -461,6 +461,17 @@ BEGIN_DATADESC( CBasePlayer )
 	// DEFINE_UTLVECTOR( m_vecPlayerSimInfo ),
 END_DATADESC()
 
+BEGIN_ENT_SCRIPTDESC( CBasePlayer, CBaseAnimating, "The player entity." )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptEyeAngles, "GetEyeAngles", "Player eye angles." )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptEyeForward, "GetForwardVector", "Player forward facing vector." )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptEyeRight, "GetRightVector", "Player right facing vector." )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptEyeUp, "GetUpVector", "Player up facing vector." )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptIsPlayerNoclipping, "IsNoclipping", "Returns true if the player is in noclip mode." )
+	DEFINE_SCRIPTFUNC( GetNetworkIDString, "Get the player's network (i.e. Steam) ID." )
+	DEFINE_SCRIPTFUNC( GetPlayerName, "Get the player's name." )
+	DEFINE_SCRIPTFUNC_NAMED( GetUserID, "GetPlayerUserID", "Get the player's userID." )
+END_SCRIPTDESC();
+
 int giPrecacheGrunt = 0;
 
 edict_t *CBasePlayer::s_PlayerEdict = NULL;
@@ -653,6 +664,11 @@ CBasePlayer::~CBasePlayer( )
 //-----------------------------------------------------------------------------
 void CBasePlayer::UpdateOnRemove( void )
 {
+	if ( !g_pGameRules->IsMultiplayer() && g_pScriptVM )
+	{
+		g_pScriptVM->SetValue( "player", SCRIPT_VARIANT_NULL );
+	}
+
 	VPhysicsDestroyObject();
 
 	// Remove him from his current team
@@ -4444,7 +4460,7 @@ void FixPlayerCrouchStuck( CBasePlayer *pPlayer )
 
 	// Move up as many as 18 pixels if the player is stuck.
 	int i;
-	Vector org = pPlayer->GetAbsOrigin();;
+	Vector org = pPlayer->GetAbsOrigin();
 	for ( i = 0; i < 18; i++ )
 	{
 		UTIL_TraceHull( pPlayer->GetAbsOrigin(), pPlayer->GetAbsOrigin(), 
@@ -5059,6 +5075,11 @@ void CBasePlayer::Spawn( void )
 	UpdateLastKnownArea();
 
 	m_weaponFiredTimer.Invalidate();
+
+	if ( !g_pGameRules->IsMultiplayer() && g_pScriptVM )
+	{
+		g_pScriptVM->SetValue( "player", GetScriptInstance() );
+	}
 }
 
 void CBasePlayer::Activate( void )
@@ -6676,7 +6697,7 @@ bool CBasePlayer::RemovePlayerItem( CBaseCombatWeapon *pItem )
 	{
 		ResetAutoaim( );
 		pItem->Holster( );
-		pItem->SetNextThink( TICK_NEVER_THINK );; // crowbar may be trying to swing again, etc
+		pItem->SetNextThink( TICK_NEVER_THINK ); // crowbar may be trying to swing again, etc
 		pItem->SetThink( NULL );
 	}
 
@@ -7985,13 +8006,13 @@ void SendProxy_CropFlagsToPlayerFlagBitsLength( const SendProp *pProp, const voi
 // DT_BasePlayer sendtable.
 // -------------------------------------------------------------------------------- //
 	
-#if defined USES_ECON_ITEMS
+#if defined USES_ECON_ITEMS || defined TF_VINTAGE
 	EXTERN_SEND_TABLE(DT_AttributeList);
 #endif
 
 	IMPLEMENT_SERVERCLASS_ST( CBasePlayer, DT_BasePlayer )
 
-#if defined USES_ECON_ITEMS
+#if defined USES_ECON_ITEMS || defined TF_VINTAGE
 		SendPropDataTable(SENDINFO_DT(m_AttributeList), &REFERENCE_SEND_TABLE(DT_AttributeList)),
 #endif
 

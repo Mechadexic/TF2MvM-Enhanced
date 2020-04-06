@@ -224,7 +224,8 @@ CFSSearchPathsInit::CFSSearchPathsInit()
 	m_pDirectoryName = NULL;
 	m_pLanguage = NULL;
 	m_ModPath[0] = 0;
-	m_bMountHDContent = m_bLowViolence = false;
+	m_bMountHDContent = false;
+	m_bLowViolence = UTIL_IsLowViolence();
 }
 
 
@@ -485,7 +486,7 @@ static void FileSystem_AddLoadedSearchPath(
 	if ( V_stricmp( pPathID, "game_hd" ) == 0 )
 	{
 
-		// Not in LV build, don't mount
+		// Not in HD build, don't mount
 		if ( !initInfo.m_bMountHDContent )
 			return;
 

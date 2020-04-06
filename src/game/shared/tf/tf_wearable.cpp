@@ -3,6 +3,8 @@
 
 #ifdef GAME_DLL
 #include "tf_player.h"
+#else
+#include "c_tf_player.h"
 #endif
 
 // memdbgon must be the last include file in a .cpp file!!!
@@ -15,6 +17,14 @@ END_NETWORK_TABLE()
 
 LINK_ENTITY_TO_CLASS( tf_wearable, CTFWearable );
 PRECACHE_REGISTER( tf_wearable );
+
+IMPLEMENT_NETWORKCLASS_ALIASED( TFWearableVM, DT_TFWearableVM );
+
+BEGIN_NETWORK_TABLE( CTFWearable, DT_TFWearableVM )
+END_NETWORK_TABLE()
+
+LINK_ENTITY_TO_CLASS( tf_wearable_vm, CTFWearableVM );
+PRECACHE_REGISTER( tf_wearable_vm );
 
 #ifdef GAME_DLL
 
@@ -30,14 +40,14 @@ void CTFWearable::Equip( CBasePlayer *pPlayer )
 	UpdatePlayerBodygroups();
 }
 
-//---------------------------------------------------------------------------- -
+//-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
 void CTFWearable::UpdateModelToClass( void )
 {
-	if ( m_bExtraWearable && m_Item.GetStaticData() )
+	if ( m_bExtraWearable && GetItem()->GetStaticData() )
 	{
-		SetModel( m_Item.GetStaticData()->extra_wearable );
+		SetModel( GetItem()->GetStaticData()->extra_wearable );
 	}
 	else 
 	{
@@ -45,7 +55,7 @@ void CTFWearable::UpdateModelToClass( void )
 
 		if ( pOwner )
 		{
-			const char *pszModel = m_Item.GetPlayerDisplayModel( pOwner->GetPlayerClass()->GetClassIndex() );
+			const char *pszModel = GetItem()->GetPlayerDisplayModel( pOwner->GetPlayerClass()->GetClassIndex() );
 
 			if ( pszModel[0] != '\0' )
 			{
@@ -55,4 +65,77 @@ void CTFWearable::UpdateModelToClass( void )
 	}
 }
 
-#endif // GAME_DLL
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CTFWearable::Break( void )
+{
+	CPVSFilter filter( GetAbsOrigin() );
+	UserMessageBegin( filter, "BreakModel" );
+		WRITE_SHORT( GetModelIndex() );
+		WRITE_VEC3COORD( GetAbsOrigin() );
+		WRITE_ANGLES( GetAbsAngles() );
+		WRITE_SHORT( GetSkin() );
+	MessageEnd();
+}
+
+#else
+
+//-----------------------------------------------------------------------------
+// Purpose: Overlay Uber
+//-----------------------------------------------------------------------------
+int C_TFWearable::InternalDrawModel( int flags )
+{
+	C_TFPlayer *pOwner = ToTFPlayer( GetOwnerEntity() );
+	bool bNotViewModel = ( ( pOwner && !pOwner->IsLocalPlayer() ) || C_BasePlayer::ShouldDrawLocalPlayer() );
+	bool bUseInvulnMaterial = ( bNotViewModel && pOwner && pOwner->m_Shared.InCond( TF_COND_INVULNERABLE ) );
+	if ( bUseInvulnMaterial )
+	{
+		modelrender->ForcedMaterialOverride( pOwner->GetInvulnMaterial() );
+	}
+
+	int ret = BaseClass::InternalDrawModel( flags );
+
+	if ( bUseInvulnMaterial )
+	{
+		modelrender->ForcedMaterialOverride( NULL );
+	}
+
+	return ret;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void C_TFWearable::UpdateModelToClass(void)
+{
+	if ( m_bExtraWearable && GetItem()->GetStaticData() )
+	{
+		SetModel( GetItem()->GetStaticData()->extra_wearable );
+	}
+	else
+	{
+		C_TFPlayer *pOwner = ToTFPlayer( GetOwnerEntity() );
+		if ( pOwner )
+		{
+			const char *pszModel = nullptr;
+			if ( pOwner->m_Shared.InCond(TF_COND_DISGUISED) && pOwner->IsEnemyPlayer() )
+			{
+				pszModel = GetItem()->GetPlayerDisplayModel( pOwner->m_Shared.GetDisguiseClass() );
+			}
+			else
+			{
+				pszModel = GetItem()->GetPlayerDisplayModel( pOwner->GetPlayerClass()->GetClassIndex() );
+			}
+
+
+			if ( pszModel && *pszModel )
+			{
+				SetModel( pszModel );
+			}
+		}
+
+	}
+}
+
+#endif

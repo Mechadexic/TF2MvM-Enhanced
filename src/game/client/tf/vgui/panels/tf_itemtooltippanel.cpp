@@ -20,8 +20,9 @@ CTFItemToolTipPanel::CTFItemToolTipPanel( Panel* parent, const char *panelName )
 	m_pClassModelPanel = new CTFAdvModelPanel( this, "classmodelpanel" );
 	m_pTitle = new CExLabel( this, "TitleLabel", "Title" );
 	m_pClassName = new CExLabel( this, "ClassNameLabel", "ClassName" );
+	m_pYear = new CExLabel( this, "YearLabel", "Year" );
 	m_pAttributeText = new CExLabel( this, "AttributeLabel", "Attribute" );
-	for ( int i = 0; i < 20; i++ )
+	for ( int i = 0; i < 31; i++ )
 	{
 		m_pAttributes.AddToTail( new CExLabel( this, VarArgs( "attribute_%d", i ), "Attribute" ) );
 	}
@@ -121,6 +122,7 @@ void CTFItemToolTipPanel::ShowToolTip(CEconItemDefinition *pItemData)
 		m_pTitle->SetText( pItemData->GenerateLocalizedFullItemName() );
 
 		Color colTitle = pScheme->GetColor( g_szQualityColorStrings[pItemData->item_quality], m_colorTitle );
+		m_colQuality = colTitle;
 		m_pTitle->SetFgColor( colTitle );
 	}
 
@@ -129,13 +131,26 @@ void CTFItemToolTipPanel::ShowToolTip(CEconItemDefinition *pItemData)
 	{
 		m_pClassName->SetText( pItemData->item_type_name );
 	}
+	
+	
+	if ( m_pYear )
+	{
+		// Show the item's year at the beginning.
+		if ((pItemData->year) >= 2006)	// Only debug, undefined always whitelisted items before this period.
+		{
+			wchar_t wszYear[128];
+			swprintf_s(wszYear, L"%d", (pItemData->year));
+			m_pYear->SetText(wszYear);
+			
+		}
+	}
 
 	for ( int i = 0; i < m_pAttributes.Count(); i++ )
 		m_pAttributes[i]->SetVisible( false );
 
 	if ( m_pAttributeText )
 	{
-		for ( int i = 0; i <= pItemData->attributes.Count(); i++ )
+		for ( int i = 0; i <= ( pItemData->attributes.Count() ); i++ )
 		{
 			CExLabel *pLabel = m_pAttributes[i];
 
@@ -149,15 +164,15 @@ void CTFItemToolTipPanel::ShowToolTip(CEconItemDefinition *pItemData)
 
 				pLabel->SetFgColor( pScheme->GetColor( "ItemAttribNeutral", COLOR_WHITE ) );
 				pLabel->SetVisible( true );
-			}
+			} 
 			else
 			{
-				CEconItemAttribute *pAttribute = &pItemData->attributes[i];
-				EconAttributeDefinition *pStatic = pAttribute->GetStaticData();
+				static_attrib_t *pAttribute = &pItemData->attributes[i];
+				const CEconAttributeDefinition *pStatic = pAttribute->GetStaticData();
 				if ( !pStatic || pStatic->hidden )
 					continue;
 
-				float flValue = pAttribute->value;
+				float flValue = BitsToFloat( pAttribute->value.iVal );
 			
 				switch ( pStatic->description_format )
 				{
@@ -190,15 +205,15 @@ void CTFItemToolTipPanel::ShowToolTip(CEconItemDefinition *pItemData)
 				Color attrcolor;
 				switch ( pStatic->effect_type )
 				{
-				case ATTRIB_EFFECT_NEUTRAL: 
-					attrcolor = GETSCHEME()->GetColor( "ItemAttribNeutral", COLOR_WHITE );
-					break;
-				case ATTRIB_EFFECT_POSITIVE:
-					attrcolor = GETSCHEME()->GetColor( "ItemAttribPositive", COLOR_WHITE );
-					break;
-				case ATTRIB_EFFECT_NEGATIVE:
-					attrcolor = GETSCHEME()->GetColor( "ItemAttribNegative", COLOR_WHITE );
-					break;
+					case ATTRIB_EFFECT_NEUTRAL: 
+						attrcolor = GETSCHEME()->GetColor( "ItemAttribNeutral", COLOR_WHITE );
+						break;
+					case ATTRIB_EFFECT_POSITIVE:
+						attrcolor = GETSCHEME()->GetColor( "ItemAttribPositive", COLOR_WHITE );
+						break;
+					case ATTRIB_EFFECT_NEGATIVE:
+						attrcolor = GETSCHEME()->GetColor( "ItemAttribNegative", COLOR_WHITE );
+						break;
 				}
 				pLabel->SetFgColor( attrcolor );
 				pLabel->SetVisible( true );

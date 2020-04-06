@@ -191,11 +191,13 @@ ConVar tf_arena_use_queue( "tf_arena_use_queue", "1", FCVAR_REPLICATED | FCVAR_N
 ConVar mp_teams_unbalance_limit( "mp_teams_unbalance_limit", "1", FCVAR_REPLICATED,
 					 "Teams are unbalanced when one team has this many more players than the other team. (0 disables check)",
 					 true, 0,	// min value
-					 true, 30	// max value
+					 true, 127	// max value
 					 );
 
 ConVar mp_maxrounds( "mp_maxrounds", "0", FCVAR_REPLICATED | FCVAR_NOTIFY, "max number of rounds to play before server changes maps", true, 0, false, 0 );
 ConVar mp_winlimit( "mp_winlimit", "0", FCVAR_REPLICATED | FCVAR_NOTIFY, "Max score one team can reach before server changes maps", true, 0, false, 0 );
+ConVar mp_windifference( "mp_difference", "0", FCVAR_REPLICATED | FCVAR_NOTIFY, "Max score difference between teams before the server changes maps", true, 0, false, 0 );
+ConVar mp_windifference_min( "mp_difference_min", "0", FCVAR_REPLICATED | FCVAR_NOTIFY, "Minimum score required before checking for point difference victory", true, 0, false, 0 );
 ConVar mp_disable_respawn_times( "mp_disable_respawn_times", "0", FCVAR_NOTIFY | FCVAR_REPLICATED );
 ConVar mp_bonusroundtime( "mp_bonusroundtime", "15", FCVAR_REPLICATED, "Time after round win until round restarts", true, 5, true, 15 );
 ConVar mp_bonusroundtime_final( "mp_bonusroundtime_final", "15", FCVAR_REPLICATED, "Time after final round ends until round restarts", true, 5, true, 300 );
@@ -269,8 +271,8 @@ void cc_ScrambleTeams( const CCommand& args )
 }
 
 static ConCommand mp_scrambleteams( "mp_scrambleteams", cc_ScrambleTeams, "Scramble the teams and restart the game" );
-ConVar mp_scrambleteams_auto( "mp_scrambleteams_auto", "1", FCVAR_NOTIFY, "Server will automatically scramble the teams if criteria met.  Only works on dedicated servers." );
-ConVar mp_scrambleteams_auto_windifference( "mp_scrambleteams_auto_windifference", "2", FCVAR_NOTIFY, "Number of round wins a team must lead by in order to trigger an auto scramble." );
+ConVar mp_scrambleteams_auto( "mp_scrambleteams_auto", "0", FCVAR_NOTIFY, "Server will automatically scramble the teams if criteria met.  Only works on dedicated servers." );
+ConVar mp_scrambleteams_auto_windifference( "mp_scrambleteams_auto_windifference", "0", FCVAR_NOTIFY, "Number of round wins a team must lead by in order to trigger an auto scramble." );
 
 // Classnames of entities that are preserved across round restarts
 static const char *s_PreserveEnts[] =
@@ -1003,7 +1005,7 @@ void CTeamplayRoundBasedRules::CheckRestartRound( void )
 	{
 		int iDelayMax = 60;
 
-#if defined(TF_CLIENT_DLL) || defined(TF_DLL)
+#if defined( TF_CLIENT_DLL ) || defined( TF_DLL ) || defined( TF_VINTAGE ) || defined( TF_VINTAGE_CLIENT )
 		if ( TFGameRules() && ( TFGameRules()->IsMannVsMachineMode() || TFGameRules()->IsCompetitiveMode() ) )
 		{
 			iDelayMax = 180;
@@ -1204,6 +1206,8 @@ bool CTeamplayRoundBasedRules::CheckWinLimit( bool bAllowEnd /*= true*/ )
 {
 	// has one team won the specified number of rounds?
 	int iWinLimit = mp_winlimit.GetInt();
+	int iWinLimitDelta = mp_windifference.GetInt();
+	int iWinLimitDeltaMin = mp_windifference_min.GetInt();
 
 	if ( iWinLimit > 0 )
 	{
@@ -1213,6 +1217,30 @@ bool CTeamplayRoundBasedRules::CheckWinLimit( bool bAllowEnd /*= true*/ )
 			Assert( pTeam );
 
 			if ( pTeam->GetScore() >= iWinLimit )
+			{
+				if ( bAllowEnd )
+				{
+					IGameEvent *event = gameeventmanager->CreateEvent( "teamplay_game_over" );
+					if ( event )
+					{
+						event->SetString( "reason", "Reached Win Limit" );
+						gameeventmanager->FireEvent( event );
+					}
+
+					GoToIntermission();
+				}
+				return true;
+			}
+		}
+	}
+	
+	if ( iWinLimitDelta > 0 )
+	{
+		int iBlueScore = GetGlobalTeam( TF_TEAM_BLUE )->GetScore();
+		int iRedScore = GetGlobalTeam( TF_TEAM_RED )->GetScore();
+		if ( ( iRedScore >= iWinLimitDeltaMin ) || ( iRedScore >= iWinLimitDeltaMin ) )
+		{
+			if ( ( ( iRedScore - iBlueScore ) >= iWinLimitDelta ) || ( (iBlueScore -iRedScore ) >= iWinLimitDelta ) )
 			{
 				if ( bAllowEnd )
 				{
@@ -1471,17 +1499,19 @@ void CTeamplayRoundBasedRules::State_Enter_PREROUND( void )
 
 		m_flStateTransitionTime = gpGlobals->curtime + tf_arena_preround_time.GetInt();
 	}
-#if defined(TF_CLIENT_DLL) || defined(TF_DLL)
+#if defined( TF_CLIENT_DLL ) || defined( TF_DLL ) || defined( TF_VINTAGE ) || defined( TF_VINTAGE_CLIENT )
 	// Only allow at the very beginning of the game, or between waves in mvm
 	else if ( TFGameRules() && TFGameRules()->UsePlayerReadyStatusMode() && m_bAllowBetweenRounds )
 	{
 		State_Transition( GR_STATE_BETWEEN_RNDS );
 		m_bAllowBetweenRounds = false;
 
+	#if 0
 		if ( TFGameRules()->IsMannVsMachineMode() )
 		{
 			TFObjectiveResource()->SetMannVsMachineBetweenWaves( true );
 		}
+	#endif
 	}
 #endif // #if defined(TF_CLIENT_DLL) || defined(TF_DLL)
 	else
@@ -1568,9 +1598,10 @@ void CTeamplayRoundBasedRules::CheckReadyRestart( void )
 	{
 		m_flRestartRoundTime = -1;
 
-#ifdef TF_DLL
+#if defined( TF_DLL ) || defined( TF_VINTAGE )
 		if ( TFGameRules() )
 		{
+		#if 0
 			if ( TFGameRules()->IsMannVsMachineMode() )
 			{
 				if ( g_pPopulationManager && TFObjectiveResource()->GetMannVsMachineIsBetweenWaves() )
@@ -1580,12 +1611,13 @@ void CTeamplayRoundBasedRules::CheckReadyRestart( void )
 					return;
 				}
 			}
-			else if ( TFGameRules()->IsCompetitiveMode() )
+		#endif
+			if ( TFGameRules()->IsCompetitiveMode() )
 			{
 				TFGameRules()->StartCompetitiveMatch();
 				return;
 			}
-			else if ( mp_tournament.GetBool() )
+			if ( mp_tournament.GetBool() )
 			{
 				// Temp
 				TFGameRules()->StartCompetitiveMatch();
@@ -1600,7 +1632,7 @@ void CTeamplayRoundBasedRules::CheckReadyRestart( void )
 
 	bool bProcessReadyRestart = m_bAwaitingReadyRestart;
 
-#ifdef TF_DLL
+#if defined TF_DLL || defined TF_VINTAGE
 	bProcessReadyRestart &= TFGameRules() && !TFGameRules()->UsePlayerReadyStatusMode();
 #endif // TF_DLL
 
@@ -1723,7 +1755,7 @@ void CTeamplayRoundBasedRules::State_Think_RND_RUNNING( void )
 		}
 #endif
 
-#ifdef TF_DLL
+#if defined( TF_DLL ) || defined( TF_VINTAGE )
 		// Mass time-out?  Clean everything up.
 		if ( TFGameRules() && TFGameRules()->IsCompetitiveMode() )
 		{
@@ -1816,12 +1848,12 @@ void CTeamplayRoundBasedRules::State_Enter_TEAM_WIN( void )
 
 	SendWinPanelInfo();
 
-#ifdef TF_DLL
+#if defined( TF_DLL ) || defined( TF_VINTAGE )
 	// Do this now, so players don't leave before the usual CheckWinLimit() call happens
 	bool bDone = ( CheckTimeLimit( false ) || CheckWinLimit( false ) || CheckMaxRounds( false ) || CheckNextLevelCvar( false ) );
 	if ( TFGameRules() && TFGameRules()->IsCompetitiveMode() && bDone )
 	{
-		TFGameRules()->StopCompetitiveMatch( CMsgGC_Match_Result_Status_MATCH_SUCCEEDED );
+		TFGameRules()->StopCompetitiveMatch( /*CMsgGC_Match_Result_Status_MATCH_SUCCEEDED*/ );
 	}
 #endif // TF_DLL
 }
@@ -1891,7 +1923,8 @@ void CTeamplayRoundBasedRules::State_Think_TEAM_WIN( void )
 
 				State_Transition( GR_STATE_PREROUND );
 			}
-#ifdef TF_DLL
+#if defined( TF_DLL ) || defined( TF_VINTAGE )
+		#if 0
 			else if ( TFGameRules() && TFGameRules()->IsMannVsMachineMode() && g_pPopulationManager )
 			{
 				// one of the convars mp_timelimit, mp_winlimit, mp_maxrounds, or nextlevel has been triggered
@@ -1909,6 +1942,7 @@ void CTeamplayRoundBasedRules::State_Think_TEAM_WIN( void )
 				State_Enter( GR_STATE_GAME_OVER );
 				return;
 			}
+		#endif
 			else if ( TFGameRules() && TFGameRules()->UsePlayerReadyStatusMode() )
 			{
 				for ( int i = 1; i <= MAX_PLAYERS; i++ )
@@ -2495,7 +2529,7 @@ void CC_CH_TournamentRestart( void )
 			return;
 	}
 
-#ifdef TF_DLL
+#if defined( TF_DLL ) || defined( TF_VINTAGE )
 	if ( TFGameRules() && TFGameRules()->IsMannVsMachineMode() )
 		return;
 #endif // TF_DLL
@@ -2995,7 +3029,7 @@ void CTeamplayRoundBasedRules::CheckRespawnWaves( void )
 //-----------------------------------------------------------------------------
 void CTeamplayRoundBasedRules::BalanceTeams( bool bRequireSwitcheesToBeDead )
 {
-	if ( mp_autoteambalance.GetBool() == false || ( IsInArenaMode() == true && tf_arena_use_queue.GetBool() == true ) )
+	if ((mp_autoteambalance.GetBool() == false || (IsInArenaMode() == true && tf_arena_use_queue.GetBool() == true)) || (TFGameRules()->IsInVSHMode() == true || TFGameRules()->IsInDRMode() == true))
 	{
 		return;
 	}
@@ -3252,7 +3286,7 @@ void CTeamplayRoundBasedRules::PlayWinSong( int team )
 	}
 	else
 	{
-#if defined (TF_DLL) || defined (TF_CLIENT_DLL)
+#if defined( TF_DLL ) || defined( TF_CLIENT_DLL )
 		if ( TFGameRules() && TFGameRules()->IsPlayingSpecialDeliveryMode() )
 			return;
 #endif // TF_DLL

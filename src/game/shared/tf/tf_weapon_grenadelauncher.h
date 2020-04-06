@@ -16,7 +16,7 @@
 #define CTFGrenadeLauncher C_TFGrenadeLauncher
 #endif
 
-#define TF_GRENADE_LAUNCHER_XBOX_CLIP 4
+#define TF_GRENADE_LAUNCHER_XBOX_CLIP 6
 
 //=============================================================================
 //
@@ -55,13 +55,33 @@ public:
 
 	virtual void SwitchBodyGroups( void );
 
+	int GetDetonateMode( void ) const;
+
 public:
 
+	CBaseEntity *FireProjectileInternal( CTFPlayer *pPlayer );
 	void LaunchGrenade( void );
 
 private:
 
 	CTFGrenadeLauncher( const CTFGrenadeLauncher & ) {}
+};
+
+// Old School Grenade Launcher.
+
+#if defined CLIENT_DLL
+#define CTFGrenadeLauncher_Legacy C_TFGrenadeLauncher_Legacy
+#endif
+
+class CTFGrenadeLauncher_Legacy : public CTFGrenadeLauncher
+{
+public:
+
+	DECLARE_CLASS( CTFGrenadeLauncher_Legacy, CTFGrenadeLauncher )
+	DECLARE_NETWORKCLASS();
+	DECLARE_PREDICTABLE();
+
+	virtual int GetWeaponID( void ) const { return TF_WEAPON_GRENADELAUNCHER_LEGACY; }
 };
 
 #endif // TF_WEAPON_GRENADELAUNCHER_H

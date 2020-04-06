@@ -50,8 +50,10 @@ public:
 	virtual void	PrimaryAttack( void );
 	virtual void	SecondaryAttack( void );
 	virtual void	WeaponIdle( void );
+	virtual bool	ShouldUpdateSpeed(CTFPlayer *pTarget);
 	void			DrainCharge( void );
 	void			AddCharge( float flAmount );
+	void			RemoveCharge( float flAmount, bool bDrainSound = false );
 	virtual void	WeaponReset( void );
 
 	virtual float	GetTargetRange( void );
@@ -83,9 +85,11 @@ public:
 
 	void			HealTargetThink( void );
 
+	bool			IsAttachedToBuilding( void ) const;
+
 #endif
 
-	float			GetChargeLevel( void ) { return m_flChargeLevel; }
+	float			GetChargeLevel( void ) const { return m_flChargeLevel; }
 
 private:
 	bool					FindAndHealTargets( void );

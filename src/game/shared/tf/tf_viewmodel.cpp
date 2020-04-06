@@ -115,6 +115,7 @@ void CTFViewModel::SetWeaponModel( const char *modelname, CBaseCombatWeapon *wea
 void CTFViewModel::UpdateViewmodelAddon( const char *pszModelname, int index /*= 0*/ )
 {
 	C_ViewmodelAttachmentModel *pAddon = m_hViewmodelAddon[index].Get();
+	C_EconEntity *pWeapon = GetOwningWeapon();
 
 	if ( pAddon )
 	{
@@ -127,7 +128,8 @@ void CTFViewModel::UpdateViewmodelAddon( const char *pszModelname, int index /*=
 				pAddon->FollowEntity( this );
 				pAddon->m_nRenderFX = m_nRenderFX;
 				pAddon->UpdateVisibility();
-				pAddon->SetViewmodel( this );
+				pAddon->m_ViewModel = this;
+				pAddon->m_hOwner = pWeapon;
 			}
 			return; // we already have the correct add-on
 		}
@@ -141,19 +143,21 @@ void CTFViewModel::UpdateViewmodelAddon( const char *pszModelname, int index /*=
 	if ( !pAddon )
 		return;
 
-	if ( pAddon->InitializeAsClientEntity( pszModelname, RENDER_GROUP_VIEW_MODEL_TRANSLUCENT ) == false )
+	if ( !pAddon->InitializeAsClientEntity( pszModelname, RENDER_GROUP_VIEW_MODEL_OPAQUE ) )
 	{
 		pAddon->Release();
 		return;
 	}
 
-	m_hViewmodelAddon[index] = pAddon;
 	pAddon->m_nSkin = GetSkin();
 	pAddon->FollowEntity( this );
 	pAddon->UpdatePartitionListEntry();
-	pAddon->CollisionProp()->MarkPartitionHandleDirty();
+	pAddon->CollisionProp()->UpdatePartition();
 	pAddon->UpdateVisibility();
-	pAddon->SetViewmodel( this );
+	pAddon->m_ViewModel = this;
+	pAddon->m_hOwner = pWeapon;
+
+	m_hViewmodelAddon[index] = pAddon;
 }
 
 //-----------------------------------------------------------------------------
@@ -314,7 +318,7 @@ void CTFViewModel::CalcViewModelView( CBasePlayer *owner, const Vector& eyePosit
 	AngleVectors(eyeAngles, &forward, &right, &up);
 
 	// Don't use offsets if minimal viewmodels are active
-	if ( tf_use_min_viewmodels.GetBool() )
+	if ( tf_use_min_viewmodels.GetBool() || ( pPlayer->m_Shared.InCond( TF_COND_ZOOMED ) ) )
 	{
 		vecNewOrigin += forward*m_vOffset.x + right*m_vOffset.y + up*m_vOffset.z;
 	}
@@ -384,8 +388,6 @@ void CTFViewModel::StandardBlendingRules( CStudioHdr *hdr, Vector pos[], Quatern
 
 		int iBarrelBone = Studio_BoneIndexByName( hdr, "v_minigun_barrel" );
 
-		Assert( iBarrelBone != -1 );
-
 		if ( iBarrelBone != -1 && ( hdr->boneFlags( iBarrelBone ) & boneMask ) )
 		{
 			RadianEuler a;
@@ -424,9 +426,16 @@ int CTFViewModel::GetSkin()
 		return nSkin;
 
 	CTFPlayer *pPlayer = ToTFPlayer( GetOwner() );
-	if ( pPlayer )
+	if ( pPlayer && pPlayer->IsAlive() )
 	{
-		if ( pWeapon->GetTFWpnData().m_bHasTeamSkins_Viewmodel )
+		// Check for skin data from items_game
+		if ( pWeapon->GetItem() )
+		{
+			nSkin = pWeapon->GetItem()->GetSkin( pPlayer->GetTeamNumber(), true );
+		}
+
+		// No skin data found. Default to team skins
+		if ( pWeapon->GetTFWpnData().m_bHasTeamSkins_Viewmodel && nSkin == -1 )
 		{
 			switch( pPlayer->GetTeamNumber() )	
 			{
@@ -437,7 +446,7 @@ int CTFViewModel::GetSkin()
 				nSkin = 1;
 				break;
 			}
-		}	
+		}
 	}
 
 	return nSkin;
@@ -498,11 +507,25 @@ bool CTFViewModel::OnPostInternalDrawModel( ClientModelRenderInfo_t *pInfo )
 		C_EconEntity *pEntity = GetOwningWeapon();
 		if ( pEntity )
 		{
-			DrawEconEntityAttachedModels( this, pEntity, pInfo, 2 );
+			DrawEconEntityAttachedModels( this, pEntity, pInfo, AM_VIEWMODEL );
 		}
 		return true;
 	}
 	return false;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Particle override for weapon viewmodels
+//-----------------------------------------------------------------------------
+const char* C_TFViewModel::ModifyEventParticles( const char* token )
+{
+	C_EconEntity *pEntity = GetOwningWeapon();
+	if ( pEntity )
+	{
+		return pEntity->ModifyEventParticles( token );
+	}
+
+	return token;
 }
 
 //-----------------------------------------------------------------------------
@@ -572,7 +595,7 @@ void CViewModelInvisProxy::OnBind( C_BaseEntity *pEnt )
 	C_ViewmodelAttachmentModel *pVMAddon = dynamic_cast< C_ViewmodelAttachmentModel * >( pEnt );
 	if ( pVMAddon )
 	{
-		pVM = dynamic_cast< C_TFViewModel * >( pVMAddon->m_viewmodel.Get() );
+		pVM = dynamic_cast< C_TFViewModel * >( pVMAddon->m_ViewModel.Get() );
 	}
 	else
 	{

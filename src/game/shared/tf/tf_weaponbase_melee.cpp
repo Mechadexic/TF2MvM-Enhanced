@@ -13,11 +13,16 @@
 #if !defined( CLIENT_DLL )
 #include "tf_player.h"
 #include "tf_gamestats.h"
+#include "tf_obj.h"
 #include "ilagcompensationmanager.h"
 // Client specific.
 #else
 #include "c_tf_player.h"
+#include "c_baseobject.h"
 #endif
+
+#define TF_SPEED_BUFF_DURATION_LEGACY 3.0f	// Values used before mid-2016.
+#define TF_SPEED_BUFF_DURATION_MODERN 2.0f	// Values used after mid-2016.
 
 //=============================================================================
 //
@@ -36,7 +41,7 @@ LINK_ENTITY_TO_CLASS( tf_weaponbase_melee, CTFWeaponBaseMelee );
 // Server specific.
 #if !defined( CLIENT_DLL ) 
 BEGIN_DATADESC( CTFWeaponBaseMelee )
-DEFINE_THINKFUNC( Smack )
+	DEFINE_THINKFUNC( Smack )
 END_DATADESC()
 #endif
 
@@ -44,8 +49,11 @@ END_DATADESC()
 ConVar tf_meleeattackforcescale( "tf_meleeattackforcescale", "80.0", FCVAR_CHEAT | FCVAR_GAMEDLL | FCVAR_DEVELOPMENTONLY );
 #endif
 
+ConVar tf2v_speed_buff_duration( "tf2v_new_speed_buff_duration", "2.0", FCVAR_REPLICATED|FCVAR_NOTIFY, "Swaps between using old (3s) and new (2s) speed buffing times." );
+
 ConVar tf_weapon_criticals_melee( "tf_weapon_criticals_melee", "1", FCVAR_NOTIFY | FCVAR_REPLICATED, "Controls random crits for melee weapons.\n0 - Melee weapons do not randomly crit. \n1 - Melee weapons can randomly crit only if tf_weapon_criticals is also enabled. \n2 - Melee weapons can always randomly crit regardless of the tf_weapon_criticals setting.", true, 0, true, 2 );
 extern ConVar tf_weapon_criticals;
+extern ConVar tf2v_critchance_melee;
 
 //=============================================================================
 //
@@ -106,7 +114,7 @@ void CTFWeaponBaseMelee::Spawn()
 // -----------------------------------------------------------------------------
 bool CTFWeaponBaseMelee::CanHolster( void ) const
 {
-	if ( GetTFPlayerOwner()->m_Shared.InCond( TF_COND_CANNOT_SWITCH_FROM_MELEE ) )
+	if ( GetTFPlayerOwner()->m_Shared.InCond( TF_COND_CANNOT_SWITCH_FROM_MELEE ) || GetTFPlayerOwner()->m_Shared.InCond( TF_COND_BERSERK ) )
 		return false;
 
 	return BaseClass::CanHolster();
@@ -121,7 +129,11 @@ bool CTFWeaponBaseMelee::Holster( CBaseCombatWeapon *pSwitchingTo )
 	if ( GetPlayerOwner() )
 	{
 		GetPlayerOwner()->m_flNextAttack = gpGlobals->curtime + 0.5;
+
+		GetTFPlayerOwner()->m_Shared.SetNextMeleeCrit( kCritType_None );
 	}
+
+
 		
 	return BaseClass::Holster( pSwitchingTo );
 }
@@ -143,8 +155,14 @@ void CTFWeaponBaseMelee::PrimaryAttack()
 	m_iWeaponMode = TF_WEAPON_PRIMARY_MODE;
 	m_bConnected = false;
 
+#ifdef GAME_DLL
+	pPlayer->EndClassSpecialSkill();
+#endif
+
 	// Swing the weapon.
 	Swing( pPlayer );
+
+	m_bCurrentAttackIsMiniCrit = pPlayer->m_Shared.GetNextMeleeCrit() != kCritType_None;
 
 #if !defined( CLIENT_DLL ) 
 	pPlayer->SpeakWeaponFire();
@@ -231,7 +249,23 @@ void CTFWeaponBaseMelee::SendPlayerAnimEvent( CTFPlayer *pPlayer )
 
 //-----------------------------------------------------------------------------
 // Purpose: 
-// Input  :  - 
+//-----------------------------------------------------------------------------
+int CTFWeaponBaseMelee::GetSwingRange( void ) const
+{
+	CBasePlayer *pPlayer = GetPlayerOwner();
+	if ( pPlayer == nullptr )
+		return 48;
+
+	float flSwingRangeMult = 1.0f;
+	if ( pPlayer->GetModelScale() > 1.0f )
+		flSwingRangeMult *= pPlayer->GetModelScale();
+
+	CALL_ATTRIB_HOOK_FLOAT( flSwingRangeMult, melee_range_multiplier );
+	return 48 * flSwingRangeMult;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
 //-----------------------------------------------------------------------------
 void CTFWeaponBaseMelee::ItemPostFrame()
 {
@@ -245,11 +279,19 @@ void CTFWeaponBaseMelee::ItemPostFrame()
 	BaseClass::ItemPostFrame();
 }
 
-bool CTFWeaponBaseMelee::DoSwingTrace( trace_t &trace )
+bool CTFWeaponBaseMelee::DoSwingTrace( trace_t &tr )
+{
+	return DoSwingTraceInternal( tr, false, NULL );
+}
+
+bool CTFWeaponBaseMelee::DoSwingTraceInternal( trace_t &trace, bool bCleave, MeleePartitionVector *enumResults )
 {
 	// Setup a volume for the melee weapon to be swung - approx size, so all melee behave the same.
 	static Vector vecSwingMins( -18, -18, -18 );
 	static Vector vecSwingMaxs( 18, 18, 18 );
+
+	float flBoundsMult = 1.0f;
+	CALL_ATTRIB_HOOK_FLOAT( flBoundsMult, melee_bounds_multiplier );
 
 	// Get the current player.
 	CTFPlayer *pPlayer = GetTFPlayerOwner();
@@ -260,30 +302,88 @@ bool CTFWeaponBaseMelee::DoSwingTrace( trace_t &trace )
 	Vector vecForward; 
 	AngleVectors( pPlayer->EyeAngles(), &vecForward );
 	Vector vecSwingStart = pPlayer->Weapon_ShootPosition();
-	Vector vecSwingEnd = vecSwingStart + vecForward * 48;
+	Vector vecSwingEnd = vecSwingStart + vecForward * GetSwingRange();
+	CTraceFilterIgnoreTeammates filterFriendlies( this, COLLISION_GROUP_NONE, GetTeamNumber() );
 
-	// See if we hit anything.
-	UTIL_TraceLine( vecSwingStart, vecSwingEnd, MASK_SOLID, pPlayer, COLLISION_GROUP_NONE, &trace );
-	if ( trace.fraction >= 1.0 )
+	if ( bCleave )
 	{
-		UTIL_TraceHull( vecSwingStart, vecSwingEnd, vecSwingMins, vecSwingMaxs, MASK_SOLID, pPlayer, COLLISION_GROUP_NONE, &trace );
-		if ( trace.fraction < 1.0 )
+		Ray_t ray; CBaseEntity *pList[256];
+		ray.Init( vecSwingStart, vecSwingEnd, vecSwingMins * flBoundsMult, vecSwingMaxs * flBoundsMult );
+
+		int nCount = UTIL_EntitiesAlongRay( pList, sizeof pList, ray, FL_CLIENT|FL_OBJECT );
+		if ( nCount > 0 )
 		{
-			// Calculate the point of intersection of the line (or hull) and the object we hit
-			// This is and approximation of the "best" intersection
-			CBaseEntity *pHit = trace.m_pEnt;
-			if ( !pHit || pHit->IsBSPModel() )
+			int nHit = 0;
+			for ( int i=0; i < nCount; ++i )
 			{
-				// Why duck hull min/max?
-				FindHullIntersection( vecSwingStart, trace, VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX, pPlayer );
+				if ( pList[ i ] == pPlayer )
+					continue;
+
+				if ( pList[ i ]->GetTeamNumber() == pPlayer->GetTeamNumber() )
+					continue;
+
+				if ( enumResults )
+				{
+					trace_t trace;
+					UTIL_TraceModel( vecSwingStart, vecSwingEnd, 
+									 vecSwingMins * flBoundsMult, 
+									 vecSwingMaxs * flBoundsMult, 
+									 pList[i], COLLISION_GROUP_NONE, &trace );
+
+					enumResults->Element( enumResults->AddToTail() ) = trace;
+				}
 			}
 
-			// This is the point on the actual surface (the hull could have hit space)
-			vecSwingEnd = trace.endpos;	
+			return nHit > 0;
 		}
-	}
 
-	return ( trace.fraction < 1.0f );
+		return false;
+	}
+	else
+	{
+		// This takes priority over anything else we hit
+		int nDamagesSappers = 0;
+		CALL_ATTRIB_HOOK_INT( nDamagesSappers, set_dmg_apply_to_sapper );
+		if ( nDamagesSappers != 0 )
+		{
+			CTraceFilterIgnorePlayers filterPlayers( NULL, COLLISION_GROUP_NONE );
+			UTIL_TraceLine( vecSwingStart, vecSwingEnd, MASK_SOLID, &filterPlayers, &trace );
+			if ( trace.fraction >= 1.0 )
+				UTIL_TraceHull( vecSwingStart, vecSwingEnd, vecSwingMins * flBoundsMult, vecSwingMaxs * flBoundsMult, MASK_SOLID, &filterPlayers, &trace );
+
+			// Ensure valid target
+			if ( trace.m_pEnt && trace.m_pEnt->IsBaseObject() )
+			{
+				CBaseObject *pObject = static_cast<CBaseObject *>( trace.m_pEnt );
+				if ( pObject->GetTeamNumber() == pPlayer->GetTeamNumber() && pObject->HasSapper() )
+					return ( trace.fraction < 1.0 );
+			}
+		}
+
+		// See if we hit anything.
+		CTraceFilterIgnoreFriendlyCombatItems filterCombatItem( this, COLLISION_GROUP_NONE, pPlayer->GetTeamNumber() );
+		UTIL_TraceLine( vecSwingStart, vecSwingEnd, MASK_SOLID, &filterCombatItem, &trace );
+		if ( trace.fraction >= 1.0 )
+		{
+			UTIL_TraceHull( vecSwingStart, vecSwingEnd, vecSwingMins * flBoundsMult, vecSwingMaxs * flBoundsMult, MASK_SOLID, &filterCombatItem, &trace );
+			if ( trace.fraction < 1.0 )
+			{
+				// Calculate the point of intersection of the line (or hull) and the object we hit
+				// This is and approximation of the "best" intersection
+				CBaseEntity *pHit = trace.m_pEnt;
+				if ( !pHit || pHit->IsBSPModel() )
+				{
+					// Why duck hull min/max?
+					FindHullIntersection( vecSwingStart, trace, VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX, pPlayer );
+				}
+
+				// This is the point on the actual surface (the hull could have hit space)
+				vecSwingEnd = trace.endpos;	
+			}
+		}
+
+		return ( trace.fraction < 1.0f );
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -293,19 +393,23 @@ bool CTFWeaponBaseMelee::DoSwingTrace( trace_t &trace )
 // -----------------------------------------------------------------------------
 void CTFWeaponBaseMelee::Smack( void )
 {
+	CUtlVector<trace_t> results;
 	trace_t trace;
 
-	CBasePlayer *pPlayer = GetPlayerOwner();
-	if ( !pPlayer )
+	CTFPlayer *pPlayer = GetTFPlayerOwner();
+	if ( pPlayer == nullptr )
 		return;
 
-#if !defined (CLIENT_DLL)
+#if !defined( CLIENT_DLL )
 	// Move other players back to history positions based on local player's lag
 	lagcompensation->StartLagCompensation( pPlayer, pPlayer->GetCurrentCommand() );
 #endif
 
+	int nMeleeCleaves = 0;
+	CALL_ATTRIB_HOOK_INT( nMeleeCleaves, melee_cleave_attack );
+
 	// We hit, setup the smack.
-	if ( DoSwingTrace( trace ) )
+	if ( DoSwingTraceInternal( trace, nMeleeCleaves > 0, &results ) )
 	{
 		// Hit sound - immediate.
 		if( trace.m_pEnt->IsPlayer()  )
@@ -316,54 +420,121 @@ void CTFWeaponBaseMelee::Smack( void )
 		{
 			WeaponSound( MELEE_HIT_WORLD );
 		}
-
-		// Get the current player.
-		CTFPlayer *pPlayer = GetTFPlayerOwner();
-		if ( !pPlayer )
-			return;
-
-		Vector vecForward; 
-		AngleVectors( pPlayer->EyeAngles(), &vecForward );
-		Vector vecSwingStart = pPlayer->Weapon_ShootPosition();
-		Vector vecSwingEnd = vecSwingStart + vecForward * 48;
-
-#ifndef CLIENT_DLL
-		// Do Damage.
-		int iCustomDamage = GetCustomDamageType();
-		float flDamage = GetMeleeDamage( trace.m_pEnt, iCustomDamage );
-		int iDmgType = DMG_BULLET | DMG_NEVERGIB | DMG_CLUB;
-		if ( IsCurrentAttackACrit() )
+		
+		if ( nMeleeCleaves )
 		{
-			// TODO: Not removing the old critical path yet, but the new custom damage is marking criticals as well for melee now.
-			iDmgType |= DMG_CRITICAL;
-
+			for ( int i=0; i<results.Count(); ++i )
+				OnSwingHit( results[i] );
 		}
-
-		if ( IsCurrentAttackAMiniCrit() )
+		else
 		{
-			iDmgType |= DMG_MINICRITICAL;
+			OnSwingHit( trace );
 		}
-
-		CTakeDamageInfo info( pPlayer, pPlayer, flDamage, iDmgType, iCustomDamage );
-		CalculateMeleeDamageForce( &info, vecForward, vecSwingEnd, 1.0f / flDamage * GetForceScale() );
-		trace.m_pEnt->DispatchTraceAttack( info, vecForward, &trace ); 
-		ApplyMultiDamage();
-
-		OnEntityHit( trace.m_pEnt );
-#endif
-		// Don't impact trace friendly players or objects
-		if ( trace.m_pEnt && trace.m_pEnt->GetTeamNumber() != pPlayer->GetTeamNumber() )
+	}
+	else
+	{
+		int nSelfHarm = 0;
+		CALL_ATTRIB_HOOK_INT( nSelfHarm, hit_self_on_miss );
+		if ( nSelfHarm != 0 ) // Hit ourselves, dummy!
 		{
-#ifdef CLIENT_DLL
-			UTIL_ImpactTrace( &trace, DMG_CLUB );
-#endif
-			m_bConnected = true;
+			// Do Damage.
+			DoMeleeDamage( pPlayer, trace );
 		}
-
 	}
 
-#if !defined (CLIENT_DLL)
+#if !defined( CLIENT_DLL )
 	lagcompensation->FinishLagCompensation( pPlayer );
+#endif
+}
+
+void CTFWeaponBaseMelee::DoMeleeDamage( CBaseEntity *pTarget, trace_t &trace )
+{
+	CTFPlayer *pPlayer = GetTFPlayerOwner();
+	if ( !pPlayer )
+		return;
+
+	Vector vecForward; 
+	AngleVectors( pPlayer->EyeAngles(), &vecForward );
+	Vector vecSwingStart = pPlayer->Weapon_ShootPosition();
+	Vector vecSwingEnd = vecSwingStart + vecForward * GetSwingRange();
+
+#if !defined( CLIENT_DLL )
+	// Do Damage.
+	int iCustomDamage = GetCustomDamageType();
+	
+	int nSetDmgType = 0;
+	CALL_ATTRIB_HOOK_INT( nSetDmgType, set_dmgtype_ignite );
+
+	
+	int iDmgType = DMG_MELEE | DMG_CLUB;
+	if ( IsCurrentAttackACrit() )
+	{
+		// TODO: Not removing the old critical path yet, but the new custom damage is marking criticals as well for melee now.
+		iDmgType |= DMG_CRITICAL;
+	}
+
+	if ( IsCurrentAttackAMiniCrit() )
+	{
+		iDmgType |= DMG_MINICRITICAL;
+	}
+	
+	if ( nSetDmgType )
+	{
+		iDmgType |= DMG_IGNITE;
+	}
+
+	int nCritFromBehind = 0;
+	CALL_ATTRIB_HOOK_INT( nCritFromBehind, crit_from_behind );
+	if ( nCritFromBehind == 1 )
+	{
+		Vector vecTargetFwd;
+		AngleVectors( pTarget->EyeAngles(), &vecTargetFwd );
+
+		Vector vecToTarget = pPlayer->GetAbsOrigin() - pTarget->GetAbsOrigin();
+		vecToTarget.NormalizeInPlace();
+
+		if ( vecTargetFwd.Dot( vecToTarget ) > DOT_45DEGREE )
+			iDmgType |= DMG_CRITICAL;
+	}
+
+	float flDamage = GetMeleeDamage( pTarget, iDmgType, iCustomDamage );
+	
+	CTakeDamageInfo info( pPlayer, pPlayer, this, flDamage, iDmgType, iCustomDamage );
+
+	if ( pTarget == pPlayer )
+		info.SetDamageForce( vec3_origin );
+	else
+		CalculateMeleeDamageForce( &info, vecForward, vecSwingEnd, 1.0f / flDamage * GetForceScale() );
+
+	pTarget->DispatchTraceAttack( info, vecForward, &trace ); 
+	ApplyMultiDamage();
+
+	OnEntityHit( pTarget );
+
+	int nCritMakesThemLaugh = 0;
+	CALL_ATTRIB_HOOK_INT( nCritMakesThemLaugh, crit_forces_victim_to_laugh );
+	if ( nCritMakesThemLaugh )
+	{
+		if ( m_bCurrentAttackIsCrit || ( iDmgType & DMG_CRITICAL ) )
+		{
+			CTFPlayer *pTFTarget = ToTFPlayer( pTarget );
+			if ( pTFTarget )
+				pTFTarget->Taunt( TAUNT_LAUGH, MP_CONCEPT_TAUNT_LAUGH );
+		}
+	}
+
+	int nTickleEnemiesWithSameWeapon = 0;
+	CALL_ATTRIB_HOOK_INT( nTickleEnemiesWithSameWeapon, tickle_enemies_wielding_same_weapon );
+	if ( nTickleEnemiesWithSameWeapon )
+	{
+		CTFPlayer *pTFTarget = ToTFPlayer( pTarget );
+		if ( pTFTarget && pTFTarget->GetActiveTFWeapon() )
+		{
+			CTFWeaponBase *pWeapon = pTFTarget->GetActiveTFWeapon();
+			if ( pWeapon->GetItemID() == GetItemID() )
+				pTFTarget->Taunt( TAUNT_LAUGH, MP_CONCEPT_TAUNT_LAUGH );
+		}
+	}
 #endif
 }
 
@@ -371,18 +542,123 @@ void CTFWeaponBaseMelee::Smack( void )
 // Purpose: 
 // Output : float
 //-----------------------------------------------------------------------------
-float CTFWeaponBaseMelee::GetMeleeDamage( CBaseEntity *pTarget, int &iCustomDamage )
+float CTFWeaponBaseMelee::GetMeleeDamage( CBaseEntity *pTarget, int &iDamageTyoe, int &iCustomDamage )
 {
 	float flDamage = (float)m_pWeaponInfo->GetWeaponData( m_iWeaponMode ).m_nDamage;
-
 	CALL_ATTRIB_HOOK_FLOAT( flDamage, mult_dmg );
 
+	int nCritNegatesDamage = 0;
+	CALL_ATTRIB_HOOK_INT( nCritNegatesDamage, crit_does_no_damage );
+	if ( nCritNegatesDamage == 1 )
+	{
+		if ( m_bCurrentAttackIsCrit )
+			return 0.0f;
+
+		if ( iDamageTyoe & DMG_CRITICAL )
+			return 0.0f;
+	}
+
+	CTFPlayer *pPlayer = GetTFPlayerOwner();
+	if ( pPlayer == nullptr || !pPlayer->IsAlive() )
+		return flDamage;
+
+	if ( ( pPlayer->GetMaxHealth() / 2 ) <= pPlayer->GetHealth() )
+		CALL_ATTRIB_HOOK_FLOAT( flDamage, mult_dmg_penalty_while_half_alive );
+	else
+		CALL_ATTRIB_HOOK_FLOAT( flDamage, mult_dmg_penalty_while_half_dead );
+
+	float flHealthMult = 1.0f;
+	CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pPlayer, flHealthMult, mult_dmg_with_reduced_health );
+	if ( flHealthMult != 1.0f )
+	{
+		float flFraction = pPlayer->HealthFraction();
+		flDamage *= RemapValClamped( flFraction, 0.0f, 1.0f, flHealthMult, 1.0f );
+	}
+	
 	return flDamage;
 }
 
 void CTFWeaponBaseMelee::OnEntityHit( CBaseEntity *pEntity )
 {
-	NULL;
+#ifdef GAME_DLL
+	CTFPlayer *pPlayer = GetTFPlayerOwner();
+	if ( pPlayer && TFGameRules()->GetIT() && ToBasePlayer( pEntity ) )
+	{
+		if ( TFGameRules()->GetIT() == pPlayer )
+		{
+			IGameEvent *event = gameeventmanager->CreateEvent( "tagged_player_as_it" );
+			if ( event )
+			{
+				event->SetInt( "player", pPlayer->GetUserID() );
+
+				gameeventmanager->FireEvent( event );
+			}
+
+			UTIL_ClientPrintAll( HUD_PRINTTALK, "#TF_HALLOWEEN_BOSS_ANNOUNCE_TAG", pPlayer->GetPlayerName(), ToBasePlayer( pEntity )->GetPlayerName() );
+
+			CSingleUserRecipientFilter filter( pPlayer );
+			CBaseEntity::EmitSound( filter, pPlayer->entindex(), "Player.TaggedOtherIT" );
+
+			TFGameRules()->SetIT( pEntity );
+		}
+	}
+#endif
+}
+
+void CTFWeaponBaseMelee::OnSwingHit( trace_t &trace )
+{
+	CTFPlayer *pPlayer = GetTFPlayerOwner();
+	if ( pPlayer == nullptr )
+		return;
+
+#if defined( GAME_DLL )
+	// Ally buff calculations.
+	int nCanBuffAllies = 0;
+	CALL_ATTRIB_HOOK_INT( nCanBuffAllies, speed_buff_ally );
+
+	int nTradeHealthPool = 0;
+	CALL_ATTRIB_HOOK_INT( nTradeHealthPool, add_give_health_to_teammate_on_hit );
+
+	// Check to see if they can be buffed.
+	CTFPlayer *pTFPlayer = ToTFPlayer( trace.m_pEnt );
+	if ( pTFPlayer )
+	{
+		// We can buff our team, and spies disguised as teammates.
+		if ( pTFPlayer->InSameTeam( pPlayer ) || pTFPlayer->m_Shared.GetDisguiseTeam() == pPlayer->GetTeamNumber() )
+		{
+			if( nCanBuffAllies == 1 )
+			{
+				const float flBuffDuration = tf2v_speed_buff_duration.GetFloat();
+				pTFPlayer->m_Shared.AddCond( TF_COND_SPEED_BOOST, flBuffDuration );
+				// We buff ourselves a little bit longer
+				pPlayer->m_Shared.AddCond( TF_COND_SPEED_BOOST, (flBuffDuration * 1.25) );
+			}
+
+			if ( nTradeHealthPool != 0 )
+			{
+				nTradeHealthPool = Min( nTradeHealthPool, pPlayer->GetHealth() - 1 );
+
+				if ( pTFPlayer->TakeHealth( nTradeHealthPool, DMG_GENERIC ) )
+				{
+					CTakeDamageInfo info( pPlayer, pPlayer, this, nTradeHealthPool, DMG_PREVENT_PHYSICS_FORCE );
+					pPlayer->TakeDamage( info );
+				}
+			}
+		}
+	}
+#endif
+
+	// Do Damage.
+	DoMeleeDamage( trace.m_pEnt, trace );
+
+	// Don't impact trace friendly players or objects
+	if ( trace.m_pEnt && trace.m_pEnt->GetTeamNumber() != pPlayer->GetTeamNumber() )
+	{
+	#if defined( CLIENT_DLL )
+		UTIL_ImpactTrace( &trace, DMG_CLUB );
+	#endif
+		m_bConnected = true;
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -402,9 +678,13 @@ bool CTFWeaponBaseMelee::CalcIsAttackCriticalHelper( void )
 	if ( nCvarValue == 1 && !tf_weapon_criticals.GetBool() )
 		return false;
 
+	m_bCurrentAttackIsMiniCrit = pPlayer->m_Shared.GetNextMeleeCrit() != kCritType_None;
+	if ( pPlayer->m_Shared.GetNextMeleeCrit() == kCritType_Crit )
+		return true;
+
 	float flPlayerCritMult = pPlayer->GetCritMult();
 
-	float flCritChance = TF_DAMAGE_CRIT_CHANCE_MELEE * flPlayerCritMult;
+	float flCritChance = ( ( tf2v_critchance_melee.GetFloat() / 100 ) * flPlayerCritMult );
 	CALL_ATTRIB_HOOK_FLOAT( flCritChance, mult_crit_chance );
 
 	// If the chance is 0, just bail.

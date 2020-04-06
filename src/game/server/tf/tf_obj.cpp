@@ -59,7 +59,9 @@ ConVar obj_damage_factor( "obj_damage_factor","0", FCVAR_CHEAT | FCVAR_DEVELOPME
 ConVar obj_child_damage_factor( "obj_child_damage_factor","0.25", FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY, "Factor applied to damage done to objects that are built on a buildpoint" );
 ConVar tf_fastbuild("tf_fastbuild", "0", FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY );
 ConVar tf_obj_ground_clearance( "tf_obj_ground_clearance", "32", FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY, "Object corners can be this high above the ground" );
-ConVar tf2c_building_upgrades( "tf2c_building_upgrades", "1", FCVAR_REPLICATED, "Toggles the ability to upgrade buildings other than the sentrygun" );
+ConVar tf2v_building_upgrades( "tf2v_building_upgrades", "1", FCVAR_REPLICATED, "Toggles the ability to upgrade buildings other than the sentrygun" );
+
+extern ConVar tf2v_use_new_wrench_mechanics;
 
 extern short g_sModelIndexFireball;
 
@@ -179,6 +181,7 @@ public:
 	CHandle<CBaseObject> m_hObj2;
 };
 
+IMPLEMENT_AUTO_LIST( IBaseObjectAutoList )
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -221,7 +224,7 @@ void CBaseObject::UpdateOnRemove( void )
 	
 	if ( GetTeam() )
 	{
-		((CTFTeam*)GetTeam())->RemoveObject( this );
+		GetTFTeam()->RemoveObject( this );
 	}
 
 	DetachObjectFromObject();
@@ -300,7 +303,7 @@ bool CBaseObject::CanBeUpgraded( CTFPlayer *pPlayer )
 		return false;
 	}
 
-	if ( !tf2c_building_upgrades.GetBool() && GetType() != OBJ_SENTRYGUN )
+	if ( !tf2v_building_upgrades.GetBool() && GetType() != OBJ_SENTRYGUN )
 		return false;
 
 	return true;
@@ -1856,6 +1859,18 @@ int CBaseObject::OnTakeDamage( const CTakeDamageInfo &info )
 	IHasBuildPoints *pBPInterface = dynamic_cast<IHasBuildPoints*>(this);
 
 	float flDamage = info.GetDamage();
+	
+	// Check weapon attributes if damages change when we hit a building.
+	CBaseEntity *pWeapon = info.GetWeapon();
+	if ( pWeapon )
+	{
+		int nEnergyWeaponNoDamage = 0;
+		CALL_ATTRIB_HOOK_INT_ON_OTHER( pWeapon, nEnergyWeaponNoDamage, energy_weapon_no_hurt_building);
+		if ( nEnergyWeaponNoDamage != 0 )
+			flDamage *= 0.2;
+			
+		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pWeapon, flDamage, mult_dmg_vs_buildings );
+	}
 
 	// Objects build on other objects take less damage
 	if ( !IsAnUpgrade() && GetParentObject() )
@@ -2058,8 +2073,16 @@ float CBaseObject::GetConstructionMultiplier( void )
 		}
 		else
 		{
-			// Each player hitting it builds twice as fast
-			flMultiplier *= 2.0;
+			if ( tf2v_use_new_wrench_mechanics.GetBool() ) 
+			{
+				// Each player hitting it builds 2.5x as fast
+				flMultiplier *= 2.5;
+			}
+			else
+			{
+				// Each player hitting it builds twice as fast
+				flMultiplier *= 2.0;
+			}
 
 			// Check if this weapon has a build modifier
 			CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( UTIL_PlayerByIndex( m_RepairerList.Key( iThis ) ), flMultiplier, mult_construction_value );
@@ -2191,6 +2214,7 @@ void CBaseObject::Killed( const CTakeDamageInfo &info )
 	CBaseEntity *pKiller = info.GetAttacker();
 	CTFPlayer *pScorer = ToTFPlayer( TFGameRules()->GetDeathScorer( pKiller, pInflictor, this ) );
 	CTFPlayer *pAssister = NULL;
+	CTFPlayer *pSapperOwner = NULL;
 
 	// if this object has a sapper on it, and was not killed by the sapper (killed by damage other than crush, since sapper does crushing damage),
 	// award an assist to the owner of the sapper since it probably contributed to destroying this object
@@ -2201,6 +2225,8 @@ void CBaseObject::Killed( const CTakeDamageInfo &info )
 		{
 			// give an assist to the sapper's owner
 			pAssister = pSapper->GetOwner();
+			pSapperOwner = pSapper->GetOwner();
+			pSapperOwner->m_Shared.StoreSapperKillCount();
 			CTF_GameStats.Event_AssistDestroyBuilding( pAssister, this );
 		}
 	}
@@ -2244,6 +2270,10 @@ void CBaseObject::Killed( const CTakeDamageInfo &info )
 			{
 				event->SetInt( "assister", pAssister->GetUserID() );
 			}
+			if ( pSapperOwner )
+			{
+				event->SetInt( "sapper", pSapperOwner->GetUserID() );
+			}
 			
 			event->SetInt( "attacker", pScorer->GetUserID() );	// attacker
 			event->SetString( "weapon", killer_weapon_name );
@@ -2251,6 +2281,7 @@ void CBaseObject::Killed( const CTakeDamageInfo &info )
 			event->SetInt( "priority", 6 );		// HLTV event priority, not transmitted
 			event->SetInt( "objecttype", GetType() );
 			event->SetInt( "index", entindex() );	// object entity index
+			
 
 			gameeventmanager->FireEvent( event );
 		}
@@ -2569,6 +2600,13 @@ bool CBaseObject::CheckUpgradeOnHit( CTFPlayer *pPlayer )
 	if ( tf_cheapobjects.GetBool() == false )
 	{
 		pPlayer->RemoveAmmo( iAmountToAdd, TF_AMMO_METAL );
+		if ( GetType() == OBJ_TELEPORTER )
+		{
+			// Teleporters also get affected by the repair attribute when considering upgrading.
+			float flModUpgradeCost = 1.0;
+			CALL_ATTRIB_HOOK_INT_ON_OTHER( pPlayer, flModUpgradeCost, mod_teleporter_cost );
+			iAmountToAdd *= ( 1 / flModUpgradeCost );
+		}
 	}
 	m_iUpgradeMetal += iAmountToAdd;
 
@@ -2604,10 +2642,28 @@ bool CBaseObject::Command_Repair( CTFPlayer *pActivator )
 {
 	if ( GetHealth() < GetMaxHealth() )
 	{
-		int iAmountToHeal = min( 100, GetMaxHealth() - GetHealth() );
+		float flRepairRate = 1;
+		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pActivator, flRepairRate, mult_repair_value );
+		
+		int	iAmountToHeal = min( (int)(flRepairRate * 100) , GetMaxHealth() - GetHealth() );
 
 		// repair the building
-		int iRepairCost = ceil( (float)( iAmountToHeal ) * 0.2f );
+		int iRepairCost;
+		int iRepairRateCost;
+		float flModRepairCost = 1.0f;
+		if ( tf2v_use_new_wrench_mechanics.GetBool() )
+		{
+			// 3HP per metal (new repair cost)
+			iRepairRateCost = 3;
+		}
+		else
+		{
+			// 5HP per metal (old repair cost)
+			iRepairRateCost = 5;
+		}
+		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pActivator, flModRepairCost, building_cost_reduction );
+		iRepairRateCost *= ( 1 / flModRepairCost );
+		iRepairCost = ceil( (float)( iAmountToHeal ) * (1 / iRepairRateCost ) );	
 	
 		TRACE_OBJECT( UTIL_VarArgs( "%0.2f CObjectDispenser::Command_Repair ( %d / %d ) - cost = %d\n", gpGlobals->curtime, 
 			GetHealth(),
@@ -2623,7 +2679,7 @@ bool CBaseObject::Command_Repair( CTFPlayer *pActivator )
 
 			pActivator->RemoveBuildResources( iRepairCost );
 
-			float flNewHealth = min( GetMaxHealth(), m_flHealth + ( iRepairCost * 5 ) );
+			float flNewHealth = min( GetMaxHealth(), m_flHealth + ( iRepairCost * (iRepairRateCost) ) );
 			SetHealth( flNewHealth );
 	
 			return ( iRepairCost > 0 );

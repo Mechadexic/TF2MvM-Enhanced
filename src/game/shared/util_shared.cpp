@@ -816,15 +816,29 @@ static ConVar	violence_hgibs( "violence_hgibs","1", 0, "Show human gib entities"
 static ConVar	violence_ablood( "violence_ablood","1", 0, "Draw alien blood" );
 static ConVar	violence_agibs( "violence_agibs","1", 0, "Show alien gib entities" );
 
+// TF2V Manual Override
+ConVar	tf2v_lv( "tf2v_lv","0", FCVAR_USERINFO | FCVAR_ARCHIVE, "Force enable Low Violence mode." );
+
 bool UTIL_IsLowViolence( void )
 {
 	// These convars are no longer necessary -- the engine is the final arbiter of
 	// violence settings -- but they're here for legacy support and for testing low
 	// violence when the engine is in normal violence mode.
-	if ( !violence_hblood.GetBool() || !violence_ablood.GetBool() || !violence_hgibs.GetBool() || !violence_agibs.GetBool() )
+	
+	// If we have a LV governor in the scripts folder, always LV.
+#if defined(TF_CLIENT_DLL) || defined (TF_VINTAGE_CLIENT)
+
+	// Check if we manually override the low violence ourselves.
+	if ( tf2v_lv.GetBool() )
+		return true;
+	
+#endif
+
+	// Turn on lowviolence mode when all of these are disabled.
+	if ( ( !violence_hblood.GetBool() && !violence_hgibs.GetBool() ) && ( !violence_ablood.GetBool() && !violence_agibs.GetBool() ) )
 		return true;
 
-#ifdef TF_CLIENT_DLL
+#if defined(TF_CLIENT_DLL) || defined (TF_VINTAGE_CLIENT)
 	// Use low violence if the local player has an item that allows them to see it (Pyro Goggles)
 	if ( IsLocalPlayerUsingVisionFilterFlags( TF_VISION_FILTER_PYRO ) )
 	{
@@ -837,7 +851,7 @@ bool UTIL_IsLowViolence( void )
 
 bool UTIL_ShouldShowBlood( int color )
 {
-	if ( color != DONT_BLEED )
+	if ( ( color != DONT_BLEED ) && ( !tf2v_lv.GetBool() ) )
 	{
 		if ( color == BLOOD_COLOR_RED )
 		{

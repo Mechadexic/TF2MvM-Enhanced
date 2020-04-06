@@ -37,12 +37,13 @@ public:
 	CTFSyringeGun() {}
 	~CTFSyringeGun() {}
 
-	virtual void Precache();
+	virtual void	Precache();
 	virtual int		GetWeaponID( void ) const			{ return TF_WEAPON_SYRINGEGUN_MEDIC; }
+	virtual float		GetSpeedMod( void ) const;
 
 private:
 
-	CTFSyringeGun( const CTFSyringeGun & ) {}
+	CTFSyringeGun( CTFSyringeGun const& );
 };
 
 #endif // TF_WEAPON_SYRINGEGUN_H

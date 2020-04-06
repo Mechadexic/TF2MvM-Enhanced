@@ -7,6 +7,16 @@
 #include "cbase.h"
 #include "econ_wearable.h"
 
+#ifdef GAME_DLL
+#include "tf_player.h"
+#else
+#include "c_tf_player.h"
+#include "vcollide.h"
+#include "vcollide_parse.h"
+
+extern ConVar r_propsmaxdist;
+#endif
+
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -25,19 +35,24 @@ END_NETWORK_TABLE()
 
 void CEconWearable::Spawn( void )
 {
-	GetAttributeContainer()->InitializeAttributes( this );
+	InitializeAttributes();
 
 	Precache();
 
-	if ( m_bExtraWearable && m_Item.GetStaticData() )
+	if ( m_bExtraWearable && GetItem()->GetStaticData() )
 	{
-		SetModel( m_Item.GetStaticData()->extra_wearable );
+		SetModel( GetItem()->GetStaticData()->extra_wearable );
 	}
 	else
 	{
-		SetModel( m_Item.GetPlayerDisplayModel() );
+		SetModel( GetItem()->GetPlayerDisplayModel() );
 	}
 
+#if defined ( GAME_DLL )
+	if ( GetItem()->GetStaticData() )
+		m_bItemFallsOff = GetItem()->GetStaticData()->itemfalloff;
+#endif
+	
 	BaseClass::Spawn();
 
 	AddEffects( EF_BONEMERGE );
@@ -48,25 +63,34 @@ void CEconWearable::Spawn( void )
 
 int CEconWearable::GetSkin( void )
 {
-	switch ( GetTeamNumber() )
+	if ( GetItem() && GetItem()->GetSkin( GetTeamNumber(), false ) > -1 )
+		return GetItem()->GetSkin( GetTeamNumber(), false );
+
+	CTFPlayer *pOwner = ToTFPlayer( GetOwnerEntity() );
+	if ( pOwner == nullptr )
+		return 0;
+
+	int iVisibleTeam = GetTeamNumber();
+	// if this player is disguised and on the other team, use disguise team
+	if ( pOwner->m_Shared.InCond( TF_COND_DISGUISED ) )
+	{
+		iVisibleTeam = pOwner->m_Shared.GetDisguiseTeam();
+	}
+
+	switch ( iVisibleTeam )
 	{
 		case TF_TEAM_BLUE:
 			return 1;
-			break;
-
 		case TF_TEAM_RED:
 			return 0;
-			break;
-
-		default:
-			return 0;
-			break;
 	}
+
+	return m_nSkin;
 }
 
 void CEconWearable::UpdateWearableBodyGroups( CBasePlayer *pPlayer )
 {
-	EconItemVisuals *visual = GetItem()->GetStaticData()->GetVisuals( GetTeamNumber() );
+	PerTeamVisuals_t *visual = GetItem()->GetStaticData()->GetVisuals( GetTeamNumber() );
  	for ( unsigned int i = 0; i < visual->player_bodygroups.Count(); i++ )
 	{
 		const char *szBodyGroupName = visual->player_bodygroups.GetElementName(i);
@@ -98,6 +122,18 @@ void CEconWearable::GiveTo( CBaseEntity *pEntity )
 	if ( pPlayer )
 	{
 		pPlayer->EquipWearable( this );
+	}
+#endif
+}
+
+void CEconWearable::RemoveFrom( CBaseEntity *pEntity )
+{
+#ifdef GAME_DLL
+	CBasePlayer *pPlayer = ToBasePlayer( pEntity );
+
+	if ( pPlayer )
+	{
+		pPlayer->RemoveWearable( this );
 	}
 #endif
 }
@@ -165,6 +201,211 @@ bool CEconWearable::ShouldDraw( void )
 		return false;
 
 	return BaseClass::ShouldDraw();
+}
+
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+CEconWearableGib::CEconWearableGib()
+{
+	m_bAttachedModel = false;
+	m_flFadeTime = -1.0f;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+CollideType_t CEconWearableGib::GetCollideType( void )
+{
+	return ENTITY_SHOULD_RESPOND;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CEconWearableGib::ImpactTrace(trace_t *pTrace, int dmgBits, char const *szWeaponName)
+{
+	if ( m_pPhysicsObject == nullptr )
+		return;
+
+	const Vector &vecDir = pTrace->endpos - pTrace->startpos;
+	if ( dmgBits & DMG_BLAST )
+	{
+		const Vector &vecVelocity = vecDir * 500.0f;
+		m_pPhysicsObject->ApplyForceCenter( vecVelocity );
+	}
+	else
+	{
+		const Vector &vecWorldOffset = pTrace->startpos + ( pTrace->fraction * vecDir );
+		const Vector &vecVelocity = vecDir.Normalized() * 4000.0f;
+		m_pPhysicsObject->ApplyForceOffset( vecVelocity, vecWorldOffset );
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CEconWearableGib::Spawn( void )
+{
+	BaseClass::Spawn();
+	UseClientSideAnimation();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CEconWearableGib::SpawnClientEntity( void )
+{
+	if ( IsDynamicModelLoading() )
+	{
+		FinishModelInitialization();
+		return;
+	}
+
+	m_unk2 = true;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+CStudioHdr *CEconWearableGib::OnNewModel( void )
+{
+	CStudioHdr *pStudio = BaseClass::OnNewModel();
+
+	if ( m_unk2 )
+	{
+		if ( !IsDynamicModelLoading() )
+			FinishModelInitialization();
+	}
+
+	return pStudio;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CEconWearableGib::ClientThink( void )
+{
+	if ( m_flFadeTime > 0.0f )
+	{
+		if ( ( m_flFadeTime - gpGlobals->curtime ) < 1.0f )
+		{
+			if ( m_flFadeTime <= gpGlobals->curtime )
+			{
+				Release();
+				return;
+			}
+
+			SetRenderMode( kRenderTransTexture );
+			SetRenderColorA( ( m_flFadeTime - gpGlobals->curtime ) * 256.0f );
+		}
+	}
+
+	if ( m_flFadeTime <= 0.0f )
+	{
+		SetNextClientThink( CLIENT_THINK_NEVER );
+	}
+	else
+	{
+		if( ( m_flFadeTime - gpGlobals->curtime ) < 1.0f )
+			SetNextClientThink( CLIENT_THINK_ALWAYS );
+		else
+			SetNextClientThink( m_flFadeTime - 1.0f );
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CEconWearableGib::StartFadeOut( float flTime )
+{
+	m_flFadeTime = gpGlobals->curtime + flTime + 1.0f;
+	if ( m_flFadeTime <= 0.0f )
+	{
+		SetNextClientThink( CLIENT_THINK_NEVER );
+	}
+	else
+	{
+		if( ( m_flFadeTime - gpGlobals->curtime ) < 1.0f )
+			SetNextClientThink( CLIENT_THINK_ALWAYS );
+		else
+			SetNextClientThink( m_flFadeTime - 1.0f );
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CEconWearableGib::FinishModelInitialization( void )
+{
+	if ( m_flFadeTime <= 0.0f )
+	{
+		SetNextClientThink( CLIENT_THINK_NEVER );
+	}
+	else
+	{
+		if( ( m_flFadeTime - gpGlobals->curtime ) < 1.0f )
+			SetNextClientThink( CLIENT_THINK_ALWAYS );
+		else
+			SetNextClientThink( m_flFadeTime - 1.0f );
+	}
+
+	const model_t *pModel = GetModel();
+	if ( pModel )
+	{
+		Vector vecMins, vecMaxs;
+		modelinfo->GetModelBounds( pModel, vecMins, vecMaxs );
+
+		SetCollisionBounds( vecMins, vecMaxs );
+	}
+
+	if ( !m_bAttachedModel )
+	{
+		solid_t solid;
+		if ( !PhysModelParseSolid( solid, this, GetModelIndex() ) )
+		{
+			DevMsg( __FUNCTION__ ": PhysModelParseSolid failed for entity %i.\n", GetModelIndex() );
+			return;
+		}
+
+		m_pPhysicsObject = VPhysicsInitNormal( SOLID_VPHYSICS, 0, false );
+		if ( m_pPhysicsObject == nullptr )
+		{
+			DevMsg( __FUNCTION__ ": VPhysicsInitNormal() failed for %s.\n", GetModelName() );
+			return;
+		}
+	}
+
+	if ( m_fadeMinDist < 0.0f )
+	{
+		m_fadeMaxDist = r_propsmaxdist.GetFloat();
+		m_fadeMinDist = r_propsmaxdist.GetFloat() * 0.75f;
+	}
+
+	Spawn();
+
+	SetCollisionGroup( COLLISION_GROUP_DEBRIS );
+	UpdatePartitionListEntry();
+	CollisionProp()->UpdatePartition();
+
+	SetBlocksLOS( false );
+	CreateShadow();
+	UpdateVisibility();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+bool CEconWearableGib::Initialize( bool bAttached )
+{
+	m_bAttachedModel = bAttached;
+
+	const char *model = STRING( GetModelName() );
+	if( InitializeAsClientEntity( model, RENDER_GROUP_OPAQUE_ENTITY ) )
+		return true;
+
+	return false;
 }
 
 #endif

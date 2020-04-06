@@ -20,7 +20,7 @@
 // Ground placed version
 #define DISPENSER_MODEL_PLACEMENT			"models/buildables/dispenser_blueprint.mdl"
 // *_UPGRADE models are models used during the upgrade transition
-// Valve fucked up the naming of the models. the _light ones (which should be the transition models)
+// Valve messed up the naming of the models. the _light ones (which should be the transition models)
 // are actually the ones that are set AFTER the upgrade transition.
 
 #define DISPENSER_MODEL_LEVEL_1				"models/buildables/dispenser_light.mdl"
@@ -38,6 +38,8 @@
 
 #define REFILL_CONTEXT			"RefillContext"
 #define DISPENSE_CONTEXT		"DispenseContext"
+
+ConVar tf2v_explosive_dispensers("tf2v_explosive_dispensers","0", FCVAR_NOTIFY, "Exploding dispensers do nearby damage." );
 
 //-----------------------------------------------------------------------------
 // Purpose: SendProxy that converts the Healing list UtlVector to entindices
@@ -366,8 +368,6 @@ void CObjectDispenser::Precache()
 
 	PrecacheVGuiScreen( "screen_obj_dispenser_blue" );
 	PrecacheVGuiScreen( "screen_obj_dispenser_red" );
-	PrecacheVGuiScreen( "screen_obj_dispenser_green" );
-	PrecacheVGuiScreen( "screen_obj_dispenser_yellow" );
 
 
 	PrecacheScriptSound( "Building_Dispenser.Idle" );
@@ -420,20 +420,21 @@ int CObjectDispenser::GetMaxUpgradeLevel(void)
 //-----------------------------------------------------------------------------
 void CObjectDispenser::DetonateObject( void )
 {
-	/*
-	float flDamage = min( 100 + m_iAmmoMetal, 250 );
+	if ( tf2v_explosive_dispensers.GetBool() )
+	{
+		float flDamage = min( 100 + m_iAmmoMetal, 250 );
 
-	ExplosionCreate( 
-		GetAbsOrigin(),
-		GetAbsAngles(),
-		GetBuilder(),
-		flDamage,	//magnitude
-		flDamage,		//radius
-		0,
-		0.0f,				//explosion force
-		this,				//inflictor
-		DMG_BLAST | DMG_HALF_FALLOFF);
-	*/
+		ExplosionCreate( 
+			GetAbsOrigin(),
+			GetAbsAngles(),
+			GetBuilder(),
+			flDamage,	//magnitude
+			flDamage,		//radius
+			0,
+			0.0f,				//explosion force
+			this,				//inflictor
+			DMG_BLAST | DMG_HALF_FALLOFF);
+	}
 
 	BaseClass::DetonateObject();
 }
@@ -527,11 +528,14 @@ void CObjectDispenser::FinishUpgrading( void )
 bool CObjectDispenser::DispenseAmmo( CTFPlayer *pPlayer )
 {
 	int iTotalPickedUp = 0;
-	float flAmmoRate = g_flDispenserAmmoRates[GetUpgradeLevel() - 1];
+	float flAmmoRate = GetAmmoRate();
 
-	// primary
-	int iPrimary = pPlayer->GiveAmmo( floor( pPlayer->GetMaxAmmo( TF_AMMO_PRIMARY ) * flAmmoRate ), TF_AMMO_PRIMARY, false, TF_AMMO_SOURCE_DISPENSER );
-	iTotalPickedUp += iPrimary;
+	if ( CAttributeManager::AttribHookValue<int>( 0, "no_primary_ammo_from_dispensers", pPlayer->GetActiveWeapon() ) == 0 )
+	{
+		// primary
+		int iPrimary = pPlayer->GiveAmmo( floor( pPlayer->GetMaxAmmo( TF_AMMO_PRIMARY ) * flAmmoRate ), TF_AMMO_PRIMARY, false, TF_AMMO_SOURCE_DISPENSER );
+		iTotalPickedUp += iPrimary;
+	}
 
 	// secondary
 	int iSecondary = pPlayer->GiveAmmo( floor( pPlayer->GetMaxAmmo( TF_AMMO_SECONDARY ) * flAmmoRate ), TF_AMMO_SECONDARY, false, TF_AMMO_SOURCE_DISPENSER );
@@ -541,17 +545,20 @@ bool CObjectDispenser::DispenseAmmo( CTFPlayer *pPlayer )
 	int iMetalToGive = DISPENSER_DROP_METAL + 10 * ( GetUpgradeLevel() - 1 );
 
 	if ( ( GetObjectFlags() & OF_IS_CART_OBJECT ) == 0 )
-		iMetalToGive = min( m_iAmmoMetal, iMetalToGive );
+		iMetalToGive = Min( m_iAmmoMetal.Get(), iMetalToGive );
 
-	int iMetal = pPlayer->GiveAmmo( iMetalToGive, TF_AMMO_METAL, false, TF_AMMO_SOURCE_DISPENSER );
-	iTotalPickedUp += iMetal;
+	if ( CAttributeManager::AttribHookValue<int>( 0, "no_metal_from_dispensers_while_active", pPlayer->GetActiveWeapon() ) == 0 )
+	{
+		int iMetal = pPlayer->GiveAmmo( iMetalToGive, TF_AMMO_METAL, false, TF_AMMO_SOURCE_DISPENSER );
+		iTotalPickedUp += iMetal;
 
-	if ( ( GetObjectFlags() & OF_IS_CART_OBJECT ) == 0 )
-		m_iAmmoMetal -= iMetal;
+		if ( ( GetObjectFlags() & OF_IS_CART_OBJECT ) == 0 )
+			m_iAmmoMetal -= iMetal;
+	}
 
 	if ( iTotalPickedUp > 0 )
 	{
-		if (pPlayer->m_Shared.InCond(TF_COND_STEALTHED))
+		if (pPlayer->m_Shared.InCond( TF_COND_STEALTHED ))
 		{
 			CRecipientFilter filter;
 			filter.AddRecipient(pPlayer);
@@ -583,7 +590,22 @@ float CObjectDispenser::GetDispenserRadius( void )
 
 float CObjectDispenser::GetHealRate( void )
 {
-	return g_flDispenserHealRates[ GetUpgradeLevel() - 1 ];
+	float flHealRate = g_flDispenserHealRates[ GetUpgradeLevel() - 1 ];
+
+	if ( GetOwner() )
+		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( GetOwner(), flHealRate, mult_dispenser_rate );
+
+	return flHealRate;
+}
+
+float CObjectDispenser::GetAmmoRate( void )
+{
+	float flAmmoRate = g_flDispenserHealRates[GetUpgradeLevel() - 1];
+
+	if ( GetOwner() )
+		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( GetOwner(), flAmmoRate, mult_dispenser_rate );
+
+	return flAmmoRate;
 }
 
 void CObjectDispenser::RefillThink( void )
@@ -601,7 +623,13 @@ void CObjectDispenser::RefillThink( void )
 	// Auto-refill half the amount as tfc, but twice as often
 	if ( m_iAmmoMetal < DISPENSER_MAX_METAL_AMMO )
 	{
-		m_iAmmoMetal = min( m_iAmmoMetal + DISPENSER_MAX_METAL_AMMO * ( 0.1 + 0.025 * ( GetUpgradeLevel() - 1 ) ), DISPENSER_MAX_METAL_AMMO );
+		int iToRefill = DISPENSER_MAX_METAL_AMMO * ( 0.1 + 0.025 * ( GetUpgradeLevel() - 1 ) );
+
+		if ( GetOwner() )
+			CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( GetOwner(), iToRefill, mult_dispenser_rate );
+
+		m_iAmmoMetal = Min( m_iAmmoMetal + iToRefill, DISPENSER_MAX_METAL_AMMO );
+
 		EmitSound( "Building_Dispenser.GenerateMetal" );
 	}
 
@@ -755,7 +783,8 @@ void CObjectDispenser::StartHealing( CBaseEntity *pOther )
 
 	if ( pPlayer )
 	{
-		pPlayer->m_Shared.Heal( GetOwner(), GetHealRate(), true );
+		float flHealRate = GetHealRate();
+		pPlayer->m_Shared.Heal( GetOwner(), flHealRate, true );
 	}
 }
 

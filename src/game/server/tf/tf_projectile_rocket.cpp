@@ -7,12 +7,14 @@
 #include "cbase.h"
 #include "tf_projectile_rocket.h"
 #include "tf_player.h"
+#include "tf_gamerules.h"
 
 //=============================================================================
 //
 // TF Rocket functions (Server specific).
 //
 #define ROCKET_MODEL "models/weapons/w_models/w_rocket.mdl"
+#define MINIROCKET_MODEL "models/weapons/w_models/w_rocket_airstrike/w_rocket_airstrike.mdl"
 
 LINK_ENTITY_TO_CLASS( tf_projectile_rocket, CTFProjectile_Rocket );
 PRECACHE_REGISTER( tf_projectile_rocket );
@@ -22,6 +24,8 @@ IMPLEMENT_NETWORKCLASS_ALIASED( TFProjectile_Rocket, DT_TFProjectile_Rocket )
 BEGIN_NETWORK_TABLE( CTFProjectile_Rocket, DT_TFProjectile_Rocket )
 	SendPropBool( SENDINFO( m_bCritical ) ),
 END_NETWORK_TABLE()
+
+extern ConVar tf2v_minicrits_on_deflect;
 
 //-----------------------------------------------------------------------------
 // Purpose:
@@ -43,16 +47,7 @@ CTFProjectile_Rocket *CTFProjectile_Rocket::Create( CBaseEntity *pWeapon, const 
 //-----------------------------------------------------------------------------
 void CTFProjectile_Rocket::Spawn()
 {
-#if 0
-	const char *pszRocketModel = ROCKET_MODEL;
-	CTFPlayer *pPlayer = dynamic_cast<CTFPlayer*>( GetOwnerEntity() );
-	if ( pPlayer )
-	{
-		if ( pPlayer->IsActiveTFWeapon( TF_WEAPON_ROCKETLAUNCHERBETA ) )
-			pszRocketModel = "models/weapons/w_models/w_rocketbeta.mdl";
-	}
-#endif
-
+	UseClientSideAnimation();
 	SetModel( ROCKET_MODEL );
 	BaseClass::Spawn();
 }
@@ -109,12 +104,26 @@ int	CTFProjectile_Rocket::GetDamageType()
 	{
 		iDmgType |= DMG_CRITICAL;
 	}
-	if ( m_iDeflected > 0 )
+	if ( ( m_iDeflected > 0 ) && ( tf2v_minicrits_on_deflect.GetBool() ) )
 	{
 		iDmgType |= DMG_MINICRITICAL;
 	}
 
 	return iDmgType;
+}
+
+bool CTFProjectile_Rocket::IsDeflectable(void)
+{
+	// Don't deflect projectiles with non-deflect attributes.
+	if (m_hLauncher.Get())
+	{
+		// Check to see if this is a non-deflectable projectile, like an energy projectile.
+		int nCannotDeflect = 0;
+		CALL_ATTRIB_HOOK_INT_ON_OTHER(m_hLauncher.Get(), nCannotDeflect, energy_weapon_no_deflect);
+		if (nCannotDeflect != 0)
+			return false;
+	}
+	return true;
 }
 
 //-----------------------------------------------------------------------------

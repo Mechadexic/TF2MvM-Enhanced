@@ -12,6 +12,7 @@
 #include "tf_projectile_nail.h"
 #include "tf_projectile_arrow.h"
 #include "tf_projectile_jar.h"
+#include "tf_shareddefs.h"
 
 #if !defined( CLIENT_DLL )	// Server specific.
 
@@ -24,6 +25,9 @@
 	#include "tf_weapon_grenade_pipebomb.h"
 	#include "tf_projectile_flare.h"
 	#include "te.h"
+
+	#include "tf_gamerules.h"
+	#include "soundent.h"
 
 #else	// Client specific.
 
@@ -71,8 +75,14 @@ CTFWeaponBaseGun::CTFWeaponBaseGun()
 //-----------------------------------------------------------------------------
 void CTFWeaponBaseGun::PrimaryAttack( void )
 {
+	if ( AutoFiresFullClip() && !m_bFiringWholeClip )
+	{
+		UpdateAutoFire();
+		return;
+	}
+
 	// Check for ammunition.
-	if ( m_iClip1 <= 0 && UsesClipsForAmmo1() )
+	if ( ( m_iClip1 < GetAmmoPerShot() ) && UsesClipsForAmmo1() )
 		return;
 
 	// Are we capable of firing again?
@@ -83,13 +93,26 @@ void CTFWeaponBaseGun::PrimaryAttack( void )
 	CTFPlayer *pPlayer = ToTFPlayer( GetPlayerOwner() );
 	if ( !pPlayer )
 		return;
-
+	
+	// Check for ammunition for single shot/attributes.
+	if ( !UsesClipsForAmmo1() && ( m_iWeaponMode == TF_WEAPON_PRIMARY_MODE ) )
+	{
+		if ( pPlayer->GetAmmoCount( m_iPrimaryAmmoType ) < GetAmmoPerShot() )
+			return;
+	}
+	else if ( !UsesClipsForAmmo2() && ( m_iWeaponMode == TF_WEAPON_SECONDARY_MODE ) )
+	{
+		if ( pPlayer->GetAmmoCount( m_iSecondaryAmmoType ) < GetAmmoPerShot() )
+			return;
+	}
+	
 	if ( !CanAttack() )
 		return;
 
 	CalcIsAttackCritical();
 
 #ifndef CLIENT_DLL
+
 	pPlayer->RemoveInvisibility();
 	pPlayer->RemoveDisguise();
 
@@ -115,6 +138,16 @@ void CTFWeaponBaseGun::PrimaryAttack( void )
 	// Set next attack times.
 	float flFireDelay = m_pWeaponInfo->GetWeaponData( m_iWeaponMode ).m_flTimeFireDelay;
 	CALL_ATTRIB_HOOK_FLOAT( flFireDelay, mult_postfiredelay );
+	
+	if ( pPlayer->m_Shared.InCond( TF_COND_BLASTJUMPING ) )
+			CALL_ATTRIB_HOOK_FLOAT( flFireDelay, rocketjump_attackrate_bonus );
+		
+	float flHealthModFireBonus = 1;
+	CALL_ATTRIB_HOOK_FLOAT( flHealthModFireBonus, mult_postfiredelay_with_reduced_health );
+	if (flHealthModFireBonus != 1)
+	{
+		flFireDelay *= RemapValClamped( pPlayer->GetHealth() / pPlayer->GetMaxHealth(), 0.2, 0.9, flHealthModFireBonus, 1.0 );
+	}
 
 	m_flNextPrimaryAttack = gpGlobals->curtime + flFireDelay;
 
@@ -156,89 +189,93 @@ CBaseEntity *CTFWeaponBaseGun::FireProjectile( CTFPlayer *pPlayer )
 
 	CALL_ATTRIB_HOOK_INT( iProjectile, override_projectile_type );
 
-	if ( !iProjectile )
+	if ( iProjectile == TF_PROJECTILE_NONE )
 		iProjectile = m_pWeaponInfo->GetWeaponData( m_iWeaponMode ).m_iProjectile;
 
 	CBaseEntity *pProjectile = NULL;
 
 	switch( iProjectile )
 	{
-	case TF_PROJECTILE_BULLET:
-		FireBullet( pPlayer );
-		break;
+		case TF_PROJECTILE_BULLET:
+			FireBullet( pPlayer );
+			break;
 
-	case TF_PROJECTILE_ROCKET:
-		pProjectile = FireRocket( pPlayer );
-		pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
-		break;
+		case TF_PROJECTILE_ROCKET:
+			pProjectile = FireRocket( pPlayer );
+			pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
+			break;
+		
+		case TF_PROJECTILE_SYRINGE:
+		case TF_PROJECTILE_NAIL:
+		case TF_PROJECTILE_DART:
+			pProjectile = FireNail( pPlayer, iProjectile );
+			pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
+			break;
 
-	case TF_PROJECTILE_SYRINGE:
-		pProjectile = FireNail( pPlayer, iProjectile );
-		pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
-		break;
+		case TF_PROJECTILE_PIPEBOMB:
+		case TF_PROJECTILE_CANNONBALL:
+			pProjectile = FirePipeBomb( pPlayer, 0 );
+			pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
+			break;
 
-	case TF_PROJECTILE_PIPEBOMB:
-	case TF_PROJECTILE_CANNONBALL:
-		pProjectile = FirePipeBomb( pPlayer, false );
-		pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
-		break;
+		case TF_PROJECTILE_PIPEBOMB_REMOTE:
+		case TF_PROJECTILE_PIPEBOMB_REMOTE_PRACTICE:
+			pProjectile = FirePipeBomb( pPlayer, 1 );
+			pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
+			break;
 
-	case TF_PROJECTILE_PIPEBOMB_REMOTE:
-	case TF_PROJECTILE_PIPEBOMB_REMOTE_PRACTICE:
-		pProjectile = FirePipeBomb( pPlayer, true );
-		pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
-		break;
+		case TF_WEAPON_GRENADE_PIPEBOMB_PROJECTILE:
+			pProjectile = FirePipeBomb( pPlayer, 3 );
+			pPlayer->DoAnimationEvent( PLAYERANIMEVENT_ATTACK_PRIMARY );
+			break;
 
-	case TF_PROJECTILE_FLARE:
-		pProjectile = FireFlare(pPlayer);
-		pPlayer->DoAnimationEvent(PLAYERANIMEVENT_ATTACK_PRIMARY);
-		break;
+		case TF_PROJECTILE_FLARE:
+			pProjectile = FireFlare( pPlayer );
+			pPlayer->DoAnimationEvent(PLAYERANIMEVENT_ATTACK_PRIMARY);
+			break;
 
-	case TF_PROJECTILE_JAR:
-	case TF_PROJECTILE_JAR_MILK:
-	case TF_PROJECTILE_FESTITIVE_URINE:
-	case TF_PROJECTILE_BREADMONSTER_JARATE:
-	case TF_PROJECTILE_BREADMONSTER_MADMILK:
-		pProjectile = FireJar(pPlayer, iProjectile);
-		pPlayer->DoAnimationEvent(PLAYERANIMEVENT_ATTACK_PRIMARY);
-		break;
+		case TF_PROJECTILE_JAR:
+		case TF_PROJECTILE_JAR_MILK:
+		case TF_PROJECTILE_FESTIVE_URINE:
+		case TF_PROJECTILE_BREADMONSTER_JARATE:
+		case TF_PROJECTILE_BREADMONSTER_MADMILK:
+			pProjectile = FireJar( pPlayer, iProjectile );
+			pPlayer->DoAnimationEvent(PLAYERANIMEVENT_ATTACK_PRIMARY);
+			break;
 
-	case TF_PROJECTILE_ARROW:
-	case TF_PROJECTILE_HEALING_BOLT:
-	case TF_PROJECTILE_BUILDING_REPAIR_BOLT:
-	case TF_PROJECTILE_FESTITIVE_ARROW:
-	case TF_PROJECTILE_FESTITIVE_HEALING_BOLT:
-	case TF_PROJECTILE_GRAPPLINGHOOK:
-		pProjectile = FireArrow(pPlayer, iProjectile);
-		pPlayer->DoAnimationEvent(PLAYERANIMEVENT_ATTACK_PRIMARY);
-		break;
+		case TF_PROJECTILE_ARROW:
+		case TF_PROJECTILE_HEALING_BOLT:
+		case TF_PROJECTILE_BUILDING_REPAIR_BOLT:
+		case TF_PROJECTILE_FESTIVE_ARROW:
+		case TF_PROJECTILE_FESTIVE_HEALING_BOLT:
+		case TF_PROJECTILE_GRAPPLINGHOOK:
+			pProjectile = FireArrow( pPlayer, iProjectile );
+			pPlayer->DoAnimationEvent(PLAYERANIMEVENT_ATTACK_PRIMARY);
+			break;
 
-	case TF_PROJECTILE_CLEAVER:
-	case TF_PROJECTILE_THROWABLE:
-	case TF_PROJECTILE_NONE:
-	default:
-		// do nothing!
-		DevMsg( "Weapon does not have a projectile type set\n" );
-		break;
+		case TF_PROJECTILE_CLEAVER:
+		case TF_PROJECTILE_THROWABLE:
+		case TF_PROJECTILE_NONE:
+		default:
+			// do nothing!
+			DevMsg( "Weapon does not have a projectile type set\n" );
+			break;
 	}
 
-	if ( UsesClipsForAmmo1() )
+#if defined( GAME_DLL )
+	if ( pProjectile )
 	{
-		m_iClip1 -= m_pWeaponInfo->GetWeaponData( m_iWeaponMode ).m_iAmmoPerShot;
-	}
-	else
-	{
-		if ( m_iWeaponMode == TF_WEAPON_PRIMARY_MODE )
+		CAttribute_String strCustomMdl;
+		if ( GetProjectileModelOverride( &strCustomMdl ) )
 		{
-			pPlayer->RemoveAmmo( m_pWeaponInfo->GetWeaponData( m_iWeaponMode ).m_iAmmoPerShot, m_iPrimaryAmmoType );
-		}
-		else
-		{
-			pPlayer->RemoveAmmo( m_pWeaponInfo->GetWeaponData( m_iWeaponMode ).m_iAmmoPerShot, m_iSecondaryAmmoType );
+			pProjectile->SetModel( strCustomMdl );
 		}
 	}
+#endif
 
 	DoFireEffects();
+
+	RemoveAmmo( pPlayer );
 
 	UpdatePunchAngles( pPlayer );
 
@@ -279,32 +316,6 @@ void CTFWeaponBaseGun::FireBullet( CTFPlayer *pPlayer )
 		GetProjectileDamage(),
 		IsCurrentAttackACrit() );
 }
-
-class CTraceFilterIgnoreTeammates : public CTraceFilterSimple
-{
-public:
-	// It does have a base, but we'll never network anything below here..
-	DECLARE_CLASS( CTraceFilterIgnoreTeammates, CTraceFilterSimple );
-
-	CTraceFilterIgnoreTeammates( const IHandleEntity *passentity, int collisionGroup, int iIgnoreTeam )
-		: CTraceFilterSimple( passentity, collisionGroup ), m_iIgnoreTeam( iIgnoreTeam )
-	{
-	}
-
-	virtual bool ShouldHitEntity( IHandleEntity *pServerEntity, int contentsMask )
-	{
-		CBaseEntity *pEntity = EntityFromEntityHandle( pServerEntity );
-
-		if ( pEntity->IsPlayer() && pEntity->GetTeamNumber() == m_iIgnoreTeam )
-		{
-			return false;
-		}
-
-		return true;
-	}
-
-	int m_iIgnoreTeam;
-};
 
 //-----------------------------------------------------------------------------
 // Purpose: Return angles for a projectile reflected by airblast
@@ -431,6 +442,7 @@ void CTFWeaponBaseGun::GetProjectileFireSetup( CTFPlayer *pPlayer, Vector vecOff
 	{
 		VectorAngles( endPos - *vecSrc, *angForward );
 	}
+	
 }
 
 //-----------------------------------------------------------------------------
@@ -466,6 +478,15 @@ CBaseEntity *CTFWeaponBaseGun::FireRocket( CTFPlayer *pPlayer )
 	}
 	GetProjectileFireSetup( pPlayer, vecOffset, &vecSrc, &angForward, false );
 
+	// Add attribute spread.
+	float flSpread = 0;
+	CALL_ATTRIB_HOOK_FLOAT( flSpread, projectile_spread_angle );
+	if ( flSpread != 0)
+	{
+		angForward.x += RandomFloat(-flSpread, flSpread);
+		angForward.y += RandomFloat(-flSpread, flSpread);
+	}
+
 	CTFProjectile_Rocket *pProjectile = CTFProjectile_Rocket::Create( this, vecSrc, angForward, pPlayer, pPlayer );
 	if ( pProjectile )
 	{
@@ -490,9 +511,9 @@ CBaseEntity *CTFWeaponBaseGun::FireNail( CTFPlayer *pPlayer, int iSpecificNail )
 	QAngle angForward;
 	GetProjectileFireSetup( pPlayer, Vector(16,6,-8), &vecSrc, &angForward );
 
-	// Add some spread
+	// Add some extra spread to our nails.
 	float flSpread = 1.5;
-
+	CALL_ATTRIB_HOOK_FLOAT(flSpread, projectile_spread_angle);
 	angForward.x += RandomFloat(-flSpread, flSpread);
 	angForward.y += RandomFloat(-flSpread, flSpread);
 
@@ -500,7 +521,15 @@ CBaseEntity *CTFWeaponBaseGun::FireNail( CTFPlayer *pPlayer, int iSpecificNail )
 	switch( iSpecificNail )
 	{
 	case TF_PROJECTILE_SYRINGE:
-		pProjectile = CTFProjectile_Syringe::Create( vecSrc, angForward, pPlayer, pPlayer, IsCurrentAttackACrit() );
+		pProjectile = CTFProjectile_Syringe::Create(vecSrc, angForward, pPlayer, pPlayer, IsCurrentAttackACrit(), this );
+		break;
+
+	case TF_PROJECTILE_NAIL:
+		pProjectile = CTFProjectile_Nail::Create(vecSrc, angForward, pPlayer, pPlayer, IsCurrentAttackACrit(), this );
+		break;
+
+	case TF_PROJECTILE_DART:
+		pProjectile = CTFProjectile_Dart::Create(vecSrc, angForward, pPlayer, pPlayer, IsCurrentAttackACrit(), this );
 		break;
 
 	default:
@@ -522,7 +551,7 @@ CBaseEntity *CTFWeaponBaseGun::FireNail( CTFPlayer *pPlayer, int iSpecificNail )
 //-----------------------------------------------------------------------------
 // Purpose: Fire a  pipe bomb
 //-----------------------------------------------------------------------------
-CBaseEntity *CTFWeaponBaseGun::FirePipeBomb( CTFPlayer *pPlayer, bool bRemoteDetonate )
+CBaseEntity *CTFWeaponBaseGun::FirePipeBomb( CTFPlayer *pPlayer, int iRemoteDetonate )
 {
 	PlayWeaponShootSound();
 
@@ -531,9 +560,13 @@ CBaseEntity *CTFWeaponBaseGun::FirePipeBomb( CTFPlayer *pPlayer, bool bRemoteDet
 	int iMode = TF_GL_MODE_REGULAR, iNoSpin = 0;
 	CALL_ATTRIB_HOOK_INT( iMode, set_detonate_mode );
 
-	if ( bRemoteDetonate )
+	if ( iRemoteDetonate == 1 )
 	{
 		iMode = TF_GL_MODE_REMOTE_DETONATE;
+	}
+	else if ( iRemoteDetonate == 3 )
+	{
+		iMode = TF_GL_MODE_BETA_DETONATE;
 	}
 
 	Vector vecForward, vecRight, vecUp;
@@ -548,6 +581,27 @@ CBaseEntity *CTFWeaponBaseGun::FirePipeBomb( CTFPlayer *pPlayer, bool bRemoteDet
 
 	float flDamageMult = 1.0f;
 	CALL_ATTRIB_HOOK_FLOAT( flDamageMult, mult_dmg );
+	
+	// Special damage bonus case for stickybombs.
+	if ( iMode == TF_GL_MODE_REMOTE_DETONATE )
+	{
+		float flDamageChargeMult = 1.0f;
+		CALL_ATTRIB_HOOK_FLOAT( flDamageChargeMult, stickybomb_charge_damage_increase );
+		if ( flDamageChargeMult != 1.0f )
+		{
+			// If we're a stickybomb with this attribute, we need to calculate out the charge level.
+			// Since we know GetProjectileSpeed(), we can use maths to get the charge level percent.
+			float flSpeedMult = 1.0f;
+			CALL_ATTRIB_HOOK_FLOAT( flSpeedMult, mult_projectile_range );
+			float flProjectileSpeedDiffCurrent = GetProjectileSpeed() - ( TF_PIPEBOMB_MIN_CHARGE_VEL * flSpeedMult );
+			float flProjectileSpeedDiffMax = ( TF_PIPEBOMB_MAX_CHARGE_VEL - TF_PIPEBOMB_MIN_CHARGE_VEL ) * flSpeedMult;
+			float flChargePercent = flProjectileSpeedDiffCurrent / flProjectileSpeedDiffMax;
+			
+			// Calculate out our additional damage bonus from charging our stickybomb.
+			flDamageMult *= ( ( flDamageChargeMult - 1 ) * flChargePercent ) + 1;
+			
+		}
+	}
 
 	CALL_ATTRIB_HOOK_INT ( iNoSpin, grenade_no_spin );
 
@@ -559,7 +613,7 @@ CBaseEntity *CTFWeaponBaseGun::FirePipeBomb( CTFPlayer *pPlayer, bool bRemoteDet
 	}
 
 	CTFGrenadePipebombProjectile *pProjectile = CTFGrenadePipebombProjectile::Create( vecSrc, pPlayer->EyeAngles(), vecVelocity, 
-		spin, pPlayer, GetTFWpnData(), iMode, flDamageMult, this );
+																spin, pPlayer, GetTFWpnData(), iMode, flDamageMult, this );
 
 
 	if ( pProjectile )
@@ -590,6 +644,14 @@ CBaseEntity *CTFWeaponBaseGun::FireFlare( CTFPlayer *pPlayer )
 	}
 	GetProjectileFireSetup( pPlayer, vecOffset, &vecSrc, &angForward, false );
 
+	// Add attribute spread.
+	float flSpread = 0;
+	CALL_ATTRIB_HOOK_FLOAT( flSpread, projectile_spread_angle );
+	if ( flSpread != 0)
+	{
+		angForward.x += RandomFloat(-flSpread, flSpread);
+		angForward.y += RandomFloat(-flSpread, flSpread);
+	}
 
 	CTFProjectile_Flare *pProjectile = CTFProjectile_Flare::Create( this, vecSrc, angForward, pPlayer, pPlayer );
 	if ( pProjectile )
@@ -626,7 +688,21 @@ CBaseEntity *CTFWeaponBaseGun::FireJar( CTFPlayer *pPlayer, int iType )
 
 	//GetProjectileFireSetup( pPlayer, vecOffset, &vecSrc, &angForward, false, false );
 
-	CTFProjectile_Jar *pProjectile = CTFProjectile_Jar::Create(this, vecSrc, pPlayer->EyeAngles(), vecVelocity, pPlayer, pPlayer, spin, GetTFWpnData() );
+	CTFWeaponBaseGrenadeProj *pProjectile = NULL;
+
+	switch ( iType )
+	{
+		case TF_PROJECTILE_JAR:
+		case TF_PROJECTILE_FESTIVE_URINE:
+		case TF_PROJECTILE_BREADMONSTER_JARATE:
+			pProjectile = CTFProjectile_Jar::Create( this, vecSrc, pPlayer->EyeAngles(), vecVelocity, pPlayer, pPlayer, spin, GetTFWpnData() );
+			break;
+		case TF_PROJECTILE_JAR_MILK:
+		case TF_PROJECTILE_BREADMONSTER_MADMILK:
+			pProjectile = CTFProjectile_JarMilk::Create( this, vecSrc, pPlayer->EyeAngles(), vecVelocity, pPlayer, pPlayer, spin, GetTFWpnData() );
+			break;
+	}
+	
 	if ( pProjectile )
 	{
 		pProjectile->SetCritical( IsCurrentAttackACrit() );
@@ -659,6 +735,15 @@ CBaseEntity *CTFWeaponBaseGun::FireArrow( CTFPlayer *pPlayer, int iType )
 		vecOffset.y *= -1.0f;
 	}*/
 	GetProjectileFireSetup( pPlayer, vecOffset, &vecSrc, &angForward, false, true );
+	
+	// Add attribute spread.
+	float flSpread = 0;
+	CALL_ATTRIB_HOOK_FLOAT( flSpread, projectile_spread_angle );
+	if ( flSpread != 0)
+	{
+		angForward.x += RandomFloat(-flSpread, flSpread);
+		angForward.y += RandomFloat(-flSpread, flSpread);
+	}
 
 	CTFProjectile_Arrow *pProjectile = CTFProjectile_Arrow::Create( this, vecSrc, angForward, GetProjectileSpeed(), GetProjectileGravity(), IsFlameArrow(), pPlayer, pPlayer, iType );
 	if ( pProjectile )
@@ -730,6 +815,52 @@ void CTFWeaponBaseGun::PlayWeaponShootSound( void )
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+int CTFWeaponBaseGun::GetAmmoPerShot( void ) const
+{
+	int nCustomAmmoPerShot = 0;
+	CALL_ATTRIB_HOOK_INT( nCustomAmmoPerShot, mod_ammo_per_shot );
+	if (nCustomAmmoPerShot)
+		return nCustomAmmoPerShot;
+
+	int iAmmoPerShot = m_pWeaponInfo->GetWeaponData(m_iWeaponMode).m_iAmmoPerShot;
+	return iAmmoPerShot;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CTFWeaponBaseGun::RemoveAmmo( CTFPlayer *pPlayer )
+{
+#ifndef CLIENT_DLL
+
+	if (UsesClipsForAmmo1())
+	{
+		m_iClip1 -= GetAmmoPerShot();
+	}
+	else
+	{
+		if (m_iWeaponMode == TF_WEAPON_PRIMARY_MODE)
+		{
+			if ( !BaseClass::IsEnergyWeapon() )
+				pPlayer->RemoveAmmo( GetAmmoPerShot(), m_iPrimaryAmmoType );
+			if (0 < m_iRefundedAmmo)
+				pPlayer->GiveAmmo( m_iRefundedAmmo, m_iPrimaryAmmoType );
+		}
+		else
+		{
+			if ( !BaseClass::IsEnergyWeapon() )
+				pPlayer->RemoveAmmo( GetAmmoPerShot(), m_iSecondaryAmmoType );
+			if (0 < m_iRefundedAmmo)
+				pPlayer->GiveAmmo( m_iRefundedAmmo, m_iSecondaryAmmoType );
+		}
+
+		m_iRefundedAmmo = 0;
+	}
+#endif
+}
+//-----------------------------------------------------------------------------
 // Purpose: Accessor for damage, so sniper etc can modify damage
 //-----------------------------------------------------------------------------
 float CTFWeaponBaseGun::GetProjectileSpeed( void )
@@ -763,6 +894,18 @@ float CTFWeaponBaseGun::GetWeaponSpread( void )
 {
 	float flSpread = m_pWeaponInfo->GetWeaponData( m_iWeaponMode ).m_flSpread;
 	CALL_ATTRIB_HOOK_FLOAT( flSpread, mult_spread_scale );
+	
+	CTFPlayer *pPlayer = ToTFPlayer( GetPlayerOwner() );
+	if ( pPlayer )
+	{
+		float flHealthModSpread = 1;
+		CALL_ATTRIB_HOOK_FLOAT( flHealthModSpread, panic_attack_negative );
+		if (flHealthModSpread != 1)
+		{
+			flSpread *= RemapValClamped( pPlayer->GetHealth() / pPlayer->GetMaxHealth(), 0.2, 0.9, flHealthModSpread, 1.0 );
+		}	
+	}
+	
 	return flSpread;
 }
 
@@ -773,6 +916,11 @@ float CTFWeaponBaseGun::GetProjectileDamage( void )
 {
 	float flDamage = (float)m_pWeaponInfo->GetWeaponData( m_iWeaponMode ).m_nDamage;
 	CALL_ATTRIB_HOOK_FLOAT( flDamage, mult_dmg );
+
+	CTFPlayer *pPlayer = ToTFPlayer( GetPlayerOwner() );
+	if ( pPlayer && pPlayer->m_Shared.InCond( TF_COND_DISGUISED ) )
+		CALL_ATTRIB_HOOK_FLOAT( flDamage, mult_dmg_disguised );	
+
 	return flDamage;
 }
 

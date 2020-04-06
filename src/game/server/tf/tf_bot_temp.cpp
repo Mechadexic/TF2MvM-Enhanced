@@ -117,7 +117,7 @@ CBasePlayer *BotPutInServer( bool bFrozen, int iTeam, int iClass, const char *ps
 	CTFPlayer *pPlayer = ((CTFPlayer *)CBaseEntity::Instance( pEdict ));
 	pPlayer->ClearFlags();
 	pPlayer->AddFlag( FL_CLIENT | FL_FAKECLIENT );
-
+	pPlayer->m_bPuppet = true;
 	if ( bFrozen )
 		pPlayer->AddEFlags( EFL_BOT_FROZEN );
 
@@ -160,7 +160,7 @@ CON_COMMAND_F( bot, "Add a bot.", FCVAR_CHEAT )
 	while ( --count >= 0 )
 	{
 		// What class do they want?
-		int iClass = RandomInt( TF_CLASS_SCOUT, TF_CLASS_COUNT );
+		int iClass = RandomInt( TF_CLASS_SCOUT, TF_LAST_NORMAL_CLASS );
 		char const *pVal = args.FindArg( "-class" );
 		if ( pVal )
 		{
@@ -209,11 +209,12 @@ void Bot_RunAll( void )
 	for ( int i = 1; i <= gpGlobals->maxClients; i++ )
 	{
 		CTFPlayer *pPlayer = ToTFPlayer( UTIL_PlayerByIndex( i ) );
+		if ( !pPlayer || !pPlayer->IsConnected() )
+			continue;
+		if ( !pPlayer->m_bPuppet || pPlayer->MyNextBotPointer() != NULL )
+			continue;
 
-		if ( pPlayer && (pPlayer->GetFlags() & FL_FAKECLIENT) )
-		{
-			Bot_Think( pPlayer );
-		}
+		Bot_Think( pPlayer );
 	}
 }
 

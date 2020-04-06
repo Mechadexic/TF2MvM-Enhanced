@@ -10,7 +10,7 @@
 #include "fx.h"
 #include "fx_impact.h"
 #include "view.h"
-#ifdef TF_CLIENT_DLL
+#if defined(TF_CLIENT_DLL) || defined(TF_VINTAGE_CLIENT)
 #include "cdll_util.h"
 #endif
 #include "engine/IStaticPropMgr.h"
@@ -132,7 +132,7 @@ bool Impact( Vector &vecOrigin, Vector &vecStart, int iMaterial, int iDamageType
 
 		bool bSkipDecal = false;
 
-#ifdef TF_CLIENT_DLL
+#if defined(TF_CLIENT_DLL) || defined(TF_VINTAGE_CLIENT)
 		// Don't show blood decals if we're filtering them out (Pyro Goggles)
 		if ( IsLocalPlayerUsingVisionFilterFlags( TF_VISION_FILTER_PYRO ) || UTIL_IsLowViolence() )
 		{
@@ -207,7 +207,7 @@ char const *GetImpactDecal( C_BaseEntity *pEntity, int iMaterial, int iDamageTyp
 //-----------------------------------------------------------------------------
 // Purpose: Perform custom effects based on the Decal index
 //-----------------------------------------------------------------------------
-static ConVar cl_new_impact_effects( "cl_new_impact_effects", "1" );
+static ConVar cl_new_impact_effects( "cl_new_impact_effects", "0" );
 
 struct ImpactEffect_t
 {

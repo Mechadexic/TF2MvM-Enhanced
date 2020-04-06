@@ -79,6 +79,7 @@ void CTFBackgroundPanel::VideoReplay()
 	{
 		m_pVideo->Activate();
 		m_pVideo->BeginPlaybackNoAudio(m_pzVideoLink);
+		m_pVideo->SetZPos(-20);
 	}
 	else
 	{
@@ -110,11 +111,17 @@ void CTFBackgroundPanel::GameLayout()
 
 char* CTFBackgroundPanel::GetRandomVideo(bool bWidescreen)
 {
-	char* pszBasePath = "media/bg_0";
+	char* pszBasePath = "media/bg_";
 	int iCount = 0;
 
-	for (int i = 0; i < 9; i++)
+	for (int i = 0; i < 3; i++)
 	{
+		
+		if ( ( i >= 0 ) && ( i < 10 ) )
+			pszBasePath = "media/bg_0";
+		else
+			pszBasePath = "media/bg_";
+		
 		char szPath[MAX_PATH];
 		char szNumber[5];
 		Q_snprintf(szNumber, sizeof(szNumber), "%d", iCount + 1);

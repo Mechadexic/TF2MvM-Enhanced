@@ -46,6 +46,7 @@
 		RecvPropVector(	RECVINFO( m_vNormal ) ),
 
 		RecvPropInt( RECVINFO( m_fFlags ) ),
+		
 		RecvPropFloat( RECVINFO( m_flMagnitude ) ),
 		RecvPropFloat( RECVINFO( m_flScale ) ),
 		RecvPropInt( RECVINFO( m_nAttachmentIndex ) ),
@@ -108,6 +109,7 @@
 #endif
 
 		SendPropInt( SENDINFO_NOCHECK( m_fFlags ), MAX_EFFECT_FLAG_BITS, SPROP_UNSIGNED ),
+		
 		SendPropFloat( SENDINFO_NOCHECK( m_flMagnitude ), 12, SPROP_ROUNDDOWN, 0.0f, 1023.0f ),
 		SendPropFloat( SENDINFO_NOCHECK( m_flScale ), 0, SPROP_NOSCALE ),
 		SendPropInt( SENDINFO_NOCHECK( m_nAttachmentIndex ), 5, SPROP_UNSIGNED ),

@@ -26,8 +26,7 @@
 #include "igameevents.h"
 #include "GameEventListener.h"
 
-#if defined USES_ECON_ITEMS
-#include "econ_item.h"
+#if defined USES_ECON_ITEMS || defined TF_VINTAGE_CLIENT
 #include "game_item_schema.h"
 #include "econ_item_view.h"
 #endif
@@ -408,7 +407,7 @@ public:
 	// Data for only the local player
 	CNetworkVarEmbedded( CPlayerLocalData, m_Local );
 
-#if defined USES_ECON_ITEMS
+#if defined USES_ECON_ITEMS || defined TF_VINTAGE_CLIENT
 	CNetworkVarEmbedded( CAttributeList, m_AttributeList );
 #endif
 
@@ -615,7 +614,7 @@ protected:
 
 #if defined ( USES_ECON_ITEMS ) || defined ( TF_VINTAGE_CLIENT )
 	// Wearables
-	CUtlVector<CHandle<C_EconWearable > >	m_hMyWearables;
+	CUtlVector< CHandle<C_EconWearable > >	m_hMyWearables;
 #endif
 
 private:

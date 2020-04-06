@@ -55,7 +55,7 @@
 #include "studio_stats.h"
 #include "tier1/callqueue.h"
 
-#ifdef TF_CLIENT_DLL
+#if defined( TF_CLIENT_DLL ) || defined( TF_VINTAGE_CLIENT )
 #include "c_tf_player.h"
 #include "c_baseobject.h"
 #endif
@@ -282,6 +282,13 @@ BEGIN_DATADESC( C_ClientRagdoll )
 	DEFINE_EMBEDDEDBYREF( m_pRagdoll ),
 
 END_DATADESC()
+
+
+BEGIN_ENT_SCRIPTDESC( C_BaseAnimating, C_BaseEntity, "Animating models client-side" )
+	DEFINE_SCRIPTFUNC_NAMED( ScriptSetPoseParameter, "SetPoseParameter", "Set the specified pose parameter to the specified value" )
+	DEFINE_SCRIPTFUNC( IsSequenceFinished, "Ask whether the main sequence is done playing" )
+END_SCRIPTDESC();
+
 
 C_ClientRagdoll::C_ClientRagdoll( bool bRestoring )
 {
@@ -1313,7 +1320,7 @@ void C_BaseAnimating::DelayedInitModelEffects( void )
 							return;
 						}
 					}
-					#ifdef TF_CLIENT_DLL
+					#if defined( TF_CLIENT_DLL ) || defined( TF_VINTAGE_CLIENT )
 					// Halloween Hack for Sentry Rockets
 					if ( !V_strcmp( "sentry_rocket", pszParticleEffect ) )
 					{
@@ -5663,6 +5670,16 @@ float C_BaseAnimating::SetPoseParameter( CStudioHdr *pStudioHdr, int iParameter,
 	}
 
 	return flValue;
+}
+
+void C_BaseAnimating::ScriptSetPoseParameter( const char *szName, float fValue )
+{
+	CStudioHdr *pHdr = GetModelPtr();
+	if ( pHdr == NULL )
+		return;
+
+	int iPoseParam = LookupPoseParameter( pHdr, szName );
+	SetPoseParameter( pHdr, iPoseParam, fValue );
 }
 
 //-----------------------------------------------------------------------------

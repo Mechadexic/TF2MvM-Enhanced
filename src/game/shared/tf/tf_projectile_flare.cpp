@@ -5,6 +5,8 @@
 //=============================================================================//
 #include "cbase.h"
 #include "tf_projectile_flare.h"
+#include "tf_gamerules.h"
+#include "tf_weapon_flaregun.h"
 
 // Client specific.
 #ifdef CLIENT_DLL
@@ -31,6 +33,10 @@ BEGIN_NETWORK_TABLE( CTFProjectile_Flare, DT_TFProjectile_Flare )
 	RecvPropBool( RECVINFO( m_bCritical ) ),
 #endif
 END_NETWORK_TABLE()
+
+extern ConVar tf2v_minicrits_on_deflect;
+
+ConVar tf2v_use_new_flare_radius("tf2v_use_new_flare_radius", "0", FCVAR_NOTIFY | FCVAR_REPLICATED, "Uses modern flare explosion sizes (110Hu)instead of older ones (92Hu) for exploding flares.");
 
 //-----------------------------------------------------------------------------
 // Purpose: Constructor
@@ -102,6 +108,7 @@ CBasePlayer *CTFProjectile_Flare::GetScorer( void )
 int	CTFProjectile_Flare::GetDamageType() 
 { 
 	int iDmgType = BaseClass::GetDamageType();
+	
 
 	// Buff banner mini-crit calculations
 	CTFWeaponBase *pWeapon = ( CTFWeaponBase * )m_hLauncher.Get();
@@ -112,18 +119,33 @@ int	CTFProjectile_Flare::GetDamageType()
 		{
 			iDmgType |= DMG_MINICRITICAL;
 		}
+		
 	}
-
+	
 	if ( m_bCritical )
 	{
 		iDmgType |= DMG_CRITICAL;
 	}
-	if ( m_iDeflected > 0 )
+	if ( ( m_iDeflected > 0 ) && ( tf2v_minicrits_on_deflect.GetBool() ) )
 	{
 		iDmgType |= DMG_MINICRITICAL;
 	}
 
 	return iDmgType;
+}
+
+bool CTFProjectile_Flare::IsDeflectable(void)
+{
+	// Don't deflect projectiles with non-deflect attributes.
+	if (m_hLauncher.Get())
+	{
+		// Check to see if this is a non-deflectable projectile, like an energy projectile.
+		int nCannotDeflect = 0;
+		CALL_ATTRIB_HOOK_INT_ON_OTHER(m_hLauncher.Get(), nCannotDeflect, energy_weapon_no_deflect);
+		if (nCannotDeflect != 0)
+			return false;
+	}
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -153,9 +175,14 @@ void CTFProjectile_Flare::Deflected( CBaseEntity *pDeflectedBy, Vector &vecDir )
 //-----------------------------------------------------------------------------
 void CTFProjectile_Flare::Explode( trace_t *pTrace, CBaseEntity *pOther )
 {
+
 	// Save this entity as enemy, they will take 100% damage.
 	m_hEnemy = pOther;
 
+	// Check the flare mode.
+	int nFlareMode = 0;
+	CALL_ATTRIB_HOOK_INT_ON_OTHER(m_hLauncher.Get(), nFlareMode, set_weapon_mode);
+	
 	// Invisible.
 	SetModelName( NULL_STRING );
 	AddSolidFlags( FSOLID_NOT_SOLID );
@@ -182,12 +209,6 @@ void CTFProjectile_Flare::Explode( trace_t *pTrace, CBaseEntity *pOther )
 	if ( pPlayer )
 	{
 		// Hit player, do impact sound
-		if ( pPlayer->m_Shared.InCond( TF_COND_BURNING ) )
-		{
-			// Jeez, hardcoding this doesn't seem like a good idea.
-			m_bCritical = true;
-		}
-		
 		CPVSFilter filter( vecOrigin );
 		EmitSound( filter, pPlayer->entindex(), "TFPlayer.FlareImpact" );
 	}
@@ -195,15 +216,104 @@ void CTFProjectile_Flare::Explode( trace_t *pTrace, CBaseEntity *pOther )
 	{
 		// Hit world, do the explosion effect.
 		CPVSFilter filter( vecOrigin );
+		// Pick our explosion effect. Manual Detonator and Scorch shot explode.
 		TE_TFExplosion( filter, 0.0f, vecOrigin, pTrace->plane.normal, GetWeaponID(), pOther->entindex() );
 	}
+	
+	Vector vectorReported = pAttacker ? pAttacker->GetAbsOrigin() : vec3_origin ;
+	
+	// Scorch Shot and Detonator explode when touching the world, or if Detonator was triggered.
+	if ( ( nFlareMode == 1 && ( !pPlayer ) ) )
+	{
+		// We explode in a small radius, set us up as an explosion.
+		CTakeDamageInfo newInfo( this, pAttacker, m_hLauncher.Get(), vec3_origin, vecOrigin, GetDamage(), GetDamageType(), TF_DMG_CUSTOM_BURNING, &vectorReported );
+		CTFRadiusDamageInfo radiusInfo;
+		radiusInfo.info = &newInfo;
+		radiusInfo.m_vecSrc = vecOrigin;
+		
+		// Check the radius.
+		float flRadius = GetFlareRadius();
+			radiusInfo.m_flRadius = 0;	// ...No radius for damaging anyone except ourselves.
+		
+		radiusInfo.m_flSelfDamageRadius = flRadius;
 
-	CTakeDamageInfo info( this, pAttacker, m_hLauncher.Get(), GetDamage(), GetDamageType(), TF_DMG_CUSTOM_BURNING );
-	info.SetReportedPosition( pAttacker ? pAttacker->GetAbsOrigin() : vec3_origin );
-	pOther->TakeDamage( info );
+		TFGameRules()->RadiusDamage( radiusInfo );
+	}
+	else
+	{
+		// We deal with direct contact, do the regular logic.
+		CTakeDamageInfo info( this, pAttacker, m_hLauncher.Get(), GetDamage(), GetDamageType(), TF_DMG_CUSTOM_BURNING );
+		info.SetReportedPosition( vectorReported);
+		pOther->TakeDamage( info );
+	}
 
 	// Remove.
 	UTIL_Remove( this );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CTFProjectile_Flare::Airburst(trace_t *pTrace, CBaseEntity *pOther)
+{
+
+	// Invisible.
+	SetModelName(NULL_STRING);
+	AddSolidFlags(FSOLID_NOT_SOLID);
+	m_takedamage = DAMAGE_NO;
+
+	// Pull out a bit.
+	if (pTrace->fraction != 1.0)
+	{
+		SetAbsOrigin(pTrace->endpos + (pTrace->plane.normal * 1.0f));
+	}
+
+	// Damage.
+	CBaseEntity *pAttacker = GetOwnerEntity();
+	IScorer *pScorerInterface = dynamic_cast<IScorer*>(pAttacker);
+	if (pScorerInterface)
+	{
+		pAttacker = pScorerInterface->GetScorer();
+	}
+
+	// Play explosion sound and effect.
+	Vector vecOrigin = GetAbsOrigin();
+
+	// Hit world, do the explosion effect.
+	CPVSFilter filter(vecOrigin);
+	// Pick our explosion effect.
+	TE_TFExplosion(filter, 0.0f, vecOrigin, pTrace->plane.normal, TF_WEAPON_ROCKETLAUNCHER, pOther->entindex());
+
+	Vector vectorReported = pAttacker ? pAttacker->GetAbsOrigin() : vec3_origin;
+
+	// We explode in a small radius, set us up as an explosion.
+	CTakeDamageInfo newInfo(this, pAttacker, m_hLauncher.Get(), vec3_origin, vecOrigin, GetDamage(), GetDamageType(), TF_DMG_CUSTOM_BURNING, &vectorReported);
+	CTFRadiusDamageInfo radiusInfo;
+	radiusInfo.info = &newInfo;
+	radiusInfo.m_vecSrc = vecOrigin;
+
+	// Check the radius.
+	float flRadius = GetFlareRadius();
+	radiusInfo.m_flRadius = flRadius;
+
+	radiusInfo.m_flSelfDamageRadius = flRadius;
+
+	TFGameRules()->RadiusDamage(radiusInfo);
+
+	// Remove.
+	UTIL_Remove(this);
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+float CTFProjectile_Flare::GetFlareRadius( void )
+{
+	if ( tf2v_use_new_flare_radius.GetBool() )
+		return 110.0;
+	
+	return 92.0;
+
 }
 
 //-----------------------------------------------------------------------------
@@ -247,6 +357,23 @@ CTFProjectile_Flare *CTFProjectile_Flare::Create( CBaseEntity *pWeapon, const Ve
 
 	return pFlare;
 }
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CTFProjectile_Flare::Detonate( void )
+{
+	trace_t		tr;
+	Vector		vecSpot;// trace starts here!
+
+	SetThink( NULL );
+
+	vecSpot = GetAbsOrigin() + Vector ( 0 , 0 , 8 );
+	UTIL_TraceLine ( vecSpot, vecSpot + Vector ( 0, 0, -32 ), MASK_SHOT_HULL, this, COLLISION_GROUP_NONE, & tr);
+
+	Airburst( &tr, NULL );
+}
+
 #else
 
 //-----------------------------------------------------------------------------
@@ -256,6 +383,13 @@ void CTFProjectile_Flare::OnDataChanged( DataUpdateType_t updateType )
 {
 	BaseClass::OnDataChanged( updateType );
 
+	CTFFlareGun *pLauncher = dynamic_cast<CTFFlareGun*>( m_hLauncher.Get() );
+
+	if ( pLauncher )
+	{
+		pLauncher->AddFlare( this );
+	}
+		
 	if ( updateType == DATA_UPDATE_CREATED )
 	{
 		CreateTrails();		
@@ -282,4 +416,5 @@ void CTFProjectile_Flare::CreateTrails( void )
 
 	ParticleProp()->Create( pszEffectName, PATTACH_ABSORIGIN_FOLLOW );
 }
+
 #endif

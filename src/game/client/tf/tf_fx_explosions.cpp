@@ -19,7 +19,7 @@ extern CTFWeaponInfo *GetTFWeaponInfo( int iWeapon );
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void TFExplosionCallback( const Vector &vecOrigin, const Vector &vecNormal, int iWeaponID, ClientEntityHandle_t hEntity, int iItemID )
+void TFExplosionCallback( const Vector &vecOrigin, const Vector &vecNormal, int iWeaponID, ClientEntityHandle_t hEntity, int iItemID, int nSoundIndex, int nParticleSystemIndex )
 {
 	// Get the weapon information.
 	CTFWeaponInfo *pWeaponInfo = NULL;
@@ -27,7 +27,12 @@ void TFExplosionCallback( const Vector &vecOrigin, const Vector &vecNormal, int 
 	{
 	case TF_WEAPON_GRENADE_PIPEBOMB:
 	case TF_WEAPON_GRENADE_DEMOMAN:
+	case TF_WEAPON_GRENADE_PIPEBOMB_BETA:
 		pWeaponInfo = GetTFWeaponInfo( TF_WEAPON_PIPEBOMBLAUNCHER );
+		break;
+	case TF_WEAPON_SENTRY_ROCKET:
+	case TF_WEAPON_PUMPKIN_BOMB:
+		pWeaponInfo = GetTFWeaponInfo( TF_WEAPON_ROCKETLAUNCHER );
 		break;
 	default:
 		pWeaponInfo = GetTFWeaponInfo( iWeaponID );
@@ -62,33 +67,37 @@ void TFExplosionCallback( const Vector &vecOrigin, const Vector &vecNormal, int 
 	}
 
 	// Base explosion effect and sound.
-	char *pszEffect = "explosion";
+	char *pszEffect = (nParticleSystemIndex == -1) ?
+		"ExplosionCore_wall" : GetParticleSystemNameFromIndex( nParticleSystemIndex );
 	char *pszSound = "BaseExplosionEffect.Sound";
 
 	if ( pWeaponInfo )
 	{
-		// Explosions.
-		if ( bIsWater )
+		if( nParticleSystemIndex == -1 )
 		{
-			if ( Q_strlen( pWeaponInfo->m_szExplosionWaterEffect ) > 0 )
+			// Explosions.
+			if ( bIsWater )
 			{
-				pszEffect = pWeaponInfo->m_szExplosionWaterEffect;
-			}
-		}
-		else
-		{
-			if ( bIsPlayer || bInAir )
-			{
-				if ( Q_strlen( pWeaponInfo->m_szExplosionPlayerEffect ) > 0 )
+				if ( Q_strlen( pWeaponInfo->m_szExplosionWaterEffect ) > 0 )
 				{
-					pszEffect = pWeaponInfo->m_szExplosionPlayerEffect;
+					pszEffect = pWeaponInfo->m_szExplosionWaterEffect;
 				}
 			}
 			else
 			{
-				if ( Q_strlen( pWeaponInfo->m_szExplosionEffect ) > 0 )
+				if ( bIsPlayer || bInAir )
 				{
-					pszEffect = pWeaponInfo->m_szExplosionEffect;
+					if ( Q_strlen( pWeaponInfo->m_szExplosionPlayerEffect ) > 0 )
+					{
+						pszEffect = pWeaponInfo->m_szExplosionPlayerEffect;
+					}
+				}
+				else
+				{
+					if ( Q_strlen( pWeaponInfo->m_szExplosionEffect ) > 0 )
+					{
+						pszEffect = pWeaponInfo->m_szExplosionEffect;
+					}
 				}
 			}
 		}
@@ -104,11 +113,14 @@ void TFExplosionCallback( const Vector &vecOrigin, const Vector &vecNormal, int 
 	if ( iItemID >= 0 )
 	{
 		CEconItemDefinition *pItemDef = GetItemSchema()->GetItemDefinition( iItemID );
-		if ( pItemDef && pItemDef->GetVisuals()->aWeaponSounds[SPECIAL1][0] != '\0' )
+		if ( pItemDef && pItemDef->GetVisuals()->aWeaponSounds[nSoundIndex][0] != '\0' )
 		{
-			pszSound = pItemDef->GetVisuals()->aWeaponSounds[SPECIAL1];
+			pszSound = pItemDef->GetVisuals()->aWeaponSounds[nSoundIndex];
 		}
 	}
+
+	if ( iWeaponID == TF_WEAPON_PUMPKIN_BOMB )
+		pszSound = "Halloween.PumpkinExplode";
 	
 	CLocalPlayerFilter filter;
 	C_BaseEntity::EmitSound( filter, SOUND_FROM_WORLD, pszSound, &vecOrigin );
@@ -136,6 +148,8 @@ public:
 	Vector		m_vecNormal;
 	int			m_iWeaponID;
 	int			m_iItemID;
+	int			m_nSound;
+	int			m_nParticleIndex;
 	ClientEntityHandle_t m_hEntity;
 };
 
@@ -158,7 +172,7 @@ void C_TETFExplosion::PostDataUpdate( DataUpdateType_t updateType )
 {
 	VPROF( "C_TETFExplosion::PostDataUpdate" );
 
-	TFExplosionCallback( m_vecOrigin, m_vecNormal, m_iWeaponID, m_hEntity, m_iItemID );
+	TFExplosionCallback( m_vecOrigin, m_vecNormal, m_iWeaponID, m_hEntity, m_iItemID, m_nSound, m_nParticleIndex );
 }
 
 static void RecvProxy_ExplosionEntIndex( const CRecvProxyData *pData, void *pStruct, void *pOut )
@@ -174,6 +188,8 @@ IMPLEMENT_CLIENTCLASS_EVENT_DT( C_TETFExplosion, DT_TETFExplosion, CTETFExplosio
 	RecvPropVector( RECVINFO( m_vecNormal ) ),
 	RecvPropInt( RECVINFO( m_iWeaponID ) ),
 	RecvPropInt( RECVINFO( m_iItemID ) ),
+	RecvPropInt( RECVINFO( m_nSound ) ),
+	RecvPropInt( RECVINFO( m_nParticleIndex ) ),
 	RecvPropInt( "entindex", 0, SIZEOF_IGNORE, 0, RecvProxy_ExplosionEntIndex ),
-END_RECV_TABLE()
+END_RECV_TABLE();
 

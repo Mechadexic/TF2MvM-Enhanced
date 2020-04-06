@@ -42,4 +42,9 @@ $Project
 	{
 		$File	"$ROOTSCRIPT"
 	}
+	
+	$Folder	"Link Libraries"
+	{
+		$ImpLib "$SRCDIR\lib\public\linux32\discord-rpc" [!$IS_LIB_PROJECT]
+	}
 }

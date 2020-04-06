@@ -16,6 +16,7 @@
 // Client specific.
 #ifdef CLIENT_DLL
 #define CTFWeaponBaseGrenadeProj C_TFWeaponBaseGrenadeProj
+#define CTFWeaponBaseMerasmusGrenade C_TFWeaponBaseMerasmusGrenade
 #endif
 
 //=============================================================================
@@ -34,21 +35,23 @@ public:
 	virtual void			Spawn();
 	virtual void			Precache();
 
-	void					InitGrenade( const Vector &velocity, const AngularImpulse &angVelocity, CBaseCombatCharacter *pOwner, const CTFWeaponInfo &weaponInfo );
-
 	// Unique identifier.
-	virtual int GetWeaponID( void ) const { return TF_WEAPON_NONE; }
+	virtual int GetWeaponID( void ) const				{ return TF_WEAPON_NONE; }
+	
+	virtual int GetCustomParticleIndex( void ) const;
 
 	// This gets sent to the client and placed in the client's interpolation history
 	// so the projectile starts out moving right off the bat.
 	CNetworkVector( m_vInitialVelocity );
 
-	virtual float		GetShakeAmplitude( void ) { return 10.0; }
-	virtual float		GetShakeRadius( void ) { return 300.0; }
+	virtual float		GetShakeAmplitude( void )		{ return 10.0; }
+	virtual float		GetShakeRadius( void )			{ return 300.0; }
 
-	void				SetCritical( bool bCritical ) { m_bCritical = bCritical; }
+	void				SetCritical( bool bCritical )	{ m_bCritical = bCritical; }
 	virtual int			GetDamageType();
 	virtual float		GetDamageRadius( void );
+	virtual int			GetDamageCustom( void )			{ return TF_DMG_CUSTOM_NONE; }
+	bool				Touched( void ) const			{ return m_bTouched; }
 
 	CNetworkVar( int, m_iDeflected );
 	CNetworkHandle( CBaseEntity, m_hLauncher );
@@ -84,7 +87,11 @@ public:
 
 	static CTFWeaponBaseGrenadeProj *Create( const char *szName, const Vector &position, const QAngle &angles, 
 				const Vector &velocity, const AngularImpulse &angVelocity, 
-				CBaseCombatCharacter *pOwner, const CTFWeaponInfo &weaponInfo, float timer, int iFlags );
+				CBaseCombatCharacter *pOwner, const CTFWeaponInfo &weaponInfo, float timer, int iFlags = 0 );
+
+
+	void					InitGrenade( const Vector &velocity, const AngularImpulse &angVelocity, CBaseCombatCharacter *pOwner, const CTFWeaponInfo &weaponInfo );
+	virtual void			InitGrenade( const Vector &velocity, const AngularImpulse &angVelocity, CBaseCombatCharacter *pOwner, int nDamage, float flRadius );
 
 	int						OnTakeDamage( const CTakeDamageInfo &info );
 
@@ -108,9 +115,9 @@ public:
 	bool					UseImpactNormal()							{ return m_bUseImpactNormal; }
 	const Vector			&GetImpactNormal( void ) const				{ return m_vecImpactNormal; }
 
-	virtual void			SetLauncher( CBaseEntity *pLauncher ) { m_hLauncher = pLauncher; }
+	virtual void			SetLauncher( CBaseEntity *pLauncher );
 
-	virtual bool			IsDeflectable() { return true; }
+	virtual bool			IsDeflectable();
 	virtual void			Deflected( CBaseEntity *pDeflectedBy, Vector &vecDir );
 	virtual void			IncremenentDeflected( void );
 
@@ -135,6 +142,24 @@ private:
 	float					m_flCollideWithTeammatesTime;
 	bool					m_bCollideWithTeammates;
 
+#endif
+};
+
+
+class CTFWeaponBaseMerasmusGrenade : public CTFWeaponBaseGrenadeProj
+{
+public:
+
+	DECLARE_CLASS( CTFWeaponBaseMerasmusGrenade, CTFWeaponBaseGrenadeProj );
+	DECLARE_NETWORKCLASS();
+
+	virtual					~CTFWeaponBaseMerasmusGrenade() {}
+
+	virtual int				GetDamageCustom( void ) const { return TF_DMG_CUSTOM_MERASMUS_GRENADE; }
+	virtual int				GetCustomParticleIndex( void );
+
+#ifdef CLIENT_DLL
+	virtual int				DrawModel( int flags );
 #endif
 };
 

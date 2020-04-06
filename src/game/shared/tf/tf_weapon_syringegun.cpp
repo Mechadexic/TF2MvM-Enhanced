@@ -18,22 +18,14 @@
 //
 // Weapon Syringe Gun tables.
 //
-IMPLEMENT_NETWORKCLASS_ALIASED( TFSyringeGun, DT_WeaponSyringeGun )
-
-BEGIN_NETWORK_TABLE( CTFSyringeGun, DT_WeaponSyringeGun )
-END_NETWORK_TABLE()
-
-BEGIN_PREDICTION_DATA( CTFSyringeGun )
-END_PREDICTION_DATA()
-
-LINK_ENTITY_TO_CLASS( tf_weapon_syringegun_medic, CTFSyringeGun );
-PRECACHE_WEAPON_REGISTER( tf_weapon_syringegun_medic );
 
 // Server specific.
 #ifndef CLIENT_DLL
 BEGIN_DATADESC( CTFSyringeGun )
 END_DATADESC()
 #endif
+
+CREATE_SIMPLE_WEAPON_TABLE( TFSyringeGun, tf_weapon_syringegun_medic )
 
 //=============================================================================
 //
@@ -47,4 +39,23 @@ void CTFSyringeGun::Precache()
 	PrecacheTeamParticles("nailtrails_medic_%s");
 	PrecacheTeamParticles("nailtrails_medic_%s_crit");
 #endif
+}
+
+float CTFSyringeGun::GetSpeedMod( void ) const
+{
+	if ( m_bLowered )
+		return 1.0f;
+
+	CTFPlayer *pOwner = ToTFPlayer( GetOwner() );
+	if ( !pOwner )
+		return 1.0f;
+
+	float flSyringeGunSpeedBoost = 1.0f;
+	CALL_ATTRIB_HOOK_INT( flSyringeGunSpeedBoost, mult_player_movespeed_resource_level );
+	if ( ( flSyringeGunSpeedBoost != 1.0f ) && ( pOwner->MedicGetChargeLevel() != 0 ) )
+	{
+		return ( ( pOwner->MedicGetChargeLevel() / 100.0f ) * flSyringeGunSpeedBoost );
+	}
+	
+	return 1.0f;
 }

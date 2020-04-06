@@ -50,11 +50,14 @@ public:
 	void						SetCritical( bool bCritical ) { m_bCritical = bCritical; }
 	virtual int					GetDamageType();
 
-	virtual bool 				IsDeflectable() 		{ return true; }
+	virtual bool 				IsDeflectable();
 	virtual void 				Deflected( CBaseEntity *pDeflectedBy, Vector &vecDir );
 
 	// Overrides.
-	virtual void				Explode( trace_t *pTrace, CBaseEntity *pOther );
+	virtual void				Explode(trace_t *pTrace, CBaseEntity *pOther);
+	virtual void				Airburst(trace_t *pTrace, CBaseEntity *pOther);
+	virtual void				Detonate( void );
+	virtual float				GetFlareRadius( void );
 #else
 
 	virtual void				OnDataChanged( DataUpdateType_t updateType );

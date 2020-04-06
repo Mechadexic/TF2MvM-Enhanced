@@ -18,13 +18,6 @@
 #include "tf_gamestats.h"
 #endif
 
-#define TF_BOW_MIN_CHARGE_DAMAGE 50.0f
-#define TF_BOW_MIN_CHARGE_VEL 1800
-#define TF_BOW_MAX_CHARGE_VEL 2600
-#define TF_BOW_MAX_CHARGE_TIME 1.0f
-#define TF_BOW_CHARGE_TIRED_TIME 5.0f
-#define TF_BOW_TIRED_SPREAD 6.0f
-
 IMPLEMENT_NETWORKCLASS_ALIASED( TFCompoundBow, DT_WeaponCompoundBow )
 
 BEGIN_NETWORK_TABLE( CTFCompoundBow, DT_WeaponCompoundBow )
@@ -37,11 +30,11 @@ BEGIN_NETWORK_TABLE( CTFCompoundBow, DT_WeaponCompoundBow )
 #endif
 END_NETWORK_TABLE()
 
-BEGIN_PREDICTION_DATA( CTFCompoundBow )
 #ifdef CLIENT_DLL
+BEGIN_PREDICTION_DATA( CTFCompoundBow )
 	DEFINE_PRED_FIELD( m_flChargeBeginTime, FIELD_FLOAT, FTYPEDESC_INSENDTABLE ),
-#endif
 END_PREDICTION_DATA()
+#endif
 
 LINK_ENTITY_TO_CLASS( tf_weapon_compound_bow, CTFCompoundBow );
 PRECACHE_WEAPON_REGISTER( tf_weapon_compound_bow );
@@ -267,7 +260,7 @@ void CTFCompoundBow::Extinguish( void )
 {
 #ifndef CLIENT_DLL
 	m_bFlame = false;
-#else CLIENT_DLL
+#else
 	if ( m_hFlameEffectHost.Get() )
 	{
 		m_hFlameEffectHost->ParticleProp()->StopEmission();
@@ -419,6 +412,14 @@ bool CTFCompoundBow::CalcIsAttackCriticalHelper( void )
 float CTFCompoundBow::GetChargeMaxTime( void )
 {
 	return TF_BOW_MAX_CHARGE_TIME;
+}
+
+float CTFCompoundBow::GetCurrentCharge( void ) const
+{
+	if (m_flChargeBeginTime > 0.0f)
+		return Min( 1.0f, gpGlobals->curtime - m_flChargeBeginTime );
+
+	return 0.0f;
 }
 
 #ifdef CLIENT_DLL

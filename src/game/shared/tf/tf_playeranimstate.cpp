@@ -266,7 +266,7 @@ void CTFPlayerAnimState::DoAnimationEvent( PlayerAnimEvent_t event, int nData )
 
 			CTFWeaponBase *pWpn = pPlayer->GetActiveTFWeapon();
 			bool bIsMinigun = ( pWpn && pWpn->GetWeaponID() == TF_WEAPON_MINIGUN );
-			bool bIsSniperRifle = ( pWpn && pWpn->GetWeaponID() == TF_WEAPON_SNIPERRIFLE );
+			bool bIsSniperRifle = ( pWpn && ( pWpn->GetWeaponID() == TF_WEAPON_SNIPERRIFLE || pWpn->GetWeaponID() == TF_WEAPON_SNIPERRIFLE_DECAP ) );
 			bool bIsRobotArm = ( pWpn && pWpn->GetWeaponID() == TF_WEAPON_ROBOT_ARM );
 
 			// Heavy weapons primary fire.
@@ -565,7 +565,7 @@ bool CTFPlayerAnimState::HandleSwimming( Activity &idealActivity )
 				idealActivity = ACT_MP_SWIM_DEPLOYED;
 			}
 			// Check for sniper deployed underwater - should only be when standing on something
-			else if ( pWpn && pWpn->GetWeaponID() == TF_WEAPON_SNIPERRIFLE )
+			else if ( pWpn && pWpn->GetWeaponID() == TF_WEAPON_SNIPERRIFLE || pWpn->GetWeaponID() == TF_WEAPON_SNIPERRIFLE_DECAP )
 			{
 				if ( m_pTFPlayer->m_Shared.InCond( TF_COND_ZOOMED ) )
 				{
@@ -699,8 +699,12 @@ bool CTFPlayerAnimState::HandleJumping( Activity &idealActivity )
 		}
 		else if ( ( GetBasePlayer()->GetFlags() & FL_ONGROUND ) == 0 )
 		{
+			// TODO: Figure out what 1897 is
 			// In an air walk.
-			idealActivity = ACT_MP_AIRWALK;
+			/*if ( GetTFPlayer()->m_Shared.CanGoombaStomp() && GetTFPlayer()->m_Local.m_flFallVelocity > 580 )
+				idealActivity = 1897;
+			else*/
+				idealActivity = ACT_MP_AIRWALK;
 			m_bInAirWalk = true;
 		}
 	}

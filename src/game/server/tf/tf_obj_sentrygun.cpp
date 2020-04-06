@@ -9,6 +9,7 @@
 #include "tf_obj_sentrygun.h"
 #include "engine/IEngineSound.h"
 #include "tf_player.h"
+#include "bot/tf_bot.h"
 #include "tf_team.h"
 #include "world.h"
 #include "tf_projectile_rocket.h"
@@ -16,7 +17,9 @@
 #include "tf_gamerules.h"
 #include "ammodef.h"
 #include "tf_fx_shared.h"
+#include "tf_weapon_shotgun.h"
 #include "tf_weapon_laser_pointer.h"
+#include "tf_bot_manager.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -25,6 +28,10 @@ extern bool IsInCommentaryMode();
 
 extern ConVar tf_cheapobjects;
 extern ConVar tf_obj_upgrade_per_hit;
+extern ConVar tf2v_use_new_wrench_mechanics;
+ConVar tf2v_use_new_sapper_damage( "tf2v_use_new_sapper_damage", "0", FCVAR_NOTIFY, "Decreases the damage resistance of a sapped sentry from 66% to 33%." );
+ConVar tf2v_use_new_sapper_disable( "tf2v_use_new_sapper_disable", "0", FCVAR_NOTIFY, "Sapped sentries will be disabled for a few seconds after removing the sapper." );
+
 
 // Ground placed version
 #define SENTRY_MODEL_PLACEMENT			"models/buildables/sentry1_blueprint.mdl"
@@ -48,6 +55,7 @@ extern ConVar tf_obj_upgrade_per_hit;
 
 #define SENTRY_THINK_DELAY		0.05
 #define WRANGLER_RECOVERY_TIME	3.00f
+#define SAPPER_RECOVERY_TIME	0.50f
 
 #define	SENTRYGUN_CONTEXT	"SentrygunContext"
 
@@ -57,12 +65,14 @@ extern ConVar tf_obj_upgrade_per_hit;
 #define SENTRYGUN_MINIGUN_RESIST_LVL_2		0.15
 #define SENTRYGUN_MINIGUN_RESIST_LVL_3		0.20
 
+
 #define SENTRYGUN_SAPPER_OWNER_DAMAGE_MODIFIER	0.33f
+#define SENTRYGUN_SAPPER_OWNER_DAMAGE_MODIFIER_GUNMETTLE	0.66f
 
 #define MINI_SENTRYGUN_PITCH	120
 
 enum
-{	
+{
 	SENTRYGUN_ATTACHMENT_MUZZLE = 0,
 	SENTRYGUN_ATTACHMENT_MUZZLE_ALT,
 	SENTRYGUN_ATTACHMENT_ROCKET_L,
@@ -82,10 +92,10 @@ enum target_ranges
 //-----------------------------------------------------------------------------
 // Purpose: Only send the LocalWeaponData to the player carrying the weapon
 //-----------------------------------------------------------------------------
-void* SendProxy_SendLocalObjectDataTable( const SendProp *pProp, const void *pStruct, const void *pVarData, CSendProxyRecipients *pRecipients, int objectID )
+void *SendProxy_SendLocalObjectDataTable( const SendProp *pProp, const void *pStruct, const void *pVarData, CSendProxyRecipients *pRecipients, int objectID )
 {
 	// Get the weapon entity
-	CBaseObject *pObject = (CBaseObject*)pVarData;
+	CBaseObject *pObject = (CBaseObject *)pVarData;
 	if ( pObject )
 	{
 		// Only send this chunk of data to the player carrying this weapon
@@ -93,7 +103,7 @@ void* SendProxy_SendLocalObjectDataTable( const SendProp *pProp, const void *pSt
 		if ( pPlayer )
 		{
 			pRecipients->SetOnly( pPlayer->GetClientIndex() );
-			return (void*)pVarData;
+			return (void *)pVarData;
 		}
 	}
 
@@ -118,8 +128,8 @@ BEGIN_DATADESC( CObjectSentrygun )
 
 END_DATADESC()
 
-LINK_ENTITY_TO_CLASS(obj_sentrygun, CObjectSentrygun);
-PRECACHE_REGISTER(obj_sentrygun);
+LINK_ENTITY_TO_CLASS( obj_sentrygun, CObjectSentrygun );
+PRECACHE_REGISTER( obj_sentrygun );
 
 ConVar tf_sentrygun_damage( "tf_sentrygun_damage", "16", FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY );
 ConVar tf_sentrygun_ammocheat( "tf_sentrygun_ammocheat", "0", FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY );
@@ -148,7 +158,7 @@ void CObjectSentrygun::Spawn()
 	m_iYawPoseParameter = -1;
 
 	SetModel( SENTRY_MODEL_PLACEMENT );
-	
+
 	m_takedamage = DAMAGE_YES;
 
 	SetMaxHealth( SENTRYGUN_MAX_HEALTH );
@@ -177,6 +187,8 @@ void CObjectSentrygun::Spawn()
 	m_flLastAttackedTime = 0;
 
 	m_flHeavyBulletResist = SENTRYGUN_MINIGUN_RESIST_LVL_1;
+
+	m_fireTimer.Start();
 
 	BaseClass::Spawn();
 
@@ -220,6 +232,13 @@ void CObjectSentrygun::OnStopWrangling( void )
 	m_iState.Set( SENTRY_STATE_WRANGLED_RECOVERY );
 }
 
+void CObjectSentrygun::SapperRecovery( void )
+{
+	// Wait 0.5 seconds before resuming function
+	m_flRecoveryTime = gpGlobals->curtime + SAPPER_RECOVERY_TIME;
+	m_iState.Set( SENTRY_STATE_SAPPER_RECOVERY );
+}
+
 void CObjectSentrygun::SentryThink( void )
 {
 	// Don't think while re-deploying so we don't target anything inbetween upgrades.
@@ -229,37 +248,44 @@ void CObjectSentrygun::SentryThink( void )
 		return;
 	}
 
-	switch( m_iState )
+	switch ( m_iState )
 	{
-	case SENTRY_STATE_INACTIVE:
-		break;
+		case SENTRY_STATE_INACTIVE:
+			break;
 
-	case SENTRY_STATE_SEARCHING:
-		SentryRotate();
-		break;
+		case SENTRY_STATE_SEARCHING:
+			SentryRotate();
+			break;
 
-	case SENTRY_STATE_ATTACKING:
-		Attack();
-		break;
+		case SENTRY_STATE_ATTACKING:
+			Attack();
+			break;
 
-	case SENTRY_STATE_UPGRADING:
-		UpgradeThink();
-		break;
+		case SENTRY_STATE_UPGRADING:
+			UpgradeThink();
+			break;
 
-	case SENTRY_STATE_WRANGLED:
-		WranglerThink();
-		break;
+		case SENTRY_STATE_WRANGLED:
+			WranglerThink();
+			break;
 
-	case SENTRY_STATE_WRANGLED_RECOVERY:
-		if ( gpGlobals->curtime > m_flRecoveryTime )
-		{
-			m_iState.Set( SENTRY_STATE_SEARCHING );
-		}
-		break;
+		case SENTRY_STATE_WRANGLED_RECOVERY:
+			if ( gpGlobals->curtime > m_flRecoveryTime )
+			{
+				m_iState.Set( SENTRY_STATE_SEARCHING );
+			}
+			break;
 
-	default:
-		Assert( 0 );
-		break;
+		case SENTRY_STATE_SAPPER_RECOVERY:
+			if ( gpGlobals->curtime > m_flRecoveryTime )
+			{
+				m_iState.Set( SENTRY_STATE_SEARCHING );
+			}
+			break;
+			
+		default:
+			Assert( 0 );
+			break;
 	}
 
 	SetContextThink( &CObjectSentrygun::SentryThink, gpGlobals->curtime + SENTRY_THINK_DELAY, SENTRYGUN_CONTEXT );
@@ -268,7 +294,7 @@ void CObjectSentrygun::SentryThink( void )
 //-----------------------------------------------------------------------------
 // Currently wrangled
 //-----------------------------------------------------------------------------
-void CObjectSentrygun::WranglerThink(void)
+void CObjectSentrygun::WranglerThink( void )
 {
 	if ( ShouldFire() && gpGlobals->curtime >= m_flNextAttack )
 	{
@@ -301,8 +327,8 @@ void CObjectSentrygun::StartPlacement( CTFPlayer *pPlayer )
 	// Set my build size
 	m_vecBuildMins = SENTRYGUN_MINS;
 	m_vecBuildMaxs = SENTRYGUN_MAXS;
-	m_vecBuildMins -= Vector( 4,4,0 );
-	m_vecBuildMaxs += Vector( 4,4,0 );
+	m_vecBuildMins -= Vector( 4, 4, 0 );
+	m_vecBuildMaxs += Vector( 4, 4, 0 );
 
 	if ( IsMiniBuilding() )
 	{
@@ -369,7 +395,7 @@ void CObjectSentrygun::OnGoActive( void )
 	if ( m_iRightBound > m_iLeftBound )
 	{
 		m_iRightBound = m_iLeftBound;
-		m_iLeftBound = UTIL_AngleMod( (int)angles.y - 50);
+		m_iLeftBound = UTIL_AngleMod( (int)angles.y - 50 );
 	}
 
 	// Start it rotating
@@ -381,7 +407,7 @@ void CObjectSentrygun::OnGoActive( void )
 
 	// if our eye pos is underwater, we're waterlevel 3, else 0
 	bool bUnderwater = ( UTIL_PointContents( EyePosition() ) & MASK_WATER ) ? true : false;
-	SetWaterLevel( ( bUnderwater ) ? 3 : 0 );	
+	SetWaterLevel( ( bUnderwater ) ? 3 : 0 );
 
 	// Don't reset ammo when redeploying
 	if ( !m_bCarryDeploy )
@@ -462,29 +488,29 @@ void CObjectSentrygun::Precache()
 //-----------------------------------------------------------------------------
 void CObjectSentrygun::StartUpgrading( void )
 {
-	BaseClass::StartUpgrading( );
+	BaseClass::StartUpgrading();
 
 	int iAmmoShells = m_iAmmoShells;
 	int iAmmoRockets = m_iAmmoRockets;
 
-	switch( m_iUpgradeLevel )
+	switch ( m_iUpgradeLevel )
 	{
-	case 2:
-		SetModel( SENTRY_MODEL_LEVEL_2_UPGRADE );
-		m_flHeavyBulletResist = SENTRYGUN_MINIGUN_RESIST_LVL_2;
-		SetViewOffset( SENTRYGUN_EYE_OFFSET_LEVEL_2 );
-		m_iMaxAmmoShells = SENTRYGUN_MAX_SHELLS_2;
-		break;
-	case 3:
-		SetModel( SENTRY_MODEL_LEVEL_3_UPGRADE );
-		m_iAmmoRockets = SENTRYGUN_MAX_ROCKETS;
-		m_flHeavyBulletResist = SENTRYGUN_MINIGUN_RESIST_LVL_3;
-		SetViewOffset( SENTRYGUN_EYE_OFFSET_LEVEL_3 );
-		m_iMaxAmmoShells = SENTRYGUN_MAX_SHELLS_3;
-		break;
-	default:
-		Assert(0);
-		break;
+		case 2:
+			SetModel( SENTRY_MODEL_LEVEL_2_UPGRADE );
+			m_flHeavyBulletResist = SENTRYGUN_MINIGUN_RESIST_LVL_2;
+			SetViewOffset( SENTRYGUN_EYE_OFFSET_LEVEL_2 );
+			m_iMaxAmmoShells = SENTRYGUN_MAX_SHELLS_2;
+			break;
+		case 3:
+			SetModel( SENTRY_MODEL_LEVEL_3_UPGRADE );
+			m_iAmmoRockets = SENTRYGUN_MAX_ROCKETS;
+			m_flHeavyBulletResist = SENTRYGUN_MINIGUN_RESIST_LVL_3;
+			SetViewOffset( SENTRYGUN_EYE_OFFSET_LEVEL_3 );
+			m_iMaxAmmoShells = SENTRYGUN_MAX_SHELLS_3;
+			break;
+		default:
+			Assert( 0 );
+			break;
 	}
 
 	if ( m_bCarryDeploy )
@@ -513,20 +539,20 @@ void CObjectSentrygun::FinishUpgrading( void )
 	m_iState.Set( SENTRY_STATE_SEARCHING );
 	m_hEnemy = NULL;
 
-	switch( m_iUpgradeLevel )
+	switch ( m_iUpgradeLevel )
 	{
-	case 1:
-		SetModel( SENTRY_MODEL_LEVEL_1 );
-		break;
-	case 2:
-		SetModel( SENTRY_MODEL_LEVEL_2 );
-		break;
-	case 3:
-		SetModel( SENTRY_MODEL_LEVEL_3 );
-		break;
-	default:
-		Assert(0);
-		break;
+		case 1:
+			SetModel( SENTRY_MODEL_LEVEL_1 );
+			break;
+		case 2:
+			SetModel( SENTRY_MODEL_LEVEL_2 );
+			break;
+		case 3:
+			SetModel( SENTRY_MODEL_LEVEL_3 );
+			break;
+		default:
+			Assert( 0 );
+			break;
 	}
 
 	// Look up the new attachments
@@ -553,13 +579,13 @@ bool CObjectSentrygun::OnWrenchHit( CTFPlayer *pPlayer, CTFWrench *pWrench, Vect
 {
 	bool bRepair = false;
 	bool bUpgrade = false;
-	bool bWrangled = false;
 
+	float flRepairRate = 1;
+	CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pPlayer, flRepairRate, mult_repair_value);
+		
 	// Wrangled sentries have 33% of normal repair rate
 	if ( m_iState == SENTRY_STATE_WRANGLED || m_iState == SENTRY_STATE_WRANGLED_RECOVERY )
-	{
-		bWrangled = true;
-	}
+		flRepairRate *= .33f;
 
 	bRepair = Command_Repair( pPlayer/*, pWrench->GetRepairValue()*/ );
 
@@ -584,20 +610,15 @@ bool CObjectSentrygun::OnWrenchHit( CTFPlayer *pPlayer, CTFWrench *pWrench, Vect
 		if ( m_iAmmoShells < m_iMaxAmmoShells && iPlayerMetal > 0 )
 		{
 			int iMaxShellsPlayerCanAfford = (int)( (float)iPlayerMetal / tf_sentrygun_metal_per_shell.GetFloat() );
-
+			
+			float flModRearmCost = 1.0f;
+			CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pPlayer, flModRearmCost, building_cost_reduction );
+			iMaxShellsPlayerCanAfford *= ( 1 / flModRearmCost );
+			
 			// cap the amount we can add
 			int iAmountToAdd;
-
-			if( !bWrangled )
-			{
-				iAmountToAdd = min( SENTRYGUN_ADD_SHELLS, iMaxShellsPlayerCanAfford );
-			}
-			else
-			{
-				// 33% of normal rate
-				iAmountToAdd = min( ( SENTRYGUN_ADD_SHELLS * .33 ), iMaxShellsPlayerCanAfford );
-			}
-			iAmountToAdd = min( ( m_iMaxAmmoShells - m_iAmmoShells ), iAmountToAdd );
+			iAmountToAdd = Min( (int)( flRepairRate * SENTRYGUN_ADD_SHELLS ), iMaxShellsPlayerCanAfford );
+			iAmountToAdd = Min( ( m_iMaxAmmoShells - m_iAmmoShells ), iAmountToAdd );
 
 			pPlayer->RemoveAmmo( iAmountToAdd * tf_sentrygun_metal_per_shell.GetInt(), TF_AMMO_METAL );
 			m_iAmmoShells += iAmountToAdd;
@@ -611,22 +632,18 @@ bool CObjectSentrygun::OnWrenchHit( CTFPlayer *pPlayer, CTFWrench *pWrench, Vect
 		// One rocket per two ammo
 		iPlayerMetal = pPlayer->GetAmmoCount( TF_AMMO_METAL );
 
-		if ( m_iAmmoRockets < m_iMaxAmmoRockets && m_iUpgradeLevel == 3 && iPlayerMetal > 0  )
+		if ( m_iAmmoRockets < m_iMaxAmmoRockets && m_iUpgradeLevel == 3 && iPlayerMetal > 0 )
 		{
 			int iMaxRocketsPlayerCanAfford = (int)( (float)iPlayerMetal / tf_sentrygun_metal_per_rocket.GetFloat() );
+			
+			float flModRearmCost = 1.0f;
+			CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pPlayer, flModRearmCost, building_cost_reduction );
+			iMaxRocketsPlayerCanAfford *= ( 1 / flModRearmCost );
+			
+			// cap the amount we can add
 			int iAmountToAdd;
-
-			if( !bWrangled )
-			{
-				iAmountToAdd = min( SENTRYGUN_ADD_ROCKETS, iMaxRocketsPlayerCanAfford );
-			}
-			else
-			{
-				// 33% of normal rate
-				iAmountToAdd = min( ( SENTRYGUN_ADD_ROCKETS * 33 ), iMaxRocketsPlayerCanAfford );
-			}
-
-			iAmountToAdd = min( ( m_iMaxAmmoRockets - m_iAmmoRockets ), iAmountToAdd );
+			iAmountToAdd = Min( (int)( flRepairRate * SENTRYGUN_ADD_ROCKETS ), iMaxRocketsPlayerCanAfford );
+			iAmountToAdd = Min( ( m_iMaxAmmoRockets - m_iAmmoRockets ), iAmountToAdd );
 
 			pPlayer->RemoveAmmo( iAmountToAdd * tf_sentrygun_metal_per_rocket.GetFloat(), TF_AMMO_METAL );
 			m_iAmmoRockets += iAmountToAdd;
@@ -649,21 +666,34 @@ bool CObjectSentrygun::Command_Repair( CTFPlayer *pActivator )
 	if ( GetHealth() < GetMaxHealth() )
 	{
 		int iAmountToHeal;
+		
+		float flRepairRate = 1;
+		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pActivator, flRepairRate, mult_repair_value );
 
 		if ( m_iState != SENTRY_STATE_WRANGLED && m_iState != SENTRY_STATE_WRANGLED_RECOVERY )
-		{
-			iAmountToHeal = min( 100, GetMaxHealth() - GetHealth() );
-		}
-		else 
-		{
-			// 33% of normal rate
-			iAmountToHeal = min( ( 33 ), GetMaxHealth() - GetHealth() );
-		}
+			flRepairRate *= .33f;
 
+		iAmountToHeal = Min( (int)(flRepairRate * 100), GetMaxHealth() - GetHealth() );
+					
 		// repair the building
-		int iRepairCost = ceil( (float)( iAmountToHeal ) * 0.2f );
-	
-		TRACE_OBJECT( UTIL_VarArgs( "%0.2f CObjectDispenser::Command_Repair ( %d / %d ) - cost = %d\n", gpGlobals->curtime, 
+		int iRepairCost;
+		int iRepairRateCost;
+		float flModRepairCost = 1.0f;
+		if ( tf2v_use_new_wrench_mechanics.GetBool() )
+		{
+			// 3HP per metal (new repair cost)
+			iRepairRateCost = 3;
+		}
+		else
+		{
+			// 5HP per metal (old repair cost)
+			iRepairRateCost = 5;
+		}
+		CALL_ATTRIB_HOOK_FLOAT_ON_OTHER( pActivator, flModRepairCost, building_cost_reduction );
+		iRepairRateCost *= ( 1 / flModRepairCost );
+		iRepairCost = ceil( (float)( iAmountToHeal ) * (1 / iRepairRateCost ) );	
+
+		TRACE_OBJECT( UTIL_VarArgs( "%0.2f CObjectDispenser::Command_Repair ( %d / %d ) - cost = %d\n", gpGlobals->curtime,
 			GetHealth(),
 			GetMaxHealth(),
 			iRepairCost ) );
@@ -677,9 +707,9 @@ bool CObjectSentrygun::Command_Repair( CTFPlayer *pActivator )
 
 			pActivator->RemoveBuildResources( iRepairCost );
 
-			float flNewHealth = min( GetMaxHealth(), m_flHealth + ( iRepairCost * 5 ) );
+			float flNewHealth = Min( (float)GetMaxHealth(), m_flHealth + ( iRepairCost * (iRepairRateCost) ) );
 			SetHealth( flNewHealth );
-	
+
 			return ( iRepairCost > 0 );
 		}
 	}
@@ -697,11 +727,11 @@ bool CObjectSentrygun::CheckUpgradeOnHit( CTFPlayer *pPlayer )
 	int iAmountToAdd;
 	if ( m_iState != SENTRY_STATE_WRANGLED && m_iState != SENTRY_STATE_WRANGLED_RECOVERY )
 	{
-		iAmountToAdd = min( tf_obj_upgrade_per_hit.GetInt(), iPlayerMetal );
+		iAmountToAdd = Min( tf_obj_upgrade_per_hit.GetInt(), iPlayerMetal );
 	}
 	else
 	{
-		iAmountToAdd = min( ( tf_obj_upgrade_per_hit.GetInt() * .33 ), iPlayerMetal );
+		iAmountToAdd = Min( (int)( tf_obj_upgrade_per_hit.GetInt() * .33f ), iPlayerMetal );
 	}
 
 	if ( iAmountToAdd > ( m_iUpgradeMetalRequired - m_iUpgradeMetal ) )
@@ -722,7 +752,7 @@ bool CObjectSentrygun::CheckUpgradeOnHit( CTFPlayer *pPlayer )
 	{
 		StartUpgrading();
 
-		IGameEvent * event = gameeventmanager->CreateEvent( "player_upgradedobject" );
+		IGameEvent *event = gameeventmanager->CreateEvent( "player_upgradedobject" );
 		if ( event )
 		{
 			event->SetInt( "userid", pPlayer->GetUserID() );
@@ -746,31 +776,31 @@ int CObjectSentrygun::GetBaseHealth( void )
 //-----------------------------------------------------------------------------
 // Debug infos
 //-----------------------------------------------------------------------------
-int CObjectSentrygun::DrawDebugTextOverlays( void ) 
+int CObjectSentrygun::DrawDebugTextOverlays( void )
 {
 	int text_offset = BaseClass::DrawDebugTextOverlays();
 
-	if ( m_debugOverlays & OVERLAY_TEXT_BIT ) 
+	if ( m_debugOverlays & OVERLAY_TEXT_BIT )
 	{
 		char tempstr[512];
 
 		Q_snprintf( tempstr, sizeof( tempstr ), "Level: %d", m_iUpgradeLevel );
-		EntityText( text_offset,tempstr,0 );
+		EntityText( text_offset, tempstr, 0 );
 		text_offset++;
 
 		Q_snprintf( tempstr, sizeof( tempstr ), "Shells: %d / %d", m_iAmmoShells, m_iMaxAmmoShells );
-		EntityText( text_offset,tempstr,0 );
+		EntityText( text_offset, tempstr, 0 );
 		text_offset++;
 
 		if ( m_iUpgradeLevel == 3 )
 		{
 			Q_snprintf( tempstr, sizeof( tempstr ), "Rockets: %d / %d", m_iAmmoRockets, m_iMaxAmmoRockets );
-			EntityText( text_offset,tempstr,0 );
+			EntityText( text_offset, tempstr, 0 );
 			text_offset++;
 		}
 
 		Q_snprintf( tempstr, sizeof( tempstr ), "Upgrade metal %d", m_iUpgradeMetal );
-		EntityText( text_offset,tempstr,0 );
+		EntityText( text_offset, tempstr, 0 );
 		text_offset++;
 
 		Vector vecSrc = EyePosition();
@@ -798,11 +828,11 @@ int CObjectSentrygun::Range( CBaseEntity *pTarget )
 
 	int iDist = ( vecTargetOrg - vecOrg ).Length();
 
-	if (iDist < 132)
+	if ( iDist < 132 )
 		return RANGE_MELEE;
-	if (iDist < 550)
+	if ( iDist < 550 )
 		return RANGE_NEAR;
-	if (iDist < 1100)
+	if ( iDist < 1100 )
 		return RANGE_MID;
 	return RANGE_FAR;
 }
@@ -854,55 +884,84 @@ bool CObjectSentrygun::FindTarget()
 	// If we have an enemy get his minimum distance to check against.
 	Vector vecSegment;
 	Vector vecTargetCenter;
-	float flMinDist2 = 1100.0f * 1100.0f;
+	float flMinDist = Square( SENTRYGUN_BASE_RANGE );
 	CBaseEntity *pTargetCurrent = NULL;
 	CBaseEntity *pTargetOld = m_hEnemy.Get();
-	float flOldTargetDist2 = FLT_MAX;
+	float flOldTargetDist = FLT_MAX;
+	CUtlVector<INextBot *> bots;
+	TheNextBots().CollectAllBots( &bots );
 
 	// Sentries will try to target players first, then objects.  However, if the enemy held was an object it will continue
 	// to try and attack it first.
 
-	for (int i = 0; i < pTeamList.Size(); i++)
+	for ( int i = 0; i < pTeamList.Size(); i++ )
 	{
 		int nTeamCount = pTeamList[i]->GetNumPlayers();
-		for (int iPlayer = 0; iPlayer < nTeamCount; ++iPlayer)
+		for ( int iPlayer = 0; iPlayer < nTeamCount; ++iPlayer )
 		{
-			CTFPlayer *pTargetPlayer = static_cast<CTFPlayer*>(pTeamList[i]->GetPlayer(iPlayer));
-			if (pTargetPlayer == NULL)
+			CTFPlayer *pTargetPlayer = static_cast<CTFPlayer *>( pTeamList[i]->GetPlayer( iPlayer ) );
+			if ( pTargetPlayer == NULL )
 				continue;
 
 			// Make sure the player is alive.
-			if (!pTargetPlayer->IsAlive())
+			if ( !pTargetPlayer->IsAlive() )
 				continue;
 
-			if (pTargetPlayer->GetFlags() & FL_NOTARGET)
+			if ( pTargetPlayer->GetFlags() & FL_NOTARGET )
 				continue;
 
 			vecTargetCenter = pTargetPlayer->GetAbsOrigin();
 			vecTargetCenter += pTargetPlayer->GetViewOffset();
-			VectorSubtract(vecTargetCenter, vecSentryOrigin, vecSegment);
+			VectorSubtract( vecTargetCenter, vecSentryOrigin, vecSegment );
 			float flDist2 = vecSegment.LengthSqr();
 
 			// Store the current target distance if we come across it
-			if (pTargetPlayer == pTargetOld)
+			if ( pTargetPlayer == pTargetOld )
 			{
-				flOldTargetDist2 = flDist2;
+				flOldTargetDist = flDist2;
 			}
 
 			// Check to see if the target is closer than the already validated target.
-			if (flDist2 > flMinDist2)
+			if ( flDist2 > flMinDist )
 				continue;
 
 			// It is closer, check to see if the target is valid.
-			if (ValidTargetPlayer(pTargetPlayer, vecSentryOrigin, vecTargetCenter))
+			if ( ValidTargetPlayer( pTargetPlayer, vecSentryOrigin, vecTargetCenter ) )
 			{
-				flMinDist2 = flDist2;
+				flMinDist = flDist2;
 				pTargetCurrent = pTargetPlayer;
 			}
 		}
 
+		for ( int iBot=0; iBot<bots.Count(); ++iBot )
+		{
+			CBaseCombatCharacter *pTargetActor = bots[iBot]->GetEntity();
+			if ( pTargetActor == NULL )
+				continue;
+
+			VectorSubtract( pTargetActor->WorldSpaceCenter(), vecSentryOrigin, vecSegment );
+			float flDist2 = vecSegment.LengthSqr();
+
+			// Store the current target distance if we come across it
+			if ( pTargetActor == pTargetOld )
+			{
+				flOldTargetDist = flDist2;
+			}
+
+			// Check to see if the target is closer than the already validated target.
+			if ( flDist2 > flMinDist )
+				continue;
+
+			// It is closer, check to see if the target is valid.
+			if ( ValidTargetBot( pTargetActor ) )
+			{
+				flMinDist = flDist2;
+				pTargetCurrent = pTargetActor;
+			}
+		}
+
 		// If we already have a target, don't check objects.
-		if (pTargetCurrent == NULL)
+		if ( pTargetCurrent == NULL )
 		{
 			int nTeamObjectCount = pTeamList[i]->GetNumObjects();
 			for ( int iObject = 0; iObject < nTeamObjectCount; ++iObject )
@@ -919,32 +978,32 @@ bool CObjectSentrygun::FindTarget()
 				// Store the current target distance if we come across it
 				if ( pTargetObject == pTargetOld )
 				{
-					flOldTargetDist2 = flDist2;
+					flOldTargetDist = flDist2;
 				}
 
 				// Check to see if the target is closer than the already validated target.
-				if ( flDist2 > flMinDist2 )
+				if ( flDist2 > flMinDist )
 					continue;
 
 				// It is closer, check to see if the target is valid.
 				if ( ValidTargetObject( pTargetObject, vecSentryOrigin, vecTargetCenter ) )
 				{
-					flMinDist2 = flDist2;
+					flMinDist = flDist2;
 					pTargetCurrent = pTargetObject;
 				}
 			}
 		}
 		// We have a target.
-		if (pTargetCurrent)
+		if ( pTargetCurrent )
 		{
-			if (pTargetCurrent != pTargetOld)
+			if ( pTargetCurrent != pTargetOld )
 			{
-				// flMinDist2 is the new target's distance
-				// flOldTargetDist2 is the old target's distance
+				// flMinDist is the new target's distance
+				// flOldTargetDist is the old target's distance
 				// Don't switch unless the new target is closer by some percentage
-				if (flMinDist2 < (flOldTargetDist2 * 0.75f))
+				if ( flMinDist < ( flOldTargetDist * 0.75f ) )
 				{
-					FoundTarget(pTargetCurrent, vecSentryOrigin);
+					FoundTarget( pTargetCurrent, vecSentryOrigin );
 				}
 			}
 			return true;
@@ -967,12 +1026,17 @@ bool CObjectSentrygun::ValidTargetPlayer( CTFPlayer *pPlayer, const Vector &vecS
 	if ( pPlayer->m_Shared.InCond( TF_COND_DISGUISED ) && pPlayer->m_Shared.GetDisguiseTeam() == GetTeamNumber() && pPlayer != m_hEnemy )
 		return false;
 
+	// Don't target them while they are changing disguise to their victim
+	CTFWeaponBase *pWeapon = pPlayer->GetActiveTFWeapon();
+	if ( pWeapon && pWeapon->IsSilentKiller() && pPlayer->m_Shared.InCond( TF_COND_DISGUISING ) )
+		return false;
+
 	// Not across water boundary.
 	if ( ( GetWaterLevel() == 0 && pPlayer->GetWaterLevel() >= 3 ) || ( GetWaterLevel() == 3 && pPlayer->GetWaterLevel() <= 0 ) )
 		return false;
 
 	// Ray trace!!!
-	return FVisible( pPlayer, MASK_SHOT | CONTENTS_GRATE );
+	return FVisible( pPlayer, MASK_SHOT|CONTENTS_GRATE );
 }
 
 //-----------------------------------------------------------------------------
@@ -996,7 +1060,41 @@ bool CObjectSentrygun::ValidTargetObject( CBaseObject *pObject, const Vector &ve
 		return false;
 
 	// Ray trace.
-	return FVisible( pObject, MASK_SHOT | CONTENTS_GRATE );
+	return FVisible( pObject, MASK_SHOT|CONTENTS_GRATE );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose:
+//-----------------------------------------------------------------------------
+bool CObjectSentrygun::ValidTargetBot( CBaseCombatCharacter *pActor )
+{
+	// Players should already be checked, ignore
+	if ( pActor->IsPlayer() )
+		return false;
+
+	// Ignore the dead
+	if ( !pActor->IsAlive() )
+		return false;
+
+	// Make sure it's an enemy
+	if ( InSameTeam( pActor ) )
+		return false;
+
+	// Make sure we can even hit it
+	if ( !pActor->IsSolid() )
+		return false;
+
+	// Ray trace with respect to parents
+	CBaseEntity *pBlocker = nullptr;
+	if ( !FVisible( pActor, MASK_SHOT|CONTENTS_GRATE, &pBlocker ) )
+	{
+		if ( pActor->GetMoveParent() == pBlocker )
+			return true;
+
+		return false;
+	}
+
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -1019,6 +1117,13 @@ void CObjectSentrygun::FoundTarget( CBaseEntity *pTarget, const Vector &vecSound
 			CSingleUserRecipientFilter singleFilter( pPlayer );
 			EmitSentrySound( singleFilter, entindex(), "Building_Sentrygun.AlertTarget" );
 			filter.RemoveRecipient( pPlayer );
+
+			CTFBot *pBot = ToTFBot( pTarget );
+			if ( pBot )
+			{
+				pBot->m_hTargetSentry = this;
+				pBot->m_vecLastHurtBySentry = GetAbsOrigin();
+			}
 		}
 
 		EmitSentrySound( filter, entindex(), "Building_Sentrygun.Alert" );
@@ -1038,7 +1143,7 @@ void CObjectSentrygun::FoundTarget( CBaseEntity *pTarget, const Vector &vecSound
 // the caller's forward view cone. The dot product is performed
 // in 2d, making the view cone infinitely tall. 
 //-----------------------------------------------------------------------------
-bool CObjectSentrygun::FInViewCone ( CBaseEntity *pEntity )
+bool CObjectSentrygun::FInViewCone( CBaseEntity *pEntity )
 {
 	Vector forward;
 	AngleVectors( m_vecCurAngles, &forward );
@@ -1063,7 +1168,7 @@ bool CObjectSentrygun::FInViewCone ( CBaseEntity *pEntity )
 //-----------------------------------------------------------------------------
 void CObjectSentrygun::Attack()
 {
-	StudioFrameAdvance( );
+	StudioFrameAdvance();
 
 	if ( !FindTarget() )
 	{
@@ -1082,16 +1187,16 @@ void CObjectSentrygun::Attack()
 	VectorAngles( vecDirToEnemy, angToTarget );
 
 	angToTarget.y = UTIL_AngleMod( angToTarget.y );
-	if (angToTarget.x < -180)
+	if ( angToTarget.x < -180 )
 		angToTarget.x += 360;
-	if (angToTarget.x > 180)
+	if ( angToTarget.x > 180 )
 		angToTarget.x -= 360;
 
 	// now all numbers should be in [1...360]
 	// pin to turret limitations to [-50...50]
-	if (angToTarget.x > 50)
+	if ( angToTarget.x > 50 )
 		angToTarget.x = 50;
-	else if (angToTarget.x < -50)
+	else if ( angToTarget.x < -50 )
 		angToTarget.x = -50;
 	m_vecGoalAngles.y = angToTarget.y;
 	m_vecGoalAngles.x = angToTarget.x;
@@ -1099,7 +1204,7 @@ void CObjectSentrygun::Attack()
 	MoveTurret();
 
 	// Fire on the target if it's within 10 units of being aimed right at it
-	if ( m_flNextAttack <= gpGlobals->curtime && (m_vecGoalAngles - m_vecCurAngles).Length() <= 10 )
+	if ( m_flNextAttack <= gpGlobals->curtime && ( m_vecGoalAngles - m_vecCurAngles ).Length() <= 10 )
 	{
 		Fire();
 		FireRockets();
@@ -1135,7 +1240,7 @@ bool CObjectSentrygun::Fire()
 	Vector vecAimDir;
 
 	// All turrets fire shells
-	if ( m_iAmmoShells > 0)
+	if ( m_iAmmoShells > 0 )
 	{
 		if ( !IsPlayingGesture( ACT_RANGE_ATTACK1 ) )
 		{
@@ -1148,7 +1253,7 @@ bool CObjectSentrygun::Fire()
 
 		int iAttachment;
 
-		if ( m_iUpgradeLevel > 1 && (m_iAmmoShells & 1) )
+		if ( m_iUpgradeLevel > 1 && ( m_iAmmoShells & 1 ) )
 		{
 			// level 2 and 3 turrets alternate muzzles each time they fizzy fizzy fire.
 			iAttachment = m_iAttachments[SENTRYGUN_ATTACHMENT_MUZZLE_ALT];
@@ -1168,19 +1273,19 @@ bool CObjectSentrygun::Fire()
 			// If we cannot see their WorldSpaceCenter ( possible, as we do our target finding based
 			// on the eye position of the target ) then fire at the eye position
 			trace_t tr;
-			UTIL_TraceLine( vecSrc, vecMidEnemy, MASK_SOLID, this, COLLISION_GROUP_NONE, &tr);
+			UTIL_TraceLine( vecSrc, vecMidEnemy, MASK_SOLID, this, COLLISION_GROUP_NONE, &tr );
 
 			if ( !tr.m_pEnt || tr.m_pEnt->IsWorld() )
 			{
 				// Hack it lower a little bit..
 				// The eye position is not always within the hitboxes for a standing TF Player
-				vecMidEnemy = m_hEnemy->EyePosition() + Vector(0,0,-5);
+				vecMidEnemy = m_hEnemy->EyePosition() + Vector( 0, 0, -5 );
 			}
 
 			vecAimDir = vecMidEnemy - vecSrc;
 		}
 		else
-		{	
+		{
 			// Add a bit of randomness to shots not locked onto targets
 			vecAimDir = m_vecEnd.Get() - vecSrc;
 		}
@@ -1200,13 +1305,13 @@ bool CObjectSentrygun::Fire()
 			info.m_vecSpread = VECTOR_CONE_3DEGREES;
 
 			// Use modified damage value to compensate for damage ramp-up/falloff
-			info.m_flDamage /= 1.5f ;
+			info.m_flDamage /= 1.5f;
 		}
 
 		float flDistToTarget = vecAimDir.Length();
 
 		vecAimDir.NormalizeInPlace();
-		
+
 		//NDebugOverlay::Cross3D( vecSrc, 10, 255, 0, 0, false, 0.1 );
 
 		info.m_vecSrc = vecSrc;
@@ -1239,7 +1344,7 @@ bool CObjectSentrygun::Fire()
 		else if ( m_iState == SENTRY_STATE_WRANGLED )
 		{
 			// Wrangler firing sounds
-			switch( m_iUpgradeLevel )
+			switch ( m_iUpgradeLevel )
 			{
 				case 1:
 				default:
@@ -1256,7 +1361,7 @@ bool CObjectSentrygun::Fire()
 		else
 		{
 			// Standard sentry firing sound
-			switch( m_iUpgradeLevel )
+			switch ( m_iUpgradeLevel )
 			{
 				case 1:
 				default:
@@ -1272,6 +1377,8 @@ bool CObjectSentrygun::Fire()
 		}
 
 		EmitSentrySound( filter, entindex(), pszSound );
+
+		m_fireTimer.Reset();
 
 		if ( !tf_sentrygun_ammocheat.GetBool() && !HasSpawnFlags( SF_SENTRY_INFINITE_AMMO ) )
 		{
@@ -1361,10 +1468,10 @@ bool CObjectSentrygun::FireRockets()
 			m_iAmmoRockets--;
 		}
 
-		if (m_iAmmoRockets == 10)
-			ClientPrint( GetBuilder(), HUD_PRINTNOTIFY, "#Sentry_rocketslow");
-		if (m_iAmmoRockets == 0)
-			ClientPrint( GetBuilder(), HUD_PRINTNOTIFY, "#Sentry_rocketsout");
+		if ( m_iAmmoRockets == 10 )
+			ClientPrint( GetBuilder(), HUD_PRINTNOTIFY, "#Sentry_rocketslow" );
+		if ( m_iAmmoRockets == 0 )
+			ClientPrint( GetBuilder(), HUD_PRINTNOTIFY, "#Sentry_rocketsout" );
 	}
 
 	return true;
@@ -1373,10 +1480,18 @@ bool CObjectSentrygun::FireRockets()
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
+float CObjectSentrygun::GetTimeSinceLastFired( void ) const
+{
+	return m_fireTimer.GetElapsedTime();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
 void CObjectSentrygun::MakeTracer( const Vector &vecTracerSrc, const trace_t &tr, int iTracerType )
 {
 	trace_t tmptrace;
-	tmptrace.endpos = tr.endpos + RandomVector(-10,10);
+	tmptrace.endpos = tr.endpos + RandomVector( -10, 10 );
 
 	// Sentryguns are perfectly accurate, but this doesn't look good for tracers.
 	// Add a little noise to them, but not enough so that it looks like they're missing.
@@ -1386,7 +1501,7 @@ void CObjectSentrygun::MakeTracer( const Vector &vecTracerSrc, const trace_t &tr
 //-----------------------------------------------------------------------------
 // 
 //-----------------------------------------------------------------------------
-char *CObjectSentrygun::GetPlacementModel(void)
+char *CObjectSentrygun::GetPlacementModel( void )
 {
 	return SENTRY_MODEL_PLACEMENT;
 }
@@ -1404,15 +1519,15 @@ int CObjectSentrygun::GetMaxUpgradeLevel( void )
 //-----------------------------------------------------------------------------
 int	CObjectSentrygun::GetTracerAttachment( void )
 {
-		if ( m_iUpgradeLevel > 1 && ( m_iAmmoShells & 1 ) )
-		{
-			// level 2 and 3 turrets alternate muzzles each time they fizzy fizzy fire.
-			return m_iAttachments[SENTRYGUN_ATTACHMENT_MUZZLE_ALT];
-		}
-		else
-		{
-			return m_iAttachments[SENTRYGUN_ATTACHMENT_MUZZLE];
-		}
+	if ( m_iUpgradeLevel > 1 && ( m_iAmmoShells & 1 ) )
+	{
+		// level 2 and 3 turrets alternate muzzles each time they fizzy fizzy fire.
+		return m_iAttachments[SENTRYGUN_ATTACHMENT_MUZZLE_ALT];
+	}
+	else
+	{
+		return m_iAttachments[SENTRYGUN_ATTACHMENT_MUZZLE];
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -1452,18 +1567,18 @@ void CObjectSentrygun::SentryRotate( void )
 		}
 		else
 		{
-			switch( m_iUpgradeLevel )
+			switch ( m_iUpgradeLevel )
 			{
-			case 1:
-			default:
-				EmitSentrySound( filter, entindex(), "Building_Sentrygun.Idle" );
-				break;
-			case 2:
-				EmitSound( "Building_Sentrygun.Idle2" );
-				break;
-			case 3:
-				EmitSound( "Building_Sentrygun.Idle3" );
-				break;
+				case 1:
+				default:
+					EmitSentrySound( filter, entindex(), "Building_Sentrygun.Idle" );
+					break;
+				case 2:
+					EmitSound( "Building_Sentrygun.Idle2" );
+					break;
+				case 3:
+					EmitSound( "Building_Sentrygun.Idle3" );
+					break;
 			}
 
 			// Switch rotation direction
@@ -1479,9 +1594,9 @@ void CObjectSentrygun::SentryRotate( void )
 			}
 
 			// Randomly look up and down a bit
-			if (random->RandomFloat(0, 1) < 0.3)
+			if ( random->RandomFloat( 0, 1 ) < 0.3 )
 			{
-				m_vecGoalAngles.x = (int)random->RandomFloat(-10,10);
+				m_vecGoalAngles.x = (int)random->RandomFloat( -10, 10 );
 			}
 		}
 	}
@@ -1520,6 +1635,9 @@ void CObjectSentrygun::OnEndDisabled( void )
 
 	m_vecGoalAngles.x = 0;
 
+	if ( tf2v_use_new_sapper_disable.GetBool() )
+		SapperRecovery();
+	
 	BaseClass::OnEndDisabled();
 }
 
@@ -1543,19 +1661,19 @@ bool CObjectSentrygun::MoveTurret( void )
 	// any x movement?
 	if ( m_vecCurAngles.x != m_vecGoalAngles.x )
 	{
-		float flDir = m_vecGoalAngles.x > m_vecCurAngles.x ? 1 : -1 ;
+		float flDir = m_vecGoalAngles.x > m_vecCurAngles.x ? 1 : -1;
 
 		m_vecCurAngles.x += SENTRY_THINK_DELAY * ( iBaseTurnRate * 5 ) * flDir;
 
 		// if we started below the goal, and now we're past, peg to goal
 		if ( flDir == 1 )
 		{
-			if (m_vecCurAngles.x > m_vecGoalAngles.x)
+			if ( m_vecCurAngles.x > m_vecGoalAngles.x )
 				m_vecCurAngles.x = m_vecGoalAngles.x;
-		} 
+		}
 		else
 		{
-			if (m_vecCurAngles.x < m_vecGoalAngles.x)
+			if ( m_vecCurAngles.x < m_vecGoalAngles.x )
 				m_vecCurAngles.x = m_vecGoalAngles.x;
 		}
 
@@ -1566,7 +1684,7 @@ bool CObjectSentrygun::MoveTurret( void )
 
 	if ( m_vecCurAngles.y != m_vecGoalAngles.y )
 	{
-		float flDir = m_vecGoalAngles.y > m_vecCurAngles.y ? 1 : -1 ;
+		float flDir = m_vecGoalAngles.y > m_vecCurAngles.y ? 1 : -1;
 		float flDist = fabs( m_vecGoalAngles.y - m_vecCurAngles.y );
 		bool bReversed = false;
 
@@ -1593,7 +1711,7 @@ bool CObjectSentrygun::MoveTurret( void )
 					if ( m_flTurnRate < iBaseTurnRate * 10 )
 					{
 						m_flTurnRate += iBaseTurnRate;
-					}	
+					}
 				}
 			}
 			else
@@ -1601,13 +1719,13 @@ bool CObjectSentrygun::MoveTurret( void )
 				if ( IsMiniBuilding() )
 				{
 					// Slow down
-					if ( m_flTurnRate > (iBaseTurnRate * 6) )
+					if ( m_flTurnRate > ( iBaseTurnRate * 6 ) )
 						m_flTurnRate -= iBaseTurnRate;
 				}
 				else
 				{
 					// Slow down
-					if ( m_flTurnRate > (iBaseTurnRate * 5) )
+					if ( m_flTurnRate > ( iBaseTurnRate * 5 ) )
 						m_flTurnRate -= iBaseTurnRate;
 				}
 			}
@@ -1637,18 +1755,18 @@ bool CObjectSentrygun::MoveTurret( void )
 		m_vecCurAngles.y += SENTRY_THINK_DELAY * m_flTurnRate * flDir;
 
 		// if we passed over the goal, peg right to it now
-		if (flDir == -1)
+		if ( flDir == -1 )
 		{
 			if ( ( bReversed == false && m_vecGoalAngles.y > m_vecCurAngles.y ) ||
 				( bReversed == true && m_vecGoalAngles.y < m_vecCurAngles.y ) )
 			{
 				m_vecCurAngles.y = m_vecGoalAngles.y;
 			}
-		} 
+		}
 		else
 		{
 			if ( ( bReversed == false && m_vecGoalAngles.y < m_vecCurAngles.y ) ||
-                ( bReversed == true && m_vecGoalAngles.y > m_vecCurAngles.y ) )
+				( bReversed == true && m_vecGoalAngles.y > m_vecCurAngles.y ) )
 			{
 				m_vecCurAngles.y = m_vecGoalAngles.y;
 			}
@@ -1715,7 +1833,12 @@ int CObjectSentrygun::OnTakeDamage( const CTakeDamageInfo &info )
 		// Take less damage if the owner is causing additional damage.
 		if ( pSapper && ( info.GetAttacker() == pSapper->GetOwner() ) )
 		{
-			float flDamage = newInfo.GetDamage() * SENTRYGUN_SAPPER_OWNER_DAMAGE_MODIFIER;
+			float flDamage;
+			if ( tf2v_use_new_sapper_damage.GetBool() )
+				flDamage = newInfo.GetDamage() * SENTRYGUN_SAPPER_OWNER_DAMAGE_MODIFIER_GUNMETTLE;
+			else
+				flDamage = newInfo.GetDamage() * SENTRYGUN_SAPPER_OWNER_DAMAGE_MODIFIER;
+			
 			newInfo.SetDamage( flDamage );
 		}
 	}
@@ -1746,11 +1869,17 @@ void CObjectSentrygun::Killed( const CTakeDamageInfo &info )
 	CTFPlayer *pOwner = GetBuilder();
 	if ( pOwner )
 	{
-		CTFLaserPointer *pWeapon = dynamic_cast < CTFLaserPointer * > ( pOwner->Weapon_GetSlot( TF_LOADOUT_SLOT_SECONDARY ) );
+		CTFLaserPointer *pWeapon = dynamic_cast <CTFLaserPointer *>( pOwner->Weapon_GetSlot( TF_LOADOUT_SLOT_SECONDARY ) );
 		if ( pWeapon )
 		{
 			// Make sure wrangler stops updating sentry laser
 			pWeapon->RemoveGun();
+		}
+
+		CTFShotgun_Revenge *pShotgun = dynamic_cast <CTFShotgun_Revenge *>( pOwner->Weapon_GetSlot( TF_LOADOUT_SLOT_PRIMARY ) );
+		if ( pShotgun )
+		{
+			pShotgun->OnSentryKilled( this );
 		}
 	}
 
@@ -1807,28 +1936,28 @@ void CObjectSentrygun::SetModel( const char *pModel )
 Vector CObjectSentrygun::GetEnemyAimPosition( CBaseEntity *pEnemy ) const
 {
 	EHANDLE m_hEnemy = pEnemy;
-	
+
 	CTFPlayer *pTFPlayer = ToTFPlayer( pEnemy );
 	if ( pTFPlayer )
 	{
-		bool bOnGround = ((pTFPlayer->GetFlags() & FL_ONGROUND) != 0);
-		bool bDucking  = ((pTFPlayer->GetFlags() & FL_DUCKING)  != 0);
-		
+		bool bOnGround = ( ( pTFPlayer->GetFlags() & FL_ONGROUND ) != 0 );
+		bool bDucking  = ( ( pTFPlayer->GetFlags() & FL_DUCKING )  != 0 );
+
 		if ( ( !bOnGround && bDucking ) || pTFPlayer->m_Shared.InCond( TF_COND_TAUNTING ) )
 		{
 			int iBoneBipSpine2 = pTFPlayer->LookupBone( "bip_spine_2" );
-			if (iBoneBipSpine2 != -1)
+			if ( iBoneBipSpine2 != -1 )
 			{
 				Vector vecBone; QAngle angBone;
-				pTFPlayer->GetBonePosition(iBoneBipSpine2, vecBone, angBone);
-				
+				pTFPlayer->GetBonePosition( iBoneBipSpine2, vecBone, angBone );
+
 				// special case: for players who are airborne-and-ducking, or taunting,
 				// shoot at their bip_spine_2 bone position instead of their hull center
 				return vecBone;
 			}
 		}
 	}
-	
+
 	// by default, shoot at enemy's hull center
 	return pEnemy->WorldSpaceCenter();
 }
@@ -1855,16 +1984,16 @@ void CObjectSentrygun::UpdateSentryAngles( Vector vecDir )
 	VectorAngles( vecDir, angToTarget );
 
 	angToTarget.y = UTIL_AngleMod( angToTarget.y );
-	if (angToTarget.x < -180)
+	if ( angToTarget.x < -180 )
 		angToTarget.x += 360;
-	if (angToTarget.x > 180)
+	if ( angToTarget.x > 180 )
 		angToTarget.x -= 360;
 
 	// now all numbers should be in [1...360]
 	// pin to turret limitations to [-50...50]
-	if (angToTarget.x > 50)
+	if ( angToTarget.x > 50 )
 		angToTarget.x = 50;
-	else if (angToTarget.x < -50)
+	else if ( angToTarget.x < -50 )
 		angToTarget.x = -50;
 	m_vecCurAngles.y = angToTarget.y;
 	m_vecCurAngles.x = angToTarget.x;
@@ -1877,7 +2006,7 @@ void CObjectSentrygun::UpdateSentryAngles( Vector vecDir )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CObjectSentrygun::EmitSentrySound( IRecipientFilter &filter, int index, char const* pszSound  )
+void CObjectSentrygun::EmitSentrySound( IRecipientFilter &filter, int index, char const *pszSound )
 {
 	EmitSound_t params;
 	params.m_pSoundName = pszSound;
@@ -1904,7 +2033,7 @@ END_NETWORK_TABLE()
 //-----------------------------------------------------------------------------
 CTFProjectile_SentryRocket *CTFProjectile_SentryRocket::Create( const Vector &vecOrigin, const QAngle &vecAngles, CBaseEntity *pOwner, CBaseEntity *pScorer )
 {
-	CTFProjectile_SentryRocket *pRocket = static_cast<CTFProjectile_SentryRocket*>( CTFBaseRocket::Create( NULL, "tf_projectile_sentryrocket", vecOrigin, vecAngles, pOwner ) );
+	CTFProjectile_SentryRocket *pRocket = static_cast<CTFProjectile_SentryRocket *>( CTFBaseRocket::Create( NULL, "tf_projectile_sentryrocket", vecOrigin, vecAngles, pOwner ) );
 
 	if ( pRocket )
 	{
@@ -1928,5 +2057,5 @@ void CTFProjectile_SentryRocket::Spawn()
 
 	SetModel( SENTRY_ROCKET_MODEL );
 
-	ResetSequence( LookupSequence("idle") );
+	ResetSequence( LookupSequence( "idle" ) );
 }

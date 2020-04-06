@@ -45,6 +45,10 @@ BEGIN_DATADESC( CTFRocketLauncher )
 END_DATADESC()
 #endif
 
+
+CREATE_SIMPLE_WEAPON_TABLE( TFRocketLauncher_Legacy, tf_weapon_rocketlauncher_legacy )
+CREATE_SIMPLE_WEAPON_TABLE( TFRocketLauncher_Airstrike, tf_weapon_rocketlauncher_airstrike )
+
 //-----------------------------------------------------------------------------
 // Purpose: 
 // Input  :  - 
@@ -199,3 +203,76 @@ void CTFRocketLauncher::DrawCrosshair( void )
 */
 
 #endif
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+bool CTFRocketLauncher_Airstrike::Deploy( void )
+{
+	if ( CTFRocketLauncher::Deploy() )
+	{
+#ifdef GAME_DLL
+		SetupGameEventListeners();
+#endif
+		return true;
+	}
+
+	return false;
+}
+
+
+
+//-----------------------------------------------------------------------------
+// Purpose:
+//-----------------------------------------------------------------------------
+bool CTFRocketLauncher_Airstrike::Holster( CBaseCombatWeapon *pSwitchingTo )
+{
+	if (CTFRocketLauncher::Holster( pSwitchingTo ))
+	{
+#ifdef GAME_DLL
+		StopListeningForAllEvents();
+#endif
+		return true;
+	}
+
+	return false;
+}
+
+#ifdef GAME_DLL
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CTFRocketLauncher_Airstrike::SetupGameEventListeners( void )
+{
+	ListenForGameEvent( "player_death" );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CTFRocketLauncher_Airstrike::FireGameEvent( IGameEvent *event )
+{
+	if (FStrEq( event->GetName(), "player_death" ))
+	{
+		CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
+		if ( pOwner && engine->GetPlayerUserId( pOwner->edict() ) == event->GetInt( "attacker" ) && 
+			 ( event->GetInt( "weaponid" ) == TF_WEAPON_ROCKETLAUNCHER_AIRSTRIKE ) )
+		{
+			OnKill();
+		}
+	}
+}
+#endif
+
+//-----------------------------------------------------------------------------
+// Purpose:
+//-----------------------------------------------------------------------------
+void CTFRocketLauncher_Airstrike::OnKill( void )
+{
+	CTFPlayer *pOwner = ToTFPlayer( GetOwner() );
+	if ( pOwner == nullptr )
+		return;
+
+	pOwner->m_Shared.IncrementStrikeCount();
+	
+}

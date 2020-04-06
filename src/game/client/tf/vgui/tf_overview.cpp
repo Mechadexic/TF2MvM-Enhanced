@@ -109,10 +109,6 @@ CTFMapOverview::CTFMapOverview( const char *pElementName ) : CMapOverview(pEleme
 	m_bDisabled = false;
 	m_nMapTextureOverlayID = -1;
 	usermessages->HookMessage( "UpdateRadar", __MsgFunc_UpdateRadar );
-
-	// Moving this here for now
-	usermessages->HookMessage( "BreakModel", __MsgFunc_BreakModel );
-	usermessages->HookMessage( "CheapBreakModel", __MsgFunc_CheapBreakModel );
 }
 
 //-----------------------------------------------------------------------------
@@ -819,10 +815,10 @@ void CTFMapOverview::DrawMapOverlayTexture()
 
 	Vertex_t points[4] =
 	{
-		Vertex_t( MapToPanel ( Vector2D(0,0) ), Vector2D(0,0) ),
-			Vertex_t( MapToPanel ( Vector2D(OVERVIEW_MAP_SIZE-1,0) ), Vector2D(1,0) ),
-			Vertex_t( MapToPanel ( Vector2D(OVERVIEW_MAP_SIZE-1,OVERVIEW_MAP_SIZE-1) ), Vector2D(1,1) ),
-			Vertex_t( MapToPanel ( Vector2D(0,OVERVIEW_MAP_SIZE-1) ), Vector2D(0,1) )
+		Vertex_t( MapToPanel ( Vector2D(0, 0) ), Vector2D(0, 0) ),
+		Vertex_t( MapToPanel ( Vector2D(OVERVIEW_MAP_SIZE-1, 0) ), Vector2D(1, 0) ),
+		Vertex_t( MapToPanel ( Vector2D(OVERVIEW_MAP_SIZE-1, OVERVIEW_MAP_SIZE-1) ), Vector2D(1, 1) ),
+		Vertex_t( MapToPanel ( Vector2D(0, OVERVIEW_MAP_SIZE-1) ), Vector2D(0, 1) )
 	};
 
 	int alpha = 255.0f * overview_alpha.GetFloat(); clamp( alpha, 1, 255 );

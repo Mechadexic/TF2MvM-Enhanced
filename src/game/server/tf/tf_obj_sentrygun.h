@@ -71,12 +71,17 @@ public:
 
 	virtual void	MakeCarriedObject( CTFPlayer *pPlayer );
 
+	const QAngle&	GetTurretAngles( void ) const { return m_vecCurAngles; }
+
+	float			GetTimeSinceLastFired( void ) const;
+
 	void			SetState( int iState ) { m_iState.Set( iState ); }
 	int 			GetState( void ) { return m_iState.Get(); }
 	bool			Fire( void );
 	bool			FireRockets( void );
 
 	void			OnStopWrangling( void );
+	void			SapperRecovery( void );
 
 	// Wrangler
 	void			SetShouldFire( bool bFire ) { m_bShouldFire = bFire; }
@@ -111,6 +116,7 @@ private:
 	bool FindTarget( void );
 	bool ValidTargetPlayer( CTFPlayer *pPlayer, const Vector &vecStart, const Vector &vecEnd );
 	bool ValidTargetObject( CBaseObject *pObject, const Vector &vecStart, const Vector &vecEnd );
+	bool ValidTargetBot( CBaseCombatCharacter *pActor );
 	void FoundTarget( CBaseEntity *pTarget, const Vector &vecSoundCenter );
 	bool FInViewCone ( CBaseEntity *pEntity );
 	int Range( CBaseEntity *pTarget );
@@ -171,6 +177,8 @@ private:
 	float m_flHeavyBulletResist;
 
 	int m_iPlacementBodygroup;
+
+	IntervalTimer m_fireTimer;
 
 	DECLARE_DATADESC();
 };
